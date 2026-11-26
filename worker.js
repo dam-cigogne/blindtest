@@ -342,6 +342,55 @@ export class Soiree extends DurableObject {
       return json({ ok: true });
     }
 
+    // ---- parties enregistrées
+    if (path === "/saves" && method === "GET") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      const idx = (await this.ctx.storage.get("savesIndex")) || [];
+      return json({ saves: idx, current: this.setup.loadedFrom || null });
+    }
+    if (path === "/saves" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      const idx = (await this.ctx.storage.get("savesIndex")) || [];
+      const name = clip(body.name, 60).trim() || this.setup.name || "Partie";
+      let id = body.id && idx.find((x) => x.id === body.id) ? body.id : null;
+      if (!id) {
+        if (idx.length >= 30) return json({ error: "30 parties maximum : supprimez-en une" }, 409);
+        id = "p" + Date.now().toString(36);
+      }
+      const { codes, ...rest } = this.setup;
+      const snap = JSON.parse(JSON.stringify(rest));
+      delete snap.loadedFrom;
+      await this.ctx.storage.put("save:" + id, snap);
+      const info = { id, name, savedAt: Date.now(), teams: this.setup.teams.length, manches: this.setup.manches.length, songs: this.setup.manches.reduce((a, m) => a + m.songs.length, 0) };
+      const i = idx.findIndex((x) => x.id === id);
+      if (i >= 0) idx[i] = info; else idx.unshift(info);
+      await this.ctx.storage.put("savesIndex", idx);
+      this.setup.loadedFrom = { id, name };
+      await this.save("setup");
+      return json({ ok: true, id });
+    }
+    if (path === "/saves/load" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      if (this.game.status === "running") return json({ error: "une partie est en cours : remettez-la à zéro d'abord" }, 409);
+      const idx = (await this.ctx.storage.get("savesIndex")) || [];
+      const info = idx.find((x) => x.id === body.id);
+      const snap = info && (await this.ctx.storage.get("save:" + body.id));
+      if (!snap) return json({ error: "partie introuvable" }, 404);
+      this.setup = Object.assign(defaultSetup(), snap, { codes: this.setup.codes, baseUrl: this.setup.baseUrl, loadedFrom: { id: info.id, name: info.name } });
+      this.game = defaultGame();
+      this.answers = {}; this.results = {}; this.adjust = {};
+      await this.save("setup", "game", "answers", "results", "adjust");
+      return json({ ok: true });
+    }
+    if (path === "/saves/delete" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      const idx = ((await this.ctx.storage.get("savesIndex")) || []).filter((x) => x.id !== body.id);
+      await this.ctx.storage.put("savesIndex", idx);
+      await this.ctx.storage.delete("save:" + body.id);
+      if (this.setup.loadedFrom && this.setup.loadedFrom.id === body.id) { delete this.setup.loadedFrom; await this.save("setup"); }
+      return json({ ok: true });
+    }
+
     if (path === "/testfill" && method === "POST") {
       if (who !== "anim") return json({ error: "non autorisé" }, 401);
       const g = this.game;

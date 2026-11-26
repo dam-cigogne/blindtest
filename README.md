@@ -19,6 +19,12 @@ Chaque modification poussée sur GitHub est redéployée automatiquement.
 4. **Distribuer** : imprimez les feuilles d'équipe (1 page par équipe avec son QR code), la liste pour l'annonce et la fiche DJ (QR + playlist).
 5. **Répétition** : Jeu → Démarrer → « Réponses d'essai » → clore, publier… puis Réglages → **Remettre la partie à zéro**.
 
+## Installer l'appli et garder ses parties
+
+- **Installer** (facultatif) : iPhone → Safari → Partager → « Sur l'écran d'accueil » ; Android → Chrome → menu ⋮ → « Installer l'application ». Sans installation, le lien internet fonctionne pareil.
+- **Mes parties enregistrées** (Réglages) : préparez équipes et manches, puis « Enregistrer comme nouvelle partie ». La partie reste figée sur le serveur. Vous pouvez en garder jusqu'à 30 et charger celle du soir (impossible pendant une partie en cours).
+- **Quitter** : bouton 🚪 sur chaque écran. Lien de secours : `/?reset` pour revenir à l'accueil sur un téléphone.
+
 ## Pendant la soirée
 
 - Le DJ lance l'extrait et appuie sur son bouton vert : le chrono démarre sur tous les écrans.

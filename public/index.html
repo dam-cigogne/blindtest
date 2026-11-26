@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a1033">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Blind test">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>Blind test</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E">
 <style>
@@ -1028,7 +1033,12 @@ function tabDistrib(v) {
 /* ---- Onglet Réglages ---- */
 function tabReglages(v) {
   const st = S.draft;
-  v.innerHTML = '<div class="card keep"><h3>La soirée</h3><label class="f">Nom de la soirée</label><input id="rName" maxlength="60" value="' + esc(st.name) + '">' +
+  v.innerHTML = '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
+    (st.loadedFrom ? '<p>Partie actuelle : <b>' + esc(st.loadedFrom.name) + '</b></p>' : '') +
+    '<div class="row"><input id="svName" class="grow" style="flex:1" maxlength="60" placeholder="Nom de la partie (ex. Soirée amicale 2026)" value="' + esc(st.loadedFrom ? st.loadedFrom.name : st.name) + '"></div>' +
+    '<div class="row">' + (st.loadedFrom ? '<button class="btn ok" id="svUpd">💾 Mettre à jour « ' + esc(st.loadedFrom.name) + ' »</button>' : '') + '<button class="btn ' + (st.loadedFrom ? 'ghost' : 'ok') + '" id="svNew">➕ Enregistrer comme nouvelle partie</button></div>' +
+    '<div id="svList" class="muted small">Chargement…</div></div>' +
+    '<div class="card keep"><h3>La soirée</h3><label class="f">Nom de la soirée</label><input id="rName" maxlength="60" value="' + esc(st.name) + '">' +
     '<label class="f">Adresse de l\'appli (pour les QR codes)</label><input id="rBase" placeholder="' + esc(location.origin) + '" value="' + esc(st.baseUrl || "") + '"><p class="muted small">Laissez vide pour utiliser l\'adresse actuelle.</p></div>' +
     '<div class="card keep"><h3>Codes d\'accès</h3><div class="row"><span class="grow">Code animateur : <b>' + esc(st.codes.anim) + '</b></span><button class="btn ghost sm" id="rCA">Changer</button></div>' +
     '<div class="row"><span class="grow">Code DJ : <b>' + (st.codes.dj ? esc(st.codes.dj) : '<span style="color:var(--ko)">non défini</span>') + '</b></span><button class="btn ghost sm" id="rCD">' + (st.codes.dj ? "Changer" : "Définir") + "</button></div></div>" +
@@ -1080,9 +1090,39 @@ function tabReglages(v) {
   };
   $("#rReset").onclick = async () => { if (await confirmBox("Remettre la partie à zéro ? Les réponses et les scores seront effacés. Les équipes et les manches sont conservées.", "Remettre à zéro", true)) { try { await api("/reset", { method: "POST", body: { mode: "game" } }); toast("Partie remise à zéro"); S.lastSig = ""; pollNow(); } catch (e) { toast(e.message); } } };
   $("#rNew").onclick = async () => { if (await confirmBox("Nouvelle soirée ? Les équipes, réponses et scores seront effacés. Les manches et les codes sont conservés.", "Nouvelle soirée", true)) { try { await api("/reset", { method: "POST", body: { mode: "soiree" } }); S.draft.teams = []; S.people = null; LS.del("bt_people"); toast("Nouvelle soirée prête"); pollNow(); tabReglages(v); } catch (e) { toast(e.message); } } };
+  loadSaves(v);
+  const doSave = async (id) => {
+    const name = $("#svName").value.trim();
+    if (!name) return toast("Donnez un nom à la partie");
+    clearTimeout(sdT);
+    try { await api("/setup", { method: "POST", body: { setup: S.draft, partial: isLocked() } }); await api("/saves", { method: "POST", body: { name, id } }); toast("💾 Partie « " + name + " » enregistrée"); S.draft = null; pollNow(); setTimeout(() => { if (S.tab === "reglages") renderTab(); }, 900); }
+    catch (e) { toast(e.message, 3500); }
+  };
+  $("#svNew").onclick = () => doSave(null);
+  if ($("#svUpd")) $("#svUpd").onclick = () => doSave(st.loadedFrom.id);
   $("#rReload").onclick = () => { S.draft = null; S.lastSig = ""; pollNow(); toast("Rechargé"); };
   $("#rOut").onclick = async () => { if (await confirmBox("Se déconnecter de ce téléphone ? (Gardez votre code animateur !)", "Se déconnecter")) logout(); };
   lockInputs(v);
+}
+
+async function loadSaves(v) {
+  const box = $("#svList", v); if (!box) return;
+  try {
+    const r = await api("/saves");
+    if (!r.saves.length) { box.innerHTML = "Aucune partie enregistrée pour l'instant."; return; }
+    const d = (t) => new Date(t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    box.innerHTML = r.saves.map((x) => '<div class="tcard"><b>' + esc(x.name) + (r.current && r.current.id === x.id ? ' <span class="chip ok">chargée</span>' : '') + '</b><div class="muted small">' + plural(x.teams, "équipe") + " · " + plural(x.manches, "manche") + " · " + plural(x.songs, "morceau", "morceaux") + " · enregistrée le " + d(x.savedAt) + '</div><div class="row"><button class="btn alt sm" data-ld="' + x.id + '">📂 Charger</button><button class="btn ghost sm" data-dl="' + x.id + '">🗑 Supprimer</button></div></div>').join("");
+    $$("[data-ld]", box).forEach((b) => (b.onclick = async () => {
+      const x = r.saves.find((y) => y.id === b.dataset.ld);
+      if (!(await confirmBox("Charger « " + esc(x.name) + " » ? Les équipes et manches actuelles seront remplacées (pensez à enregistrer avant si besoin). Les scores sont remis à zéro.", "Charger"))) return;
+      try { await api("/saves/load", { method: "POST", body: { id: x.id } }); S.draft = null; S.lastSig = ""; toast("📂 « " + x.name + " » chargée"); pollNow(); setTimeout(() => renderTab(), 900); } catch (e) { toast(e.message, 3500); }
+    }));
+    $$("[data-dl]", box).forEach((b) => (b.onclick = async () => {
+      const x = r.saves.find((y) => y.id === b.dataset.dl);
+      if (!(await confirmBox("Supprimer définitivement « " + esc(x.name) + " » ?", "Supprimer", true))) return;
+      try { await api("/saves/delete", { method: "POST", body: { id: x.id } }); toast("Partie supprimée"); loadSaves(v); } catch (e) { toast(e.message); }
+    }));
+  } catch (e) { box.textContent = "Impossible de charger la liste : " + e.message; }
 }
 
 /* ================= Démarrage ================= */
