@@ -354,7 +354,7 @@ async function poll() {
   try {
     const d = await api(ep);
     S.fails = 0; S.data = d; S.pub = d.pub; S.offset = d.pub.now - Date.now();
-    checkVersion(d.pub.v);
+    pageVersion();
     $("#net").classList.remove("off");
     onData();
   } catch (e) {
@@ -367,7 +367,13 @@ async function poll() {
     if (again) { again = false; pollT = setTimeout(poll, 50); } else pollT = setTimeout(poll, interval());
   }
 }
-// Nouvelle version publiée : l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
+// Nouvelle version publiée : on compare l'empreinte (ETag) de la page en ligne, toutes les minutes
+function pageVersion() {
+  if (S.verAt && Date.now() - S.verAt < 60000) return;
+  S.verAt = Date.now();
+  fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
+}
+// l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
 function checkVersion(v) {
   if (!v) return;
   if (!S.ver) { S.ver = v; return; }
