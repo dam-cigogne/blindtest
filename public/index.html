@@ -478,10 +478,12 @@ function updTeam() {
   } else if (p.status === "setup" && p.teamNames) {
     S.formM = null; S.formKey = null;
     if (!$("#tNameIn")) {
-      $("#tForm").innerHTML = '<div class="card" style="margin:12px"><h3>✏️ Choisissez le nom de votre équipe</h3><p class="muted small">Mettez-vous d\'accord avec votre table ! Modifiable jusqu\'au début de la partie.</p><input id="tNameIn" maxlength="30" value="' + esc(d.team.name) + '"><button class="btn big" id="tNameOk" style="margin-top:10px">✓ Valider ce nom</button></div>';
+      $("#tForm").innerHTML = '<div class="card" style="margin:12px"><h3>✏️ Choisissez le nom de votre équipe</h3><p class="muted small">Mettez-vous d\'accord avec votre table ! Modifiable jusqu\'au début de la partie.</p><input id="tNameIn" maxlength="30" placeholder="Nom de l\'équipe (ou votre prénom si vous jouez seul)" value="' + (neutralName(d.team.name) ? "" : esc(d.team.name)) + '"><div class="row"><button class="btn ghost" id="tIdea">🎲 Une idée de nom</button></div><button class="btn big" id="tNameOk" style="margin-top:6px">✓ Valider ce nom</button></div>';
+      $("#tIdea").onclick = () => { $("#tNameIn").value = TEAM_NAMES[Math.floor(Math.random() * TEAM_NAMES.length)]; };
       $("#tSave").textContent = "";
       $("#tNameOk").onclick = async () => {
         const n = $("#tNameIn").value.trim();
+        if (n.length < 2) return toast("Tapez un nom (2 lettres minimum)");
         try { await api("/team/name", { method: "POST", body: { name: n } }); toast("✓ Votre équipe s'appelle « " + n + " »"); $("#tNameIn").blur(); pollNow(); }
         catch (e) { toast(e.message, 3500); }
       };
@@ -896,11 +898,11 @@ function qrScreenHtml(p) {
   const q = p.showQr, T = q.teams.length;
   if (q.mode === "one") {
     const t = q.teams[Math.min(q.i, T - 1)];
-    return '<div class="qone"><div class="qq">' + qrSvg(t.url) + '</div><div class="tx"><div class="n">Équipe ' + t.id + '</div><div class="nm2">' + esc(t.name) + '</div><div class="hint">📱 Scannez ce QR code avec l\'appareil photo de votre téléphone.<br>Code de secours : <b>' + esc(t.code) + '</b></div><div class="pos">' + (q.i + 1) + " / " + T + "</div></div></div>";
+    return '<div class="qone"><div class="qq">' + qrSvg(t.url) + '</div><div class="tx"><div class="n">Équipe ' + t.id + '</div><div class="nm2">' + (neutralName(t.name) ? '<span style="opacity:.6">Nom à choisir sur votre téléphone ✏️</span>' : esc(t.name)) + '</div><div class="hint">📱 Scannez ce QR code avec l\'appareil photo de votre téléphone.<br>Code de secours : <b>' + esc(t.code) + '</b></div><div class="pos">' + (q.i + 1) + " / " + T + "</div></div></div>";
   }
   const cols = Math.min(T, Math.max(1, Math.ceil(Math.sqrt(T * 1.9)))), rows = Math.ceil(T / cols);
   return '<div class="mid" style="font-size:min(2.6vw,4.5vh)">📱 Scannez le QR code de votre équipe avec l\'appareil photo</div><div class="qall" data-c="' + cols + '" data-r="' + rows + '">' +
-    q.teams.map((t) => '<div><div class="qb">' + qrSvg(t.url) + '</div><div class="lb">' + t.id + ". " + esc(t.name) + "</div></div>").join("") + "</div>";
+    q.teams.map((t) => '<div><div class="qb">' + qrSvg(t.url) + '</div><div class="lb">' + (neutralName(t.name) ? "Équipe " + t.id : t.id + ". " + esc(t.name)) + "</div></div>").join("") + "</div>";
 }
 // Taille des QR codes : le plus grand possible sans dépasser l'écran
 function fitQr() {
@@ -1417,8 +1419,14 @@ function drawTeams(units, T) {
     });
     best.members.push(...u.members.map((m) => m.n)); best.tr[k] = (best.tr[k] || 0) + u.members.length;
   });
+  return nameTeams(teams.map((t) => t.members));
+}
+// Noms et codes des équipes. Si les équipes choisissent leur nom sur leur téléphone : « Équipe 1 », « Équipe 2 »… en attendant.
+const neutralName = (n) => /^Équipe \d+$/.test(String(n || ""));
+function nameTeams(memberLists) {
+  const own = !S.draft || S.draft.teamNames !== false;
   const names = shuffle(TEAM_NAMES); const codes = new Set();
-  return teams.map((t, i) => { let c; do { c = newCode(); } while (codes.has(c)); codes.add(c); return { id: i + 1, name: names[i % names.length] + (i >= names.length ? " " + (Math.floor(i / names.length) + 1) : ""), code: c, members: t.members }; });
+  return memberLists.map((members, i) => { let c; do { c = newCode(); } while (codes.has(c)); codes.add(c); return { id: i + 1, name: own ? "Équipe " + (i + 1) : names[i % names.length] + (i >= names.length ? " " + (Math.floor(i / names.length) + 1) : ""), code: c, members }; });
 }
 function drawInfo() {
   const N = countPeople(S.people); const ds = LS.get("bt_draw", { mode: "s", val: 10 });
@@ -1432,8 +1440,10 @@ function tabEquipes(v) {
     '<div class="row"><label class="btn alt"><input type="file" id="fImp" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt" hidden>📂 Importer un fichier Excel</label><button class="btn ghost" id="bPaste">✍️ Coller ou taper une liste</button></div>' +
     '<div id="impMap"></div><p class="muted" id="pplInfo">' + (ppl ? "✓ " + plural(countPeople(ppl), "personne") + " en " + plural(ppl.length, "groupe") + " (les couples restent ensemble)." : "Aucune liste importée pour l'instant.") + "</p>" + (ppl ? '<button class="btn ghost sm" id="bEdit">✏️ Voir / retirer des personnes</button>' : "") + "</div>";
   h += '<div class="card"><h3>2. Tirage au sort</h3><div class="row"><label class="row" style="margin:0"><input type="radio" name="dm" value="s" style="width:auto"' + (di.ds.mode !== "n" ? " checked" : "") + '> Personnes par équipe</label><label class="row" style="margin:0"><input type="radio" name="dm" value="n" style="width:auto"' + (di.ds.mode === "n" ? " checked" : "") + "> Nombre d'équipes</label></div>" +
-    '<input type="number" id="dVal" min="1" max="60" inputmode="numeric" value="' + esc(di.ds.val) + '"><p class="muted" id="dInfo"></p>' +
-    '<button class="btn big" id="bDraw"' + (ppl ? "" : " disabled") + ">🎲 " + (teams.length ? "Refaire le tirage au sort" : "Tirer les équipes au sort") + "</button></div>";
+    '<input type="number" id="dVal" min="1" max="60" inputmode="numeric" value="' + esc(di.ds.val || 10) + '"><p class="muted" id="dInfo"></p>' +
+    '<button class="btn big" id="bDraw"' + (ppl ? "" : " disabled") + ">🎲 " + (teams.length ? "Refaire le tirage au sort" : "Tirer les équipes au sort") + "</button>" +
+    '<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:10px"><b>Sans liste ?</b><p class="muted small">Créez directement les équipes (ou un joueur par équipe pour jouer chacun pour soi). Chaque équipe a son QR code, et choisit son nom sur son téléphone.</p>' +
+    '<div class="row"><input type="number" id="nTeams" min="1" max="60" inputmode="numeric" value="' + (teams.length || 8) + '" style="width:90px;flex:none"><span class="grow">équipes ou joueurs</span><button class="btn alt" id="bEmpty">➕ Créer</button></div></div></div>';
   h += '<div class="card"><h3>3. Les équipes (' + teams.length + ")</h3>" + (teams.length ? '<p class="muted small">Touchez une personne pour la déplacer. Vous pouvez renommer les équipes.</p>' : '<p class="muted">Pas encore d\'équipes.</p>') +
     teams.map((t, ti) => '<div class="tcard"><div class="hd"><b>N°' + t.id + '</b><input class="tn" data-ti="' + ti + '" value="' + esc(t.name) + '" maxlength="40"><span class="chip">' + esc(t.code) + '</span></div><div class="mems">' +
       t.members.map((m, mi) => '<button class="mem" data-ti="' + ti + '" data-mi="' + mi + '">' + esc(m) + "</button>").join("") +
@@ -1443,6 +1453,13 @@ function tabEquipes(v) {
   upd();
   $$('[name="dm"]', v).forEach((r) => (r.onchange = () => { const ds = drawInfo().ds; ds.mode = r.value; LS.set("bt_draw", ds); upd(); }));
   $("#dVal").oninput = (e) => { const ds = drawInfo().ds; ds.val = Number(e.target.value) || 1; LS.set("bt_draw", ds); upd(); };
+  $("#bEmpty").onclick = async () => {
+    const n = Math.max(1, Math.min(60, Number($("#nTeams").value) || 0)); if (!n) return;
+    if (teams.length && !(await confirmBox("Remplacer les " + teams.length + " équipes actuelles par " + n + " nouvelles équipes vides ? (il faudra réimprimer les feuilles)", "Remplacer", true))) return;
+    S.draft.teams = nameTeams(Array.from({ length: n }, () => []));
+    if (S.draft.teamNames === false) toast("Astuce : activez « Les équipes choisissent leur nom » dans Réglages", 4000);
+    saveDraft(true); tabEquipes(v); toast("✓ " + n + " équipes créées : QR codes dans 📲 Distribuer ou sur l'écran géant", 4000);
+  };
   $("#bDraw").onclick = async () => {
     const x = drawInfo(); if (!x.T) return;
     if (teams.length && !(await confirmBox("Refaire le tirage ? Les équipes actuelles, leurs noms et leurs codes seront remplacés (il faudra réimprimer les feuilles).", "Refaire le tirage", true))) return;
