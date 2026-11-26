@@ -121,6 +121,7 @@ export class Soiree extends DurableObject {
       extractSec: setup.extractSec,
       answerSec: setup.answerSec,
       showRanking: !!game.showRanking,
+      showRules: !!game.showRules,
       scoring: setup.scoring,
       manches: setup.manches.map((m, i) => ({
         title: m.title,
@@ -288,7 +289,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now();
@@ -315,6 +316,8 @@ export class Soiree extends DurableObject {
         else g.status = "finished";
       } else if (act === "finish") {
         g.status = "finished";
+      } else if (act === "showRules") {
+        g.showRules = !!body.show;
       } else if (act === "showRanking") {
         g.showRanking = !!body.show;
       } else if (act === "setk") {

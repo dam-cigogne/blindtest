@@ -107,6 +107,8 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .podium .p1{height:30vw;background:linear-gradient(#ffcf4a,#b8860b);color:#2b1a00}.podium .p2{height:23vw;background:linear-gradient(#e6e6f0,#8d8da8);color:#1b1b2b}.podium .p3{height:18vw;background:linear-gradient(#e8a56b,#8b4a1c)}
 .podium .medal{font-size:5vw}
 @keyframes up{from{transform:translateY(40vw);opacity:0}to{transform:none;opacity:1}}
+.rules{font-size:1.08rem;line-height:1.55}.rules h3{font-size:1.25rem}.rules ol{padding-left:22px}.rules li{margin:10px 0}.rules .pts{width:100%;border-collapse:collapse;margin:8px 0}.rules .pts td{padding:6px 8px;border-bottom:1px solid var(--line)}.rules .pts td.n{text-align:right;font-weight:800;color:var(--pri2);white-space:nowrap}
+.scr .rules{font-size:min(1.6vw,2.6vh);line-height:1.4;text-align:left;max-width:90vw;margin:0 auto}.scr .rules h3{font-size:min(2.6vw,4.2vh);margin:0 0 .4em}.scr .rules li{margin:.35em 0}.scr .rules .pts{width:60%}.scr .rules .pts td{padding:.15em .5em}.scr .rules p{margin:.4em 0}.scr .rules .say{display:none}
 #printRoot{display:none}
 @media print{
   @page{size:A4;margin:12mm}
@@ -534,11 +536,13 @@ function tickDJ() {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => m.state), p.ranking]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.showRules, p.scoring, p.extractSec, p.answerSec]);
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
-  if (p.status === "setup") {
+  if (p.showRules && p.status !== "finished") {
+    h += rulesHtml(p, true);
+  } else if (p.status === "setup") {
     h += '<div class="big">Blind test</div><div class="mid muted">La partie va commencer…</div>' +
       '<div class="tl">' + p.teams.map((t) => "<div><b>Équipe " + t.id + "</b><br>" + esc(t.name) + "</div>").join("") + "</div>";
   } else if (p.status === "finished") {
@@ -640,6 +644,7 @@ const gameAct = async (action, extra) => {
 function tabJeu(v) {
   const d = S.data, g = d.game, p = d.pub, st = d.setup;
   let h = "";
+  if (S.rulesMode && g.status !== "finished") return tabRules(v);
   if (g.status === "setup") {
     const nS = st.manches.reduce((a, m) => a + m.songs.length, 0);
     const okT = st.teams.length > 0, okM = st.manches.length > 0 && nS > 0;
@@ -647,10 +652,12 @@ function tabJeu(v) {
       '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
       '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
       (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") + "</ul>" +
-      '<button class="btn big" id="gStart"' + (okT && okM ? "" : " disabled") + '>🚀 Démarrer la partie</button>' +
+      '<button class="btn big alt" id="gRules">📜 Présenter le jeu et les règles</button>' +
+      '<button class="btn big" id="gStart" style="margin-top:8px"' + (okT && okM ? "" : " disabled") + '>🚀 Démarrer la partie sans présenter</button>' +
       '<p class="muted small">Pour une répétition : démarrez, utilisez « 🧪 Réponses d\'essai » dans chaque manche, puis remettez la partie à zéro dans Réglages.</p></div>' +
       '<div class="card"><h3>Déroulé d\'une manche</h3><ol class="pl"><li>Le DJ lance l\'extrait et appuie sur son bouton vert : le chrono démarre chez tout le monde.</li><li>Les chefs d\'équipe tapent titre et artiste sur leur téléphone.</li><li>Au dernier morceau, vous clôturez la manche : l\'appli corrige seule.</li><li>Vous validez les réponses douteuses, puis vous publiez : les bonnes réponses s\'affichent sur l\'écran géant.</li><li>Le classement reste secret sur votre téléphone jusqu\'au podium final.</li></ol></div>';
     v.innerHTML = h;
+    $("#gRules").onclick = () => { S.rulesMode = true; S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
     $("#gStart").onclick = async () => { if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
     return;
   }
@@ -691,11 +698,13 @@ function tabJeu(v) {
       ? '<button class="btn big alt" id="gNextM">Manche suivante ▶ (' + esc(st.manches[g.m + 1].title) + ")</button>"
       : '<button class="btn big" id="gFin">🏁 Terminer la partie</button>';
   }
-  h += "</div>" + '<div class="card"><h3>🤫 Classement (visible uniquement ici)</h3>' + miniRank(d.ranking) + "</div>";
+  h += "</div>" + '<div class="card"><h3>🤫 Classement (visible uniquement ici)</h3>' + miniRank(d.ranking) + "</div>" +
+    '<div class="card"><button class="btn ghost" id="gRules2">📜 Revoir les règles</button></div>';
   v.innerHTML = h;
   const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
   on("gPlay", async () => { if (d.pub.started && phase().ph !== "done" && !(await confirmBox("Le chrono tourne déjà. Le relancer ?", "Relancer"))) return; gameAct("play"); });
   on("gNext", () => gameAct("next")); on("gPrev", () => gameAct("prev"));
+  on("gRules2", () => { S.rulesMode = true; S.lastSig = ""; renderTab(); window.scrollTo(0, 0); });
   on("gTest", async () => { try { await api("/testfill", { method: "POST" }); toast("Réponses d'essai ajoutées"); pollNow(); } catch (e) { toast(e.message); } });
   on("gClose", async () => {
     const msg = g.k < man.songs.length - 1 ? "⚠️ Il reste des morceaux non joués dans cette manche. Clore quand même ?" : "Clore la manche ? Les équipes ne pourront plus modifier leurs réponses. Vérifiez qu'elles ont bien fini d'écrire.";
@@ -709,6 +718,51 @@ function tabJeu(v) {
   S.tick = () => { const t = $("#aTimer"); if (!t) return; const f = phase(); if (S.aPh === "play" && f.ph === "write" && navigator.vibrate) navigator.vibrate([200, 100, 200]); S.aPh = f.ph; const h2 = f.ph === "play" ? "🎵 MUSIQUE – coupez dans " + f.left + " s" : f.ph === "write" ? "⏹ COUPEZ ! Silence " + f.left + " s" : f.ph === "done" ? "✓ Terminé" : "En attente du DJ"; if (t._h !== h2) { t._h = h2; t.textContent = h2; t.className = "timer " + f.ph; } };
   S.tick();
 }
+/* ---- Présentation des règles ---- */
+function pts(n) { return n + (Math.abs(n) > 1 ? " points" : " point"); }
+function rulesHtml(p, screen) {
+  const sc = p.scoring, both = sc.title + sc.artist, M = p.manches;
+  const nS = M.reduce((a, m) => a + m.n, 0);
+  const max = M.reduce((a, m) => a + m.n * both * (m.mult || 1), 0);
+  const sameN = M.length && M.every((m) => m.n === M[0].n);
+  const film = M.map((m, i) => ({ m, i })).filter((x) => x.m.label2 && x.m.label2 !== "Artiste");
+  const bonus = M.map((m, i) => ({ m, i })).filter((x) => x.m.mult > 1);
+  const say = (t) => '<div class="say muted small">🎤 ' + t + "</div>";
+  let h = '<div class="rules"><h3>🎵 Bienvenue au blind test' + (p.name && p.name !== "Blind test" ? " – " + esc(p.name) : "") + " !</h3><ol>";
+  h += "<li><b>Les équipes</b> : vous êtes " + plural(p.teams.length, "équipe") + ". Le chef d'équipe scanne le QR code de sa feuille : c'est lui qui tape les réponses sur son téléphone, toute l'équipe l'aide.</li>";
+  h += "<li><b>Le déroulé</b> : " + plural(M.length, "manche") + (sameN ? " de " + plural(M[0].n, "morceau", "morceaux") : "") + ", soit " + plural(nS, "morceau", "morceaux") + ". Pour chaque morceau : <b>" + p.extractSec + " secondes de musique</b>, puis <b>" + p.answerSec + " secondes de silence</b> pour écrire. Vous pouvez corriger vos réponses jusqu'à la fin de la manche.</li>";
+  h += '<li><b>Les points</b>, pour chaque morceau :<table class="pts"><tr><td>Le bon titre</td><td class="n">' + pts(sc.title) + '</td></tr><tr><td>Le bon artiste</td><td class="n">' + pts(sc.artist) + '</td></tr><tr><td><b>Les deux</b></td><td class="n">' + pts(both) + '</td></tr></table>';
+  if (film.length) h += "Manche" + (film.length > 1 ? "s " : " ") + film.map((x) => (x.i + 1) + " (" + esc(x.m.title) + ")").join(", ") + " : on donne le titre et <b>le " + esc(film[0].m.label2.toLowerCase()) + "</b> au lieu de l'artiste.<br>";
+  bonus.forEach((x) => { h += "⭐ <b>Manche " + (x.i + 1) + " – " + esc(x.m.title) + " : points ×" + x.m.mult + "</b>, soit jusqu'à " + pts(both * x.m.mult) + " par morceau !<br>"; });
+  h += "Score maximum possible : <b>" + pts(max) + "</b>.</li>";
+  h += "<li><b>Orthographe</b> : les fautes de frappe sont tolérées. En cas de doute, c'est l'animateur qui tranche.</li>";
+  h += "<li><b>Fair-play</b> : pas de Shazam ni de recherche internet, le téléphone sert uniquement à répondre.</li>";
+  h += "<li><b>Suspense</b> : le classement reste secret jusqu'au podium final ! En cas d'égalité, un morceau de départage désignera les gagnants.</li>";
+  h += "</ol>" + (M.length ? '<p style="font-size:1.15em"><b>Prêts ? On commence par la manche 1 : ' + esc(M[0].title) + " ! 🎶</b></p>" : "") + "</div>";
+  return h;
+}
+function tabRules(v) {
+  const d = S.data, p = d.pub, g = d.game;
+  const running = g.status === "running";
+  v.innerHTML = '<div class="card"><p class="muted small">📜 Texte à lire au micro. Il est calculé avec vos réglages actuels (barème, durées, manches ×2). Vous pouvez aussi l\'afficher sur l\'écran géant.</p>' +
+    '<label class="row"><input type="checkbox" id="rlScr" style="width:auto"' + (p.showRules ? " checked" : "") + "> Afficher les règles sur l'écran géant</label></div>" +
+    '<div class="card">' + rulesHtml(p, false) + "</div>" +
+    (running ? '<button class="btn big" id="rlBack">▶ Revenir au jeu</button>'
+      : '<button class="btn big" id="rlGo">🚀 C\'est parti : démarrer la partie</button><button class="btn ghost" id="rlBack" style="margin-top:8px;width:100%">◀ Retour</button>');
+  $("#rlScr").onchange = (e) => gameAct("showRules", { show: e.target.checked });
+  const back = async () => { S.rulesMode = false; if (p.showRules) await gameAct("showRules", { show: false }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
+  $("#rlBack").onclick = back;
+  const go = $("#rlGo");
+  if (go) go.onclick = async () => {
+    const st = d.setup;
+    if (!st.teams.length || !st.manches.length) return toast("Il faut d'abord des équipes et des manches");
+    if (!(await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer"))) return;
+    S.rulesMode = false;
+    if (p.showRules) await gameAct("showRules", { show: false });
+    await gameAct("start"); window.scrollTo(0, 0);
+  };
+}
+
 async function review(m, teamId, i, field, status) {
   try { await api("/review", { method: "POST", body: { m, teamId, i, field, status } }); S.lastSig = ""; pollNow(); } catch (e) { toast(e.message); }
 }
