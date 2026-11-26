@@ -172,7 +172,8 @@ export class Soiree extends DurableObject {
     this.ctx = ctx;
     this.env = env;
     this.ready = ctx.blockConcurrencyWhile(async () => {
-      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played"]);
+      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played", "seen"]);
+      this.seen = d.get("seen") || {}; // équipes qui ont déjà ouvert leur QR code (clé = code d'équipe)
       this.played = d.get("played") || [];
       this.setup = d.get("setup") || defaultSetup();
       this.game = d.get("game") || defaultGame();
@@ -247,7 +248,8 @@ export class Soiree extends DurableObject {
       name: setup.name,
       needInit: !setup.codes.anim,
       djReady: !!setup.codes.dj,
-      teams: setup.teams.map((t) => ({ id: t.id, name: t.name, members: t.members })),
+      // joined = l'équipe a scanné son QR code ; named = elle a choisi son nom (prête)
+      teams: setup.teams.map((t) => ({ id: t.id, name: t.name, members: t.members, joined: !!this.seen[t.code], named: setup.teamNames === false || !/^Équipe \d+$/.test(t.name) })),
       status: game.status,
       runId: game.runId || 0,
       m: game.m,
@@ -324,6 +326,12 @@ export class Soiree extends DurableObject {
     if (path === "/team" && method === "GET") {
       if (who !== "team") return json({ error: "non autorisé" }, 401);
       const t = this.setup.teams.find((x) => x.id === teamId);
+      if (!this.seen[t.code]) {
+        this.seen[t.code] = Date.now();
+        const codes = new Set(this.setup.teams.map((x) => x.code)); // on oublie les anciennes équipes
+        Object.keys(this.seen).forEach((c) => { if (!codes.has(c)) delete this.seen[c]; });
+        await this.save("seen");
+      }
       const mine = {};
       Object.keys(this.answers).forEach((m) => { if (this.answers[m][teamId]) mine[m] = this.answers[m][teamId]; });
       const rk = this.game.showRanking ? this.ranking().find((r) => r.id === teamId) : null;

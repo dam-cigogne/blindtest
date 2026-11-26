@@ -126,12 +126,16 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .scr .qall{display:grid;gap:1.2vw;justify-content:center;align-content:start}
 .scr .qall>div{background:#fff;color:#111;border-radius:1vw;padding:.6vw;text-align:center;font-weight:800;min-width:0}
 .scr .qall svg,.scr .qone svg{display:block;width:100%;height:auto}
+.scr .qall>div.okq{outline:.5vw solid var(--ok)}.scr .qall>div.okq .lb{color:#0a7a50}
 .scr .qall .lb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
 .scr .qone{display:flex;gap:4vw;align-items:center;justify-content:center;flex:1}
 .scr .qone .qq{background:#fff;padding:1.2vh;border-radius:1.5vh;width:min(62vh,46vw)}
 .scr .qone .tx{text-align:left;max-width:44vw}
 .scr .qone .n{font-size:min(5vw,9vh);font-weight:900;color:var(--pri2)}.scr .qone .nm2{font-size:min(4vw,7vh);font-weight:800;line-height:1.1}
 .scr .qone .hint{font-size:min(2vw,3.6vh);color:var(--mu);margin-top:2vh}.scr .qone .pos{font-size:min(1.8vw,3vh);color:var(--mu);margin-top:1vh}
+.rdy .rd{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;margin:5px 0;background:var(--bg2);border:1px solid var(--line)}
+.rdy .rd .ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;font-weight:900;font-size:14px;background:var(--card)}
+.rdy .rd.ok{border-color:var(--ok)}.rdy .rd.ok .ic{background:var(--ok);color:#06281c}.rdy .rd.ok b{color:var(--ok)}.rdy .rd.wait{opacity:.7}
 .qnav{display:flex;gap:8px;align-items:center}.qnav .grow{flex:1;text-align:center;font-weight:800}
 .qpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:8px}.qpick button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px 4px;font-weight:700}.qpick button.on{background:var(--pri);border-color:var(--pri);color:#fff}
 .scr .nm{font-size:3vw;color:var(--mu);font-weight:700}
@@ -913,12 +917,12 @@ function sonoToggle(id) {
 function qrScreenHtml(p) {
   const q = p.showQr, T = q.teams.length;
   if (q.mode === "one") {
-    const t = q.teams[Math.min(q.i, T - 1)];
-    return '<div class="qone"><div class="qq">' + qrSvg(t.url) + '</div><div class="tx"><div class="n">Équipe ' + t.id + '</div><div class="nm2">' + (neutralName(t.name) ? '<span style="opacity:.6">Nom à choisir sur votre téléphone ✏️</span>' : esc(t.name)) + '</div><div class="hint">📱 Scannez ce QR code avec l\'appareil photo de votre téléphone.<br>Code de secours : <b>' + esc(t.code) + '</b></div><div class="pos">' + (q.i + 1) + " / " + T + "</div></div></div>";
+    const t = q.teams[Math.min(q.i, T - 1)], pt = p.teams.find((x) => x.id === t.id) || {};
+    return '<div class="qone"><div class="qq">' + qrSvg(t.url) + '</div><div class="tx"><div class="n">Équipe ' + t.id + '</div><div class="nm2">' + (neutralName(t.name) ? '<span style="opacity:.6">Nom à choisir sur votre téléphone ✏️</span>' : esc(t.name)) + '</div><div class="hint">📱 Scannez ce QR code avec l\'appareil photo de votre téléphone.<br>Code de secours : <b>' + esc(t.code) + '</b></div>' + (pt.joined && pt.named ? '<div style="color:var(--ok);font-weight:900;font-size:min(3vw,5vh);margin-top:1.5vh">✅ Équipe prête !</div>' : "") + '<div class="pos">' + (q.i + 1) + " / " + T + "</div></div></div>";
   }
   const cols = Math.min(T, Math.max(1, Math.ceil(Math.sqrt(T * 1.9)))), rows = Math.ceil(T / cols);
   return '<div class="mid" style="font-size:min(2.6vw,4.5vh)">📱 Scannez le QR code de votre équipe avec l\'appareil photo</div><div class="qall" data-c="' + cols + '" data-r="' + rows + '">' +
-    q.teams.map((t) => '<div><div class="qb">' + qrSvg(t.url) + '</div><div class="lb">' + (neutralName(t.name) ? "Équipe " + t.id : t.id + ". " + esc(t.name)) + "</div></div>").join("") + "</div>";
+    q.teams.map((t) => { const pt = (p.teams.find((x) => x.id === t.id) || {}); const ok = pt.joined && pt.named; return '<div' + (ok ? ' class="okq"' : "") + '><div class="qb">' + qrSvg(t.url) + '</div><div class="lb">' + (ok ? "✓ " : "") + (neutralName(t.name) ? "Équipe " + t.id : t.id + ". " + esc(t.name)) + "</div></div>"; }).join("") + "</div>";
 }
 // Taille des QR codes : le plus grand possible sans dépasser l'écran
 function fitQr() {
@@ -963,7 +967,7 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec]);
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
@@ -1053,7 +1057,7 @@ function updAnim() {
   if (S.tab === "jeu" || S.tab === "scores") {
     const ae = document.activeElement;
     if (ae && $("#view").contains(ae) && ae.matches("input,textarea,select")) return;
-    const sig = JSON.stringify([S.tab, d.game, d.results, d.ranking, d.adjust, Object.keys((d.answers || {})[d.game.m] || {}).length, d.pub.teams.length, d.pub.djReady]);
+    const sig = JSON.stringify([S.tab, d.game, d.results, d.ranking, d.adjust, Object.keys((d.answers || {})[d.game.m] || {}).length, d.pub.teams.map((t) => [t.name, t.joined]), d.pub.djReady]);
     if (sig === S.lastSig) return;
     S.lastSig = sig; renderTab();
   }
@@ -1122,6 +1126,7 @@ function tabJeu(v) {
     h += '<div class="card"><h3>Avant de commencer</h3><ul class="check">' +
       '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
       '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
+      (okT ? (() => { const r = p.teams.filter((t) => t.joined && t.named).length; return '<li class="' + (r === p.teams.length ? "ok" : "") + '">' + (r === p.teams.length ? "✓" : "⏳") + " Équipes prêtes sur leur téléphone : " + r + " / " + p.teams.length + "</li>"; })() : "") +
       (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") + "</ul></div>" +
       '<div class="card"><h3>🎬 Lancer la soirée</h3><p class="muted small">Tout se pilote d\'ici : l\'écran géant suit chaque étape.</p><div class="steps">' +
       '<div><span class="n">1</span><div class="b"><button class="btn big" id="gTeams"' + (okT ? "" : " disabled") + '>👥 Afficher les équipes</button><p class="muted small">Chacun trouve son nom et son équipe sur le grand écran.</p></div></div>' +
@@ -1230,6 +1235,16 @@ function rulesHtml(p, screen) {
   h += "</ol>" + (M.length ? '<p style="font-size:1.15em"><b>Prêts ? On commence par la manche 1 : ' + esc(M[0].title) + " ! 🎶</b></p>" : "") + "</div>";
   return h;
 }
+// Liste des équipes avec leur état : prête (nom choisi), connectée, en attente
+function readyHtml(p) {
+  const T = p.teams.length, ok = p.teams.filter((t) => t.joined && t.named).length;
+  return '<div class="card"><h3>📋 Équipes prêtes : ' + ok + " / " + T + (ok === T && T ? " 🎉" : "") + '</h3><div class="rdy">' +
+    p.teams.map((t) => {
+      const st = t.joined && t.named ? "ok" : t.joined ? "on" : "wait";
+      const nm = neutralName(t.name) ? "" : esc(t.name);
+      return '<div class="rd ' + st + '"><span class="ic">' + (st === "ok" ? "✓" : st === "on" ? "📱" : "⏳") + '</span><span class="grow"><b>Équipe ' + t.id + (st === "ok" ? " prête" : st === "on" ? " connectée" : " en attente") + "</b>" + (nm ? " – " + nm : st === "on" ? ' <span class="muted small">(nom pas encore choisi)</span>' : st === "wait" ? ' <span class="muted small">(QR pas encore scanné)</span>' : "") + "</span></div>";
+    }).join("") + "</div></div>";
+}
 async function goQr(mode, i) { S.teamsMode = false; S.rulesMode = false; S.qrMode = true; await gameAct("showQr", { mode, i }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); }
 function tabQrShow(v) {
   const d = S.data, p = d.pub, st = d.setup, q = p.showQr, T = st.teams.length;
@@ -1239,6 +1254,7 @@ function tabQrShow(v) {
     (mode === "one" ? '<div class="qnav"><button class="btn big ghost" id="qPrev"' + (i <= 0 ? " disabled" : "") + '>◀</button><div class="grow">Équipe ' + t.id + "<br><span class=\"muted small\">" + esc(t.name) + " · " + (i + 1) + " / " + T + '</span></div><button class="btn big" id="qNext"' + (i >= T - 1 ? " disabled" : "") + ">▶</button></div>" +
       '<div class="qpick">' + st.teams.map((x, k) => '<button data-qi="' + k + '" class="' + (k === i ? "on" : "") + '">' + x.id + "</button>").join("") + "</div>" : "") +
     (!mode ? '<p class="muted small">Rien n\'est affiché : l\'écran géant montre l\'accueil.</p>' : "") + "</div>" +
+    readyHtml(p) +
     '<button class="btn big alt" id="qRules">② 📜 Étape suivante : les règles</button>' +
     '<div class="row"><button class="btn ghost grow" id="qTeams">① 👥 Afficher les équipes</button><button class="btn ghost grow" id="qBack">◀ Retour</button></div>';
   const go = (m, k) => gameAct("showQr", { mode: m, i: k });
