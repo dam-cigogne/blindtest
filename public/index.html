@@ -160,7 +160,8 @@ const S = {
   if (q.get("t") && q.get("c")) s = { role: "team", teamId: Number(q.get("t")), code: q.get("c") };
   else if (q.get("r") === "screen") s = { role: "screen" };
   else if ((q.get("r") === "dj" || q.get("r") === "anim") && q.get("c")) s = { role: q.get("r"), code: q.get("c") };
-  if (s) { S.sess = s; LS.set("bt_sess", s); }
+  if (q.has("reset")) { ["bt_sess", "bt_combo", "bt_tab"].forEach(LS.del); S.sess = null; S.tab = "jeu"; }
+  else if (s) { S.sess = s; LS.set("bt_sess", s); }
   if (q.toString()) history.replaceState(null, "", location.pathname);
 })();
 
@@ -264,7 +265,7 @@ async function login(role, code, teamId) {
   } catch (e) { toast("Pas de connexion internet"); return false; }
 }
 function logout() {
-  S.sess = null; LS.del("bt_sess"); S.data = null; S.draft = null; S.lastSig = ""; S.fails = 0;
+  S.sess = null; LS.del("bt_sess"); LS.del("bt_combo"); LS.del("bt_tab"); S.tab = "jeu"; S.data = null; S.draft = null; S.lastSig = ""; S.fails = 0;
   render(); pollNow();
 }
 
@@ -333,7 +334,8 @@ function renderHome(app) {
     (p && p.teams.length
       ? '<div class="teamgrid">' + p.teams.map((t) => '<button class="tbtn" data-t="' + t.id + '"><b>Équipe ' + t.id + "</b><span>" + esc(t.name) + "</span></button>").join("") + "</div>"
       : '<p class="muted">' + (p ? "Les équipes ne sont pas encore prêtes." : "Connexion…") + "</p>") +
-    '<p class="muted small" style="margin-top:18px">Chef d\'équipe : le plus simple est de scanner le QR code de votre feuille.</p></div>';
+    '<p class="muted small" style="margin-top:18px">Chef d\'équipe : le plus simple est de scanner le QR code de votre feuille.</p>' +
+    '<p class="muted small">Sur chaque écran, le bouton 🚪 Quitter ramène ici. En cas de souci, ouvrez le lien avec <b>?reset</b> à la fin pour repartir de zéro sur ce téléphone.</p></div>';
   $$("[data-r]", app).forEach((b) => (b.onclick = () => pickRole(b.dataset.r)));
   $$("[data-t]", app).forEach((b) => (b.onclick = async () => {
     const id = Number(b.dataset.t);
@@ -549,7 +551,7 @@ function renderScreen(app) {
     else if (man.state === "closed") h += '<div class="ph">⏳ Correction en cours…</div>';
     else h += '<div class="mid">Les bonnes réponses</div><ol class="reveal">' + man.reveal.map((s) => "<li><b>" + esc(s.t) + '</b> – <span class="muted">' + esc(s.a) + "</span></li>").join("") + "</ol>";
   }
-  h += '</div><button id="scOut" class="btn ghost sm" style="position:fixed;bottom:8px;right:8px;opacity:.25">✕</button>';
+  h += '</div><button id="scOut" class="btn ghost sm" style="position:fixed;bottom:8px;right:8px;opacity:.5">🚪 Quitter</button>';
   app.innerHTML = h;
   $("#scOut").onclick = async () => { if (await confirmBox("Quitter le mode écran géant ?", "Quitter")) logout(); };
   app.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
@@ -578,13 +580,14 @@ const isLocked = () => !!(S.data && S.data.game && S.data.game.status === "runni
 
 function renderAnim(app) {
   S.built = "anim"; S.lastSig = "";
-  app.innerHTML = '<div class="top"><div class="tt"><b>' + (LS.get("bt_combo", false) ? "🎤🎧 Animateur + DJ" : "🎤 Animateur") + '</b><small id="aName"></small></div><span id="saveChip" class="chip"></span></div>' +
+  app.innerHTML = '<div class="top"><div class="tt"><b>' + (LS.get("bt_combo", false) ? "🎤🎧 Animateur + DJ" : "🎤 Animateur") + '</b><small id="aName"></small></div><div class="row" style="margin:0;flex-wrap:nowrap"><span id="saveChip" class="chip"></span><button class="btn ghost sm" id="aOut">🚪 Quitter</button></div></div>' +
     '<nav class="tabs">' + TABS.map(([k, l]) => '<button data-tab="' + k + '" class="' + (S.tab === k ? "on" : "") + '">' + l + "</button>").join("") + '</nav><div class="wrap" id="view"><p class="muted pad center">Chargement…</p></div>';
   $$(".tabs button", app).forEach((b) => (b.onclick = () => {
     S.tab = b.dataset.tab; LS.set("bt_tab", S.tab);
     $$(".tabs button", app).forEach((x) => x.classList.toggle("on", x === b));
     S.lastSig = ""; renderTab(); window.scrollTo(0, 0);
   }));
+  $("#aOut").onclick = async () => { if (await confirmBox("Se déconnecter et revenir à l'accueil ? La partie continue sur le serveur : vous pourrez revenir avec votre code animateur.", "Se déconnecter")) logout(); };
   if (S.data && S.data.setup) updAnim();
 }
 function chip(t, cls) { const c = $("#saveChip"); if (c) { c.textContent = t; c.className = "chip " + (cls || ""); } }
