@@ -1,0 +1,11 @@
+Fabrication du 26/11/2026 19:57 UTC – run 1 – résultat : success
+build-tools : /usr/local/lib/android/sdk/build-tools/37.0.0
+plateforme  : /usr/local/lib/android/sdk/platforms/android-37.2-beta3/android.jar
+version     : 1.1
+Note: src/fr/esta/blindtest/tv/MainActivity.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+V3.0 Signer: certificate DN: CN=Blind test ESTA, O=Amicale ESTA, C=FR
+V3.0 Signer: certificate SHA-256 digest: 1ba887fa32e4f35c4e819b08bdce4cc752d4ebf46edfdcafc0b7459c298ad2c3
+V3.0 Signer: certificate SHA-1 digest: eaa5137e7426f5db22820562f6bef3c4c9a9f19b
+-rw-r--r-- 1 runner runner 25162 Nov 26 19:57 ../public/tv.apk
+OK : appli fabriquée
