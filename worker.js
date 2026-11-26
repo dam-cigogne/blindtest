@@ -97,6 +97,12 @@ async function dzPlaylists(url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Adresses courtes : /ecran (écran géant) et /ecran-essai (écran du mode essai)
+    const short = url.pathname.toLowerCase().replace(/\/+$/, "");
+    if (["/ecran", "/écran", "/%c3%a9cran", "/tv", "/ecran-essai", "/essai-ecran"].includes(short)) {
+      const essai = short.includes("essai") || url.searchParams.has("essai");
+      return Response.redirect(url.origin + "/?r=screen" + (essai ? "&essai=1" : ""), 302);
+    }
     if (url.pathname === "/api/preview") return preview(url);
     if (url.pathname === "/api/dzpl") return dzPlaylists(url);
     if (url.pathname.startsWith("/api/")) {
@@ -202,6 +208,12 @@ export class Soiree extends DurableObject {
       answerSec: setup.answerSec,
       showRanking: !!game.showRanking,
       showRules: !!game.showRules,
+      showTeams: !!game.showTeams,
+      // QR codes affichés sur l'écran géant (seulement quand l'animateur le demande)
+      showQr: game.showQr ? {
+        mode: game.showQr.mode, i: game.showQr.i || 0,
+        teams: setup.teams.map((t) => ({ id: t.id, name: t.name, code: t.code, url: (setup.baseUrl || this.origin || "") + "/?t=" + t.id + "&c=" + encodeURIComponent(t.code) + (this.essai ? "&essai=1" : "") })),
+      } : null,
       teamNames: setup.teamNames !== false,
       service: setup.service || "",
       scoring: setup.scoring,
@@ -226,6 +238,7 @@ export class Soiree extends DurableObject {
     if (method !== "GET") {
       try { body = await request.json(); } catch { body = {}; }
     }
+    this.origin = url.origin; this.essai = request.headers.get("x-essai") === "1";
     const role = request.headers.get("x-role") || "";
     const code = (request.headers.get("x-code") || "").trim();
     const teamId = Number(request.headers.get("x-team") || 0);
@@ -393,7 +406,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now();
@@ -427,6 +440,14 @@ export class Soiree extends DurableObject {
         g.status = "finished";
       } else if (act === "showRules") {
         g.showRules = !!body.show;
+        if (g.showRules) { g.showTeams = false; g.showQr = null; }
+      } else if (act === "showQr") {
+        const n = this.setup.teams.length;
+        if (!body.mode || !n) g.showQr = null;
+        else { g.showQr = { mode: body.mode === "one" ? "one" : "all", i: Math.max(0, Math.min(n - 1, Number(body.i) || 0)) }; g.showTeams = false; g.showRules = false; }
+      } else if (act === "showTeams") {
+        g.showTeams = !!body.show;
+        if (g.showTeams) { g.showRules = false; g.showQr = null; }
       } else if (act === "showRanking") {
         g.showRanking = !!body.show;
       } else if (act === "setk") {

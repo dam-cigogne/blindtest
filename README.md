@@ -57,3 +57,8 @@ Le serveur cherche un extrait de 30 s (API iTunes d'Apple, puis Deezer en secour
 - Onglet Manches → style « 🌐 Playlist Deezer… » : recherche de playlists Deezer (`/api/dzpl?q=`), tirage au sort parmi leurs morceaux (`/api/dzpl?id=`), titres nettoyés (« - Remastered », « (feat. …) »…). Sans compte.
 - Mémoire : chaque manche publiée enregistre ses morceaux (`played`, par partie main/essai). Le tirage prend d'abord des morceaux jamais joués. Réglages → « Oublier l'historique ».
 - Réglages → « Mon service de musique » (Apple Music / Spotify / Deezer / YouTube) : son lien de secours s'affiche en premier chez le DJ.
+
+## Lancement de la soirée et écran géant
+- Adresse courte de l'écran géant : `/ecran` (mode essai : `/ecran-essai`, aussi `/tv`). Affichée avec un bouton « Copier » dans Réglages et Distribuer.
+- Onglet Jeu → « 🎬 Lancer la soirée » en 3 étapes pilotées depuis le téléphone : ① afficher toutes les équipes et leurs membres sur l'écran géant (taille ajustée automatiquement pour tout faire tenir), ② les règles, ③ c'est parti (direct).
+- QR codes sur l'écran géant (étape facultative « 📲 QR codes à l'écran ») : tous à la fois (taille ajustée) ou un par un avec ◀ ▶ et choix du numéro depuis le téléphone. Les codes des équipes ne sont envoyés à l'écran que pendant cet affichage. Pour jouer chacun pour soi : tirage avec 1 personne par équipe.
