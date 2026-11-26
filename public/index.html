@@ -327,6 +327,7 @@ function renderHome(app) {
   app.innerHTML = '<div class="home"><div class="logo">🎵</div><h1>' + esc(p ? p.name : "Blind test") + '</h1><p class="muted">Choisissez votre rôle</p>' +
     '<div class="roles"><button class="btn big" data-r="anim">🎤 Je suis l\'animateur</button>' +
     '<button class="btn big alt" data-r="dj">🎧 Je suis le DJ</button>' +
+    '<button class="btn big" style="background:linear-gradient(90deg,var(--pri),var(--alt))" data-r="combo">🎤🎧 Je suis l\'animateur et le DJ</button>' +
     '<button class="btn big ghost" data-r="screen">📺 Écran géant</button></div>' +
     "<h2>Je suis une équipe</h2>" +
     (p && p.teams.length
@@ -342,6 +343,8 @@ function renderHome(app) {
 }
 async function pickRole(r) {
   const p = S.pub;
+  LS.set("bt_combo", r === "combo");
+  if (r === "combo") r = "anim";
   if (!p) return toast("Connexion en cours…");
   if (r === "screen") { S.sess = { role: "screen" }; LS.set("bt_sess", S.sess); render(); pollNow(); wake(); return; }
   if (r === "anim" && p.needInit) {
@@ -450,6 +453,8 @@ function renderTeamRes(d) {
 /* ================= DJ ================= */
 function ytUrl(s) { return "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a); }
 function spUrl(s) { return "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a); }
+function amUrl(s) { return "https://music.apple.com/fr/search?term=" + encodeURIComponent(s.t + " " + s.a); }
+function musicLinks(s) { return '<div class="links"><a target="_blank" rel="noopener" href="' + amUrl(s) + '">🍎 Apple Music</a><a target="_blank" rel="noopener" href="' + spUrl(s) + '">▶ Spotify</a><a target="_blank" rel="noopener" href="' + ytUrl(s) + '">▶ YouTube</a></div>'; }
 function playlistText(all) {
   return all.map((m, i) => "MANCHE " + (i + 1) + " – " + m.title + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "\n" +
     m.songs.map((s, j) => (j + 1) + ". " + s.t + " – " + s.a + (s.h ? "  [" + s.h + "]" : "")).join("\n")).join("\n\n");
@@ -467,11 +472,11 @@ function renderDJ(app) {
   let h = '<div class="top"><div class="tt"><b>🎧 DJ</b><small>' + esc(p.name) + '</small></div><button class="btn ghost sm" id="out">Quitter</button></div>' +
     '<nav class="tabs" style="top:58px"><button data-dt="live" class="' + (S.djTab === "live" ? "on" : "") + '">🔴 En direct</button><button data-dt="pl" class="' + (S.djTab === "pl" ? "on" : "") + '">📋 Playlist complète</button></nav><div class="wrap" id="djv">';
   if (S.djTab === "pl") {
-    h += '<div class="card"><p class="muted small">Préparez cette playlist à l\'avance (Spotify, YouTube…) dans cet ordre, idéalement téléchargée pour ne pas dépendre du réseau. Le jour J, l\'onglet « En direct » vous guide morceau par morceau.</p><button class="btn alt" id="cpPl">📋 Copier la playlist</button></div>';
+    h += '<div class="card"><p class="muted small">Préparez cette playlist à l\'avance (Apple Music, Spotify, YouTube…) dans cet ordre, idéalement téléchargée pour ne pas dépendre du réseau. Le jour J, l\'onglet « En direct » vous guide morceau par morceau.</p><button class="btn alt" id="cpPl">📋 Copier la playlist</button></div>';
     d.all.forEach((m, i) => {
       h += '<div class="card"><h3>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? ' <span class="chip warn">×' + m.mult + "</span>" : "") + "</h3>" +
         m.songs.map((s, j) => '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>' + (j + 1) + ". " + esc(s.t) + "</b> – " + esc(s.a) +
-          '<div class="muted small">▶ ' + esc(s.h || "Refrain") + ' · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + ytUrl(s) + '">YouTube</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + spUrl(s) + '">Spotify</a></div></div>').join("") + "</div>";
+          '<div class="muted small">▶ ' + esc(s.h || "Refrain") + ' · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + amUrl(s) + '">Apple Music</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + spUrl(s) + '">Spotify</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + ytUrl(s) + '">YouTube</a></div></div>').join("") + "</div>";
     });
   } else if (p.status === "setup") {
     h += '<div class="card center"><h3>La partie n\'a pas encore commencé</h3><p class="muted">Préparez la playlist dans l\'onglet « Playlist complète ». Cet écran s\'animera dès que l\'animateur lancera la partie.</p></div>';
@@ -485,7 +490,7 @@ function renderDJ(app) {
       h += '<div class="card"><div class="muted">Manche ' + (p.m + 1) + "/" + p.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (points ×" + man.mult + ")" : "") + "</div>" +
         '<div style="font-weight:700;margin:4px 0 8px">Morceau ' + (p.k + 1) + " / " + man.n + "</div>" +
         '<div class="song"><div class="st">' + esc(s.t) + '</div><div class="sa">' + esc(s.a) + '</div><div class="sh">▶ Passage : ' + esc(s.h || "Refrain") + "</div></div>" +
-        '<div class="links"><a target="_blank" rel="noopener" href="' + ytUrl(s) + '">▶ YouTube</a><a target="_blank" rel="noopener" href="' + spUrl(s) + '">▶ Spotify</a></div></div>' +
+        musicLinks(s) + '</div>' +
         '<div id="djTimer" class="timer"></div>' +
         '<button class="btn big ok" id="djPlay">▶ Je lance l\'extrait</button>' +
         '<div class="row"><button class="btn ghost grow" id="djPrev"' + (p.k === 0 ? " disabled" : "") + '>◀ Précédent</button><button class="btn alt grow" id="djNext"' + (p.k >= man.n - 1 ? " disabled" : "") + ">Morceau suivant ▶</button></div>" +
@@ -573,7 +578,7 @@ const isLocked = () => !!(S.data && S.data.game && S.data.game.status === "runni
 
 function renderAnim(app) {
   S.built = "anim"; S.lastSig = "";
-  app.innerHTML = '<div class="top"><div class="tt"><b>🎤 Animateur</b><small id="aName"></small></div><span id="saveChip" class="chip"></span></div>' +
+  app.innerHTML = '<div class="top"><div class="tt"><b>' + (LS.get("bt_combo", false) ? "🎤🎧 Animateur + DJ" : "🎤 Animateur") + '</b><small id="aName"></small></div><span id="saveChip" class="chip"></span></div>' +
     '<nav class="tabs">' + TABS.map(([k, l]) => '<button data-tab="' + k + '" class="' + (S.tab === k ? "on" : "") + '">' + l + "</button>").join("") + '</nav><div class="wrap" id="view"><p class="muted pad center">Chargement…</p></div>';
   $$(".tabs button", app).forEach((b) => (b.onclick = () => {
     S.tab = b.dataset.tab; LS.set("bt_tab", S.tab);
@@ -633,7 +638,7 @@ function tabJeu(v) {
     h += '<div class="card"><h3>Avant de commencer</h3><ul class="check">' +
       '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
       '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
-      '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li></ul>" +
+      (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") + "</ul>" +
       '<button class="btn big" id="gStart"' + (okT && okM ? "" : " disabled") + '>🚀 Démarrer la partie</button>' +
       '<p class="muted small">Pour une répétition : démarrez, utilisez « 🧪 Réponses d\'essai » dans chaque manche, puis remettez la partie à zéro dans Réglages.</p></div>' +
       '<div class="card"><h3>Déroulé d\'une manche</h3><ol class="pl"><li>Le DJ lance l\'extrait et appuie sur son bouton vert : le chrono démarre chez tout le monde.</li><li>Les chefs d\'équipe tapent titre et artiste sur leur téléphone.</li><li>Au dernier morceau, vous clôturez la manche : l\'appli corrige seule.</li><li>Vous validez les réponses douteuses, puis vous publiez : les bonnes réponses s\'affichent sur l\'écran géant.</li><li>Le classement reste secret sur votre téléphone jusqu\'au podium final.</li></ol></div>';
@@ -657,9 +662,9 @@ function tabJeu(v) {
   const stLab = { open: '<span class="chip ok">En cours</span>', closed: '<span class="chip warn">À corriger</span>', published: '<span class="chip">Publiée</span>' }[state] || "";
   h += '<div class="card"><div class="row" style="justify-content:space-between;margin:0"><b>Manche ' + (g.m + 1) + "/" + st.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (×" + man.mult + ")" : "") + "</b>" + stLab + "</div>";
   if (state === "open") {
-    h += '<div style="margin-top:10px" class="muted">Morceau ' + (g.k + 1) + " / " + man.songs.length + '</div><div class="song"><div class="st">' + esc(song.t) + '</div><div class="sa">' + esc(song.a) + '</div></div><div id="aTimer" class="timer"></div>' +
-      '<div class="row"><button class="btn ghost" id="gPrev"' + (g.k === 0 ? " disabled" : "") + '>◀</button><button class="btn ok grow" id="gPlay">▶ Lancer le chrono</button><button class="btn alt" id="gNext"' + (g.k >= man.songs.length - 1 ? " disabled" : "") + ">▶▶</button></div>" +
-      '<p class="muted small">Normalement c\'est le DJ qui lance le chrono et passe au morceau suivant. Ces boutons servent de secours.</p>' +
+    h += '<div style="margin-top:10px" class="muted">Morceau ' + (g.k + 1) + " / " + man.songs.length + '</div><div class="song"><div class="st">' + esc(song.t) + '</div><div class="sa">' + esc(song.a) + '</div><div class="sh">▶ Passage : ' + esc(song.h || "Refrain") + '</div></div>' + musicLinks(song) + '<div id="aTimer" class="timer"></div>' +
+      '<div class="row"><button class="btn ghost" id="gPrev"' + (g.k === 0 ? " disabled" : "") + '>◀</button><button class="btn ok grow" id="gPlay">▶ ' + (LS.get("bt_combo", false) ? "Je lance l\'extrait" : "Lancer le chrono") + '</button><button class="btn alt" id="gNext"' + (g.k >= man.songs.length - 1 ? " disabled" : "") + ">▶▶</button></div>" +
+      (LS.get("bt_combo", false) ? '<p class="muted small">Lancez la musique au passage indiqué, puis appuyez sur le bouton vert : le chrono démarre chez tout le monde. ▶▶ = morceau suivant.</p>' : '<p class="muted small">Normalement c\'est le DJ qui lance le chrono et passe au morceau suivant. Ces boutons servent de secours.</p>') +
       "<p>📥 Réponses reçues : <b>" + nAns + " / " + st.teams.length + "</b> équipes</p>" +
       '<button class="btn big warn" id="gClose">🔒 Clore la manche et corriger</button>' +
       '<div class="row"><button class="btn ghost sm" id="gTest">🧪 Réponses d\'essai (test)</button></div>';
@@ -693,7 +698,7 @@ function tabJeu(v) {
   on("gFin", async () => { if (await confirmBox("Terminer la partie ? Le podium restera caché tant que vous ne l'affichez pas.", "Terminer")) gameAct("nextManche"); });
   $$("[data-rv]", v).forEach((b) => (b.onclick = () => review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, b.dataset.rv)));
   $$("[data-cyc]", v).forEach((b) => (b.onclick = () => { const cur = b.dataset.st; review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, cur === "ok" ? "ko" : "ok"); }));
-  S.tick = () => { const t = $("#aTimer"); if (!t) return; const f = phase(); const h2 = f.ph === "play" ? "🎵 Extrait en cours – " + f.left + " s" : f.ph === "write" ? "✍️ Silence pour écrire – " + f.left + " s" : f.ph === "done" ? "✓ Terminé" : "En attente du DJ"; if (t._h !== h2) { t._h = h2; t.textContent = h2; t.className = "timer " + f.ph; } };
+  S.tick = () => { const t = $("#aTimer"); if (!t) return; const f = phase(); if (S.aPh === "play" && f.ph === "write" && navigator.vibrate) navigator.vibrate([200, 100, 200]); S.aPh = f.ph; const h2 = f.ph === "play" ? "🎵 MUSIQUE – coupez dans " + f.left + " s" : f.ph === "write" ? "⏹ COUPEZ ! Silence " + f.left + " s" : f.ph === "done" ? "✓ Terminé" : "En attente du DJ"; if (t._h !== h2) { t._h = h2; t.textContent = h2; t.className = "timer " + f.ph; } };
   S.tick();
 }
 async function review(m, teamId, i, field, status) {
