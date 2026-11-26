@@ -15,6 +15,7 @@
 <style>
 :root{--bg:#140c29;--bg2:#1f1540;--card:#2a1d55;--line:#43347a;--tx:#f4f1ff;--mu:#b6acd9;--pri:#ff4fa3;--pri2:#ff7bbd;--alt:#5b8cff;--ok:#2ecc8f;--ko:#ff5a5a;--warn:#ffb238;--r:14px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{touch-action:manipulation}button,.btn,label,input,select{touch-action:manipulation}
 html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
 body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
 h1{font-size:1.7rem;margin:.2em 0}h2{font-size:1.2rem;margin:1.2em 0 .5em}h3{margin:.1em 0 .6em;font-size:1.08rem}
@@ -78,12 +79,16 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .mem{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:99px;padding:6px 11px;font-size:.88rem}
 .mcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin:10px 0}
 .mcard .mh{display:flex;justify-content:space-between;align-items:center}
-.trim{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:6px}
-.tbar{position:relative;height:34px;background:var(--bg2);border-radius:8px;margin:4px 0 22px;cursor:pointer}
-.tbar .tsel{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,var(--pri),var(--alt));border-radius:8px;opacity:.85}
-.tbar .tcur{position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;display:none}
-.tbar .t0,.tbar .t30{position:absolute;top:38px;font-size:11px;color:var(--mu)}.tbar .t30{right:0}
-.trow{display:flex;align-items:center;gap:10px;margin:6px 0}.trow span{width:52px;color:var(--mu);font-size:.9rem}.trow b{min-width:44px;text-align:center}.trow .btn{width:40px;padding:6px 0}
+.trim{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-top:6px}
+.tbar{position:relative;height:46px;background:var(--bg2);border-radius:10px;margin:30px 4px 6px;touch-action:none;user-select:none;-webkit-user-select:none}
+.tbar .tsel{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,var(--pri),var(--alt));opacity:.85}
+.tbar .tcur{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1px;background:#2ecc8f;border-radius:2px;display:none;z-index:3}
+.tbar .th0{position:absolute;top:-6px;bottom:-6px;width:44px;margin-left:-22px;z-index:4;touch-action:none;display:flex;justify-content:center;cursor:grab}
+.tbar .th0::before{content:"";width:12px;height:100%;background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.tbar .th0.on::before{background:#ffcf4a;transform:scaleX(1.25)}
+.tbar .th0 span{position:absolute;top:-26px;background:#fff;color:#1a1033;font-weight:800;font-size:12px;padding:1px 6px;border-radius:6px;white-space:nowrap}
+.tlab{display:flex;justify-content:space-between;font-size:11px;color:var(--mu);margin:0 4px 8px}
+.tinfo{margin:6px 0 10px}
 .srow2{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
 .srow2 .sn{flex:0 0 16px;font-weight:800;color:var(--mu);font-size:.9rem;text-align:center}
 .srow2 .cvw{position:relative;width:50px;height:50px;flex:none;border-radius:9px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:20px}
@@ -113,6 +118,23 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 #net{position:fixed;top:6px;right:6px;z-index:70;width:12px;height:12px;border-radius:50%;background:var(--ko);display:none}
 #net.off{display:block}
 .scr{min-height:100vh;display:flex;flex-direction:column;padding:2vw 3.5vw;gap:2vw;text-align:center}
+.scr .race{position:relative;width:100%;flex:none}
+.scr .rr{position:absolute;left:0;right:0;display:flex;align-items:center;gap:1.2vw;background:var(--card);border:1px solid var(--line);border-radius:1vw;padding:0 1.2vw;box-sizing:border-box;text-align:left}
+.scr .rr.go{transition:top 1.7s cubic-bezier(.65,0,.35,1)}.scr .rr .rb i{transition:width 1.7s cubic-bezier(.65,0,.35,1)}
+.scr .rr .rk{width:2.2em;height:1.6em;flex:none;border-radius:.4em;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:900}
+.scr .rr .rn{width:30%;flex:none;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scr .rr .rb{flex:1;height:.7em;background:var(--bg2);border-radius:.4em;overflow:hidden}.scr .rr .rb i{display:block;height:100%;background:linear-gradient(90deg,var(--pri),var(--alt));border-radius:.4em}
+.scr .rr .rs{width:3.2em;flex:none;text-align:right;font-weight:900;font-variant-numeric:tabular-nums}
+.scr .rr .ra{width:2.6em;flex:none;text-align:center;font-weight:900;opacity:0}.scr .rr .ra.show{animation:pop .5s ease both}.scr .rr .ra.up{color:var(--ok)}.scr .rr .ra.down{color:var(--ko)}.scr .rr .ra.eq{color:var(--mu)}
+.scr .rr.lead{background:linear-gradient(90deg,#5c4300,#2a1f00);border-color:#ffcf4a;box-shadow:0 0 2vw rgba(255,207,74,.55);animation:glow 1.4s ease-in-out infinite alternate}.scr .rr.lead .rk{background:#ffcf4a;color:#2b1a00}
+@keyframes pop{0%{opacity:0;transform:scale(.3)}70%{opacity:1;transform:scale(1.25)}100%{opacity:1;transform:scale(1)}}
+@keyframes glow{from{box-shadow:0 0 1vw rgba(255,207,74,.35)}to{box-shadow:0 0 3vw rgba(255,207,74,.8)}}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+.scr .rr.hid{opacity:.55;border-style:dashed}.scr .rr.hid .rn{letter-spacing:.3em}
+.scr .rr.m1{background:linear-gradient(90deg,#6b5000,#2a1f00);border-color:#ffcf4a;box-shadow:0 0 2.5vw rgba(255,207,74,.7);animation:glow 1.4s ease-in-out infinite alternate}
+.scr .rr.m2{border-color:#cfd3e6;background:linear-gradient(90deg,#3d3f55,var(--card))}.scr .rr.m3{border-color:#e8a56b;background:linear-gradient(90deg,#4a2c14,var(--card))}
+.scr .rr.flip{animation:flipin .9s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes flipin{0%{transform:rotateX(90deg) scale(.9);opacity:0}60%{transform:rotateX(-12deg) scale(1.06);opacity:1}100%{transform:none}}
 .scr .tone{display:flex;flex-direction:column;align-items:center;text-align:center;flex:1}
 .scr .tone .tid{font-size:min(4vw,7vh);font-weight:900;color:var(--pri2)}.scr .tone .tid span{font-size:.45em;color:var(--mu);font-weight:700;margin-left:.6em}
 .scr .tone .tnm{font-size:min(6vw,10vh);font-weight:900;line-height:1.05;margin:.1em 0 .35em}
@@ -133,6 +155,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .scr .qone .tx{text-align:left;max-width:44vw}
 .scr .qone .n{font-size:min(5vw,9vh);font-weight:900;color:var(--pri2)}.scr .qone .nm2{font-size:min(4vw,7vh);font-weight:800;line-height:1.1}
 .scr .qone .hint{font-size:min(2vw,3.6vh);color:var(--mu);margin-top:2vh}.scr .qone .pos{font-size:min(1.8vw,3vh);color:var(--mu);margin-top:1vh}
+.rankbtn{background:linear-gradient(90deg,#ffcf4a,#ff5ca8);color:#2b1a00;margin-top:10px}
 .rdy .rd{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;margin:5px 0;background:var(--bg2);border:1px solid var(--line)}
 .rdy .rd .ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;font-weight:900;font-size:14px;background:var(--card)}
 .rdy .rd.ok{border-color:var(--ok)}.rdy .rd.ok .ic{background:var(--ok);color:#06281c}.rdy .rd.ok b{color:var(--ok)}.rdy .rd.wait{opacity:.7}
@@ -946,6 +969,86 @@ function fitTeams() {
   while (over() && f > 7 && n++ < 60) { f *= 0.94; g.style.fontSize = f.toFixed(1) + "px"; }
 }
 window.addEventListener("resize", () => { if (S.pub && (S.pub.showTeams || S.pub.showQr) && S.built === "screen") { S.lastSig = ""; renderScreen($("#app")); } });
+// 🏆 Classement animé : on part du classement d'avant la manche, les équipes « font la course »
+// jusqu'à leur nouvelle place, puis flèches de progression et confettis pour le leader.
+function rankRace(p) {
+  const box = $("#race"); if (!box) return;
+  const cur = p.ranking, prev = p.rankPrev || cur, T = cur.length;
+  const prevPos = {}; prev.forEach((r, k) => (prevPos[r.id] = r));
+  const max = Math.max(1, ...cur.map((r) => r.total));
+  const top = box.getBoundingClientRect().top, avail = window.innerHeight - top - 20;
+  const rowH = Math.max(22, Math.min(window.innerHeight * 0.1, avail / T));
+  box.style.height = rowH * T + "px"; box.style.fontSize = rowH * 0.46 + "px";
+  const idxPrev = {}; prev.forEach((r, k) => (idxPrev[r.id] = k));
+  const rows = cur.map((r, k) => {
+    const pr = prevPos[r.id] || { total: 0, rank: k + 1 };
+    const el = document.createElement("div"); el.className = "rr";
+    el.style.height = rowH * 0.86 + "px"; el.style.top = (idxPrev[r.id] ?? k) * rowH + "px";
+    el.innerHTML = '<span class="rk">' + pr.rank + '</span><span class="rn">' + esc(r.name) + '</span><span class="rb"><i style="width:' + (pr.total / max * 100) + '%"></i></span><span class="rs">' + pr.total + '</span><span class="ra"></span>';
+    box.appendChild(el);
+    return { r, pr, el, k };
+  });
+  const run = (S.raceRun = (S.raceRun || 0) + 1);
+  const later = (ms, f) => setTimeout(() => { if (run === S.raceRun && document.body.contains(box)) f(); }, ms);
+  later(1300, () => {
+    rows.forEach(({ r, el, k }) => { el.classList.add("go"); el.style.top = k * rowH + "px"; el.querySelector(".rb i").style.width = (r.total / max * 100) + "%"; });
+    const t0 = performance.now(), D = 1700;
+    const step = (t) => {
+      if (run !== S.raceRun) return;
+      const f = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - f, 3);
+      rows.forEach(({ r, pr, el }) => (el.querySelector(".rs").textContent = Math.round(pr.total + (r.total - pr.total) * e)));
+      if (f < 1) requestAnimationFrame(step); else rows.forEach(({ r, el }) => (el.querySelector(".rk").textContent = r.rank));
+    };
+    requestAnimationFrame(step);
+  });
+  const firstTime = !prev.some((r) => r.total > 0); // 1re manche : pas de flèches (rien à comparer)
+  if (!firstTime) later(3300, () => rows.forEach(({ r, pr, el }, n) => {
+    const d = pr.rank - r.rank, a = el.querySelector(".ra");
+    a.textContent = d > 0 ? "▲" + d : d < 0 ? "▼" + -d : "="; a.className = "ra show " + (d > 0 ? "up" : d < 0 ? "down" : "eq");
+    a.style.animationDelay = (n * 60) + "ms";
+  }));
+  later(3900, () => {
+    rows.filter(({ r }) => r.rank === 1 && r.total > 0).forEach(({ el }) => { el.classList.add("lead"); el.querySelector(".rn").insertAdjacentHTML("afterbegin", "👑 "); });
+    confetti($("#confetti"));
+  });
+}
+// Révélation finale : les places cachées (❓) se dévoilent une à une, de la dernière à la première
+function finalReveal(p) {
+  const box = $("#fin"); if (!box) return;
+  const R = p.ranking, T = R.length;
+  const top = box.getBoundingClientRect().top, avail = window.innerHeight - top - 20;
+  const rowH = Math.max(22, Math.min(window.innerHeight * 0.11, avail / T));
+  box.style.height = rowH * T + "px"; box.style.fontSize = rowH * 0.48 + "px";
+  const max = Math.max(1, ...R.filter((r) => !r.hidden).map((r) => r.total));
+  const seen = S.finSeen || 0, newOnes = (p.reveal || 0) > seen;
+  R.forEach((r, k) => {
+    const el = document.createElement("div");
+    const isNew = !r.hidden && newOnes && k === T - p.reveal;
+    el.className = "rr" + (r.hidden ? " hid" : "") + (!r.hidden && r.rank <= 3 ? " m" + r.rank : "") + (isNew ? " flip" : "");
+    el.style.height = rowH * 0.86 + "px"; el.style.top = k * rowH + "px";
+    const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank;
+    el.innerHTML = r.hidden ? '<span class="rk">' + r.rank + '</span><span class="rn">❓ ❓ ❓</span><span class="rb"></span><span class="rs">?</span>'
+      : '<span class="rk">' + medal + '</span><span class="rn">' + (r.rank === 1 ? "👑 " : "") + esc(r.name) + '</span><span class="rb"><i style="width:' + (r.total / max * 100) + '%"></i></span><span class="rs">' + r.total + "</span>";
+    box.appendChild(el);
+  });
+  const winner = R[0] && !R[0].hidden;
+  if (winner && newOnes) setTimeout(() => confetti($("#confetti")), 600);
+  S.finSeen = p.reveal || 0;
+}
+function confetti(cv) {
+  if (!cv) return;
+  const W = (cv.width = window.innerWidth), H = (cv.height = window.innerHeight), g = cv.getContext("2d");
+  const C = ["#ff5ca8", "#5b8cff", "#ffcf4a", "#2ecc8f", "#ffffff", "#b06bff"];
+  const P = Array.from({ length: 220 }, () => ({ x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.35, vx: (Math.random() - 0.5) * 22, vy: -Math.random() * 18 - 6, s: 6 + Math.random() * 8, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: C[Math.floor(Math.random() * C.length)] }));
+  const t0 = performance.now();
+  const step = (t) => {
+    if (!document.body.contains(cv)) return;
+    g.clearRect(0, 0, W, H);
+    P.forEach((q) => { q.vy += 0.45; q.vx *= 0.99; q.x += q.vx; q.y += q.vy; q.r += q.vr; g.save(); g.translate(q.x, q.y); g.rotate(q.r); g.fillStyle = q.c; g.fillRect(-q.s / 2, -q.s / 4, q.s, q.s / 2); g.restore(); });
+    if (t - t0 < 4500) requestAnimationFrame(step); else g.clearRect(0, 0, W, H);
+  };
+  requestAnimationFrame(step);
+}
 // Une seule équipe en très grand (on appelle les personnes une à une)
 function teamOneHtml(p) {
   const T = p.teams.length, i = Math.min(p.showTeams.i || 0, T - 1), t = p.teams[i];
@@ -967,7 +1070,7 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec]);
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
@@ -981,13 +1084,17 @@ function renderScreen(app) {
     h += '<div class="big">Blind test</div><div class="mid muted">La partie va commencer…</div>' +
       '<div class="tl">' + p.teams.map((t) => "<div><b>Équipe " + t.id + "</b><br>" + esc(t.name) + "</div>").join("") + "</div>";
   } else if (p.status === "finished") {
-    if (p.ranking && p.ranking.length) {
+    if (p.ranking && p.ranking.length && !S.oldPodium) {
+      h += '<div class="mid" style="font-size:min(3.4vw,6vh)">🏆 Le classement final</div><div class="race fin" id="fin"></div><canvas id="confetti"></canvas>';
+    } else if (p.ranking && p.ranking.length) {
       const r = p.ranking; const g = (i) => r[i] ? "<b>" + esc(r[i].name) + "</b><br>" + plural(r[i].total, "pt") : "";
       h += '<div class="big">🏆 Le podium</div><div class="podium">' +
         (r[1] ? '<div class="p2" style="animation-delay:1.2s"><div class="medal">🥈</div>' + g(1) + "</div>" : "") +
         '<div class="p1" style="animation-delay:2.4s"><div class="medal">🥇</div>' + g(0) + "</div>" +
         (r[2] ? '<div class="p3" style="animation-delay:0s"><div class="medal">🥉</div>' + g(2) + "</div>" : "") + "</div>";
     } else h += '<div class="big">🏁 Partie terminée !</div><div class="mid muted">Et les gagnants sont…</div>';
+  } else if (p.ranking && p.status === "running") {
+    h += '<div class="mid" style="font-size:min(3.2vw,5.5vh)">🏆 Classement après la manche ' + (p.m + 1) + " / " + p.manches.length + '</div><div class="race" id="race"></div><canvas id="confetti"></canvas>';
   } else {
     const man = p.manches[p.m];
     h += '<div class="big">Manche ' + (p.m + 1) + " – " + esc(man.title) + "</div>" + (man.mult > 1 ? '<div class="mid" style="color:var(--warn)">⭐ Points ×' + man.mult + " ⭐</div>" : "");
@@ -999,6 +1106,8 @@ function renderScreen(app) {
   app.innerHTML = h;
   if (p.showTeams && p.status !== "finished") fitTeams();
   if (p.showQr && p.status === "setup") fitQr();
+  if (p.ranking && p.status === "running" && $("#race")) rankRace(p);
+  if (p.ranking && p.status === "finished" && $("#fin")) finalReveal(p);
   $("#scOut").onclick = async () => { if (await confirmBox("Quitter le mode écran géant ?", "Quitter")) logout(); };
   app.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
   S.tick = tickScreen; tickScreen();
@@ -1144,12 +1253,22 @@ function tabJeu(v) {
     return;
   }
   if (g.status === "finished") {
-    h += '<div class="card center"><h3>🏁 Partie terminée</h3>' + podiumHtml(d.ranking) +
-      '<label class="row keep" style="justify-content:center"><input type="checkbox" id="shRk" style="width:auto"' + (g.showRanking ? " checked" : "") + "> Afficher le podium sur l'écran géant et sur les téléphones des équipes</label></div>" +
+    const R = d.ranking || [], T = R.length, rv = Math.min(T, g.reveal || 0), nx = R[T - rv - 1];
+    h += '<div class="card center"><h3>🥁 La révélation finale</h3><p class="muted small">Chaque appui dévoile une place sur l\'écran géant, en partant de la dernière. À vous le suspense !</p>' +
+      (rv < T ? '<button class="btn big rankbtn" id="gRev">🥁 Révéler la ' + (nx ? (nx.rank === 1 ? "1re place 🏆" : nx.rank + "e place") : "suite") + "</button>" +
+        (nx ? '<p class="small" style="margin-top:6px">🤫 Entre nous : <b>' + esc(nx.name) + "</b> – " + plural(nx.total, "point") + "</p>" : "")
+        : '<p style="font-size:1.2rem;font-weight:800;margin:6px 0">🎉 Tout le classement est dévoilé !</p>') +
+      '<div class="row" style="justify-content:center"><span class="chip">' + rv + " / " + T + ' révélées</span>' + (rv > 0 ? '<button class="btn ghost sm" id="gRevBack">◀ Recacher la dernière</button>' : "") + (rv < T ? '<button class="btn ghost sm" id="gRevAll">Tout révéler</button>' : "") + (rv > 0 ? '<button class="btn ghost sm" id="gRev0">↺ Recommencer</button>' : "") + "</div></div>" +
+      '<div class="card center"><h3>🏁 Partie terminée</h3>' + podiumHtml(d.ranking) +
+      '<label class="row keep" style="justify-content:center"><input type="checkbox" id="shRk" style="width:auto"' + (g.showRanking ? " checked" : "") + "> Afficher le classement sur l'écran géant et sur les téléphones des équipes</label></div>" +
       rankTable(d.ranking, st) +
       '<div class="card"><button class="btn ghost" id="gExp">⬇️ Exporter les résultats (CSV)</button> <button class="btn ghost" id="gRe">🔄 Rejouer (mêmes équipes et manches)</button></div>';
     v.innerHTML = h;
     $("#shRk").onchange = (e) => gameAct("showRanking", { show: e.target.checked });
+    if ($("#gRev")) $("#gRev").onclick = () => gameAct("reveal", { n: rv + 1 });
+    if ($("#gRevBack")) $("#gRevBack").onclick = () => gameAct("reveal", { n: rv - 1 });
+    if ($("#gRevAll")) $("#gRevAll").onclick = () => gameAct("reveal", { n: T });
+    if ($("#gRev0")) $("#gRev0").onclick = () => gameAct("reveal", { n: 0 });
     $("#gExp").onclick = exportCsv;
     $("#gRe").onclick = async () => { if (await confirmBox("Remettre la partie à zéro ? Les réponses et scores seront effacés.", "Remettre à zéro", true)) { await api("/reset", { method: "POST", body: { mode: "game" } }); S.lastSig = ""; pollNow(); } };
     return;
@@ -1181,7 +1300,8 @@ function tabJeu(v) {
     h += '<details style="margin:10px 0"><summary class="muted">Voir et corriger toutes les réponses (touchez une pastille pour changer)</summary>' + answersGrid(d, g.m) + "</details>";
     if (state === "closed") h += '<button class="btn big" id="gPub">📣 Publier : afficher les bonnes réponses</button><p class="muted small">Les points ne sont jamais montrés aux équipes : seul votre téléphone voit le classement.' + (doubts.length ? " Une réponse douteuse non validée compte 0 point." : "") + "</p>";
     else h += g.m < st.manches.length - 1
-      ? '<button class="btn big alt" id="gNextM">Manche suivante ▶ (' + esc(st.manches[g.m + 1].title) + ")</button>"
+      ? '<button class="btn big rankbtn" id="gRank">' + (g.showRanking ? "🙈 Masquer le classement de l\'écran" : "🏆 Révéler le classement sur l\'écran géant") + "</button>" + (g.showRanking ? '<button class="btn ghost" id="gRank2" style="width:100%;margin-top:6px">🔁 Rejouer l\'animation</button>' : "") +
+        '<button class="btn big alt" id="gNextM" style="margin-top:8px">Manche suivante ▶ (' + esc(st.manches[g.m + 1].title) + ")</button>"
       : '<button class="btn big" id="gFin">🏁 Terminer la partie</button>';
   }
   h += "</div>" + '<div class="card"><h3>🤫 Classement (visible uniquement ici)</h3>' + miniRank(d.ranking) + "</div>" +
@@ -1206,6 +1326,8 @@ function tabJeu(v) {
   });
   on("gPub", () => gameAct("publish"));
   on("gNextM", () => gameAct("nextManche"));
+  on("gRank", () => gameAct("showRanking", { show: !g.showRanking }));
+  on("gRank2", () => gameAct("showRanking", { show: true }));
   on("gFin", async () => { if (await confirmBox("Terminer la partie ? Le podium restera caché tant que vous ne l'affichez pas.", "Terminer")) gameAct("nextManche"); });
   $$("[data-rv]", v).forEach((b) => (b.onclick = () => review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, b.dataset.rv)));
   $$("[data-cyc]", v).forEach((b) => (b.onclick = () => { const cur = b.dataset.st; review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, cur === "ok" ? "ko" : "ok"); }));
@@ -1685,47 +1807,57 @@ async function fillCovers(v) {
 }
 // ✂️ Choisir le passage dans l'extrait de 30 s : début et durée, avec écoute
 function trimHtml(s) {
-  const base = S.draft.extractSec, o = s.o || 0, d = s.d || base;
   return '<label class="f">✂️ Passage joué (dans l\'extrait de 30 s fourni par Deezer)</label><div class="trim">' +
-    '<div class="tbar"><div class="tsel"></div><div class="tcur"></div><span class="t0">0 s</span><span class="t30">30 s</span></div>' +
-    '<div class="trow"><span>Début</span><button class="btn ghost sm" data-tr="o-">−</button><b id="trO"></b><button class="btn ghost sm" data-tr="o+">+</button></div>' +
-    '<div class="trow"><span>Durée</span><button class="btn ghost sm" data-tr="d-">−</button><b id="trD"></b><button class="btn ghost sm" data-tr="d+">+</button></div>' +
-    '<p class="muted small" id="trInfo"></p><div class="row"><button class="btn ok" id="trPlay" style="flex:1">▶ Écouter ce passage</button><button class="btn ghost sm" id="trRes">Par défaut</button></div></div>';
+    '<div class="tbar" id="tbar"><div class="tsel"></div><div class="tcur"></div><div class="th0" data-h="a"><span></span></div><div class="th0" data-h="b"><span></span></div></div>' +
+    '<div class="tlab"><span>0 s</span><span>10 s</span><span>20 s</span><span>30 s</span></div>' +
+    '<p class="tinfo" id="trInfo"></p><div class="row"><button class="btn ok" id="trPlay" style="flex:1">▶ Écouter ce passage</button><button class="btn ghost sm" id="trRes">Par défaut</button></div>' +
+    '<p class="muted small">Faites glisser les deux poignées blanches : celle de gauche = début, celle de droite = fin.</p></div>';
 }
 function bindTrim(b, s) {
   const base = S.draft.extractSec;
-  let o = s.o || 0, d = s.d || Math.min(base, 30);
+  let a = s.o || 0, e = Math.min(30, a + (s.d || Math.min(base, 30)));
+  const bar = $("#tbar", b), hA = $('[data-h="a"]', b), hB = $('[data-h="b"]', b);
   const draw = () => {
-    if (o + d > 30) d = Math.max(3, 30 - o);
-    $(".tsel", b).style.left = (o / 30 * 100) + "%"; $(".tsel", b).style.width = (Math.min(d, 30 - o) / 30 * 100) + "%";
-    $("#trO", b).textContent = o + " s"; $("#trD", b).textContent = d + " s";
-    $("#trInfo", b).textContent = "On entend de " + o + " s à " + (o + d) + " s de l'extrait. Le chrono de ce morceau durera " + d + " s." + (d !== base ? " (Par défaut : " + base + " s.)" : "");
+    $(".tsel", bar).style.left = (a / 30 * 100) + "%"; $(".tsel", bar).style.width = ((e - a) / 30 * 100) + "%";
+    hA.style.left = (a / 30 * 100) + "%"; hB.style.left = (e / 30 * 100) + "%";
+    hA.querySelector("span").textContent = a + " s"; hB.querySelector("span").textContent = e + " s";
+    const d = e - a;
+    $("#trInfo", b).innerHTML = "De <b>" + a + " s</b> à <b>" + e + " s</b> · durée <b>" + d + " s</b>" + (d !== base ? ' <span class="muted">(par défaut : ' + base + " s)</span>" : "");
   };
-  $$("[data-tr]", b).forEach((x) => (x.onclick = () => {
-    const k = x.dataset.tr;
-    if (k === "o-") o = Math.max(0, o - 1); if (k === "o+") o = Math.min(27, o + 1);
-    if (k === "d-") d = Math.max(3, d - 1); if (k === "d+") d = Math.min(30 - o, d + 1);
-    draw(); if (PV.playing) play();
-  }));
-  // toucher la barre = choisir le début à cet endroit
-  $(".tbar", b).onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); o = Math.max(0, Math.min(27, Math.round((e.clientX - r.left) / r.width * 30))); draw(); if (PV.playing) play(); };
+  const ro = isLocked();
+  const secAt = (x) => { const r = bar.getBoundingClientRect(); return Math.max(0, Math.min(30, Math.round((x - r.left) / r.width * 30))); };
+  let drag = null;
+  const move = (ev) => {
+    if (!drag) return; ev.preventDefault();
+    const v = secAt(ev.clientX);
+    if (drag === "a") a = Math.min(v, e - 3); else e = Math.max(v, a + 3);
+    draw();
+  };
+  const up = () => { if (!drag) return; drag = null; [hA, hB].forEach((h) => h.classList.remove("on")); if (PV.playing) play(); };
+  if (!ro) {
+    [hA, hB].forEach((h) => h.addEventListener("pointerdown", (ev) => { ev.preventDefault(); ev.stopPropagation(); drag = h.dataset.h; h.classList.add("on"); try { h.setPointerCapture(ev.pointerId); } catch (x) {} }));
+    // toucher la barre : on déplace la poignée la plus proche
+    bar.addEventListener("pointerdown", (ev) => { if (drag) return; const v = secAt(ev.clientX); drag = Math.abs(v - a) <= Math.abs(v - e) ? "a" : "b"; (drag === "a" ? hA : hB).classList.add("on"); move(ev); });
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
+  }
   let tick = null;
   const play = async () => {
-    const tmp = Object.assign({}, s, { t: $("#esT", b).value.trim() || s.t, a: $("#esA", b).value.trim() || s.a, o, d });
+    const tmp = Object.assign({}, s, { t: $("#esT", b).value.trim() || s.t, a: $("#esA", b).value.trim() || s.a, o: a, d: e - a });
     if (tmp.t !== s.t || tmp.a !== s.a) delete tmp.pv;
-    await pvGo(tmp, d, true);
+    await pvGo(tmp, e - a, true);
     $("#trPlay", b).textContent = "⏹ Arrêter";
     clearInterval(tick); tick = setInterval(() => {
       const c = $(".tcur", b); if (!c) return clearInterval(tick);
       if (!PV.playing) { c.style.display = "none"; $("#trPlay", b).textContent = "▶ Écouter ce passage"; return clearInterval(tick); }
       c.style.display = "block"; c.style.left = Math.min(100, PV.audio.currentTime / 30 * 100) + "%";
-    }, 150);
+    }, 120);
   };
   $("#trPlay", b).onclick = () => { if (PV.playing) { pvStop(); return; } play(); };
-  $("#trRes", b).onclick = () => { o = 0; d = Math.min(base, 30); draw(); };
-  if (isLocked()) $$("[data-tr],#trRes", b).forEach((x) => (x.disabled = true));
+  $("#trRes", b).onclick = () => { a = 0; e = Math.min(base, 30); draw(); };
+  if (ro) $("#trRes", b).disabled = true;
   draw();
-  return () => ({ o: o || 0, d: d !== base ? d : 0 });
+  return () => ({ o: a || 0, d: e - a !== base ? e - a : 0 });
 }
 // Fenêtre de modification d'un morceau
 function editSong(i, j, v, isNew) {

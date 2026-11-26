@@ -203,11 +203,12 @@ export class Soiree extends DurableObject {
     return null;
   }
 
-  ranking() {
+  // skip = numéro d'une manche à ne pas compter (pour le classement « avant cette manche »)
+  ranking(skip) {
     const sc = this.setup.scoring;
     const rows = this.setup.teams.map((t) => ({ id: t.id, name: t.name, total: 0, perManche: [] }));
     this.setup.manches.forEach((m, i) => {
-      if (this.game.states[i] !== "published") return;
+      if (this.game.states[i] !== "published" || i === skip) return;
       rows.forEach((r) => {
         const items = (this.results[i] || {})[r.id] || [];
         let pts = 0;
@@ -230,6 +231,11 @@ export class Soiree extends DurableObject {
       r.rank = rank;
     });
     return rows;
+  }
+
+  revealed() {
+    const all = this.ranking(), T = all.length, n = Math.min(T, this.game.reveal || 0);
+    return all.map((r, k) => (k >= T - n ? r : { rank: r.rank, hidden: true }));
   }
 
   doubtCount(m) {
@@ -281,7 +287,12 @@ export class Soiree extends DurableObject {
         state: game.states[i] || "pending",
         reveal: game.states[i] === "published" ? m.songs.map((s) => ({ t: s.t, a: s.a })) : null,
       })),
-      ranking: game.showRanking ? this.ranking() : null,
+      // fin de partie : seules les places déjà révélées (en partant de la dernière) sont envoyées
+      ranking: game.showRanking ? (game.status === "finished" ? this.revealed() : this.ranking()) : null,
+      reveal: game.reveal || 0,
+      // classement d'avant la dernière manche publiée, pour l'animation de l'écran géant
+      rankPrev: game.showRanking && game.status === "running" ? this.ranking(game.m) : null,
+      rankAt: game.rankAt || 0,
     };
   }
 
@@ -334,7 +345,7 @@ export class Soiree extends DurableObject {
       }
       const mine = {};
       Object.keys(this.answers).forEach((m) => { if (this.answers[m][teamId]) mine[m] = this.answers[m][teamId]; });
-      const rk = this.game.showRanking ? this.ranking().find((r) => r.id === teamId) : null;
+      const rk = this.game.showRanking ? (this.game.status === "finished" ? this.revealed() : this.ranking()).find((r) => r.id === teamId) || null : null;
       return json({
         pub: this.pub(),
         team: { id: t.id, name: t.name, members: t.members },
@@ -470,7 +481,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now();
@@ -498,6 +509,7 @@ export class Soiree extends DurableObject {
         await this.save("played");
       } else if (act === "nextManche") {
         if (g.states[g.m] !== "published") return json({ error: "publier la manche d'abord" }, 409);
+        g.showRanking = false;
         if (g.m < mans.length - 1) { g.m++; g.k = 0; g.started = false; g.phaseStart = 0; g.states[g.m] = "open"; }
         else g.status = "finished";
       } else if (act === "finish") {
@@ -515,8 +527,13 @@ export class Soiree extends DurableObject {
         const n = this.setup.teams.length;
         if (!body.show || !n) g.showTeams = false;
         else { g.showTeams = { mode: body.mode === "one" ? "one" : "all", i: Math.max(0, Math.min(n - 1, Number(body.i) || 0)) }; g.showRules = false; g.showQr = null; }
+      } else if (act === "reveal") {
+        // révélation finale, une place à la fois (de la dernière à la première)
+        g.reveal = Math.max(0, Math.min(this.setup.teams.length, Number(body.n) || 0));
+        g.showRanking = true;
       } else if (act === "showRanking") {
         g.showRanking = !!body.show;
+        if (g.showRanking) { g.rankAt = Date.now(); g.showTeams = false; g.showRules = false; g.showQr = null; } // relance l'animation
       } else if (act === "setk") {
         if (cur) { g.k = Math.max(0, Math.min(cur.songs.length - 1, Number(body.k) || 0)); g.started = false; g.phaseStart = 0; }
       } else {
