@@ -170,6 +170,7 @@ export class Soiree extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.ctx = ctx;
+    this.env = env;
     this.ready = ctx.blockConcurrencyWhile(async () => {
       const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played"]);
       this.played = d.get("played") || [];
@@ -239,8 +240,10 @@ export class Soiree extends DurableObject {
 
   pub() {
     const { setup, game } = this;
+    const vm = this.env && this.env.CF_VERSION_METADATA;
     return {
       now: Date.now(),
+      v: vm && vm.id ? String(vm.id) : "",
       name: setup.name,
       needInit: !setup.codes.anim,
       djReady: !!setup.codes.dj,

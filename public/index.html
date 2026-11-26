@@ -151,6 +151,8 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .rules{font-size:1.08rem;line-height:1.55}.rules h3{font-size:1.25rem}.rules ol{padding-left:22px}.rules li{margin:10px 0}.rules .pts{width:100%;border-collapse:collapse;margin:8px 0}.rules .pts td{padding:6px 8px;border-bottom:1px solid var(--line)}.rules .pts td.n{text-align:right;font-weight:800;color:var(--pri2);white-space:nowrap}
 .scr .rules{font-size:min(1.6vw,2.6vh);line-height:1.4;text-align:left;max-width:90vw;margin:0 auto}.scr .rules h3{font-size:min(2.6vw,4.2vh);margin:0 0 .4em}.scr .rules li{margin:.35em 0}.scr .rules .pts{width:60%}.scr .rules .pts td{padding:.15em .5em}.scr .rules p{margin:.4em 0}.scr .rules .say{display:none}
 #printRoot{display:none}
+#verBar{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:98;background:var(--ok);color:#06281c;font-weight:800;text-align:center;padding:14px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.5);cursor:pointer}
+body.printing #verBar{display:none}
 body.essai::after{content:"";position:fixed;inset:0;border:4px solid #ff9f1a;pointer-events:none;z-index:99}
 #essaiBar{background:#ff9f1a;color:#2b1a00;font-weight:700;font-size:14px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 #essaiBar button{background:#2b1a00;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px}
@@ -325,6 +327,7 @@ async function poll() {
   try {
     const d = await api(ep);
     S.fails = 0; S.data = d; S.pub = d.pub; S.offset = d.pub.now - Date.now();
+    checkVersion(d.pub.v);
     $("#net").classList.remove("off");
     onData();
   } catch (e) {
@@ -336,6 +339,19 @@ async function poll() {
     polling = false;
     if (again) { again = false; pollT = setTimeout(poll, 50); } else pollT = setTimeout(poll, interval());
   }
+}
+// Nouvelle version publiée : l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
+function checkVersion(v) {
+  if (!v) return;
+  if (!S.ver) { S.ver = v; return; }
+  if (v === S.ver || S.verShown) return;
+  const r = S.sess && S.sess.role;
+  if (r === "screen") { location.reload(); return; }
+  S.verShown = true;
+  const b = document.createElement("div"); b.id = "verBar";
+  b.innerHTML = "🔄 Nouvelle version de l'appli : touchez ici pour mettre à jour";
+  b.onclick = () => location.reload();
+  document.body.appendChild(b);
 }
 function pollNow() { clearTimeout(pollT); poll(); }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollNow(); wake(); } });
@@ -1236,7 +1252,7 @@ function tabQrShow(v) {
 }
 async function goRules() { S.qrMode = false; S.teamsMode = false; S.rulesMode = true; await gameAct("showRules", { show: true }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); }
 function tabTeamsShow(v) {
-  const d = S.data, p = d.pub, st = p.showTeams, T = p.teams.length;
+  const d = S.data, p = d.pub, st = p.showTeams === true ? { mode: "all", i: 0 } : p.showTeams, T = p.teams.length;
   const mode = st ? st.mode : "", i = st ? Math.min(st.i || 0, T - 1) : 0, t = p.teams[i];
   v.innerHTML = '<div class="card"><h3>① 👥 Les équipes sur l\'écran géant</h3><div class="row"><button class="btn ' + (mode === "all" ? "" : "ghost") + '" id="tsAll">Toutes</button><button class="btn ' + (mode === "one" ? "" : "ghost") + '" id="tsOne">Une par une</button><button class="btn ' + (!mode ? "" : "ghost") + '" id="tsOff">Masquer</button></div>' +
     (mode === "one" ? '<div class="qnav"><button class="btn big ghost" id="tsPrev"' + (i <= 0 ? " disabled" : "") + '>◀</button><div class="grow">Équipe ' + t.id + '<br><span class="muted small">' + esc(t.name) + " · " + (i + 1) + " / " + T + '</span></div><button class="btn big" id="tsNx"' + (i >= T - 1 ? " disabled" : "") + ">▶</button></div>" +
