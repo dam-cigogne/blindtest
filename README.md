@@ -48,4 +48,12 @@ Une soirée représente environ 20 000 à 30 000 requêtes, sous la limite gratu
 Accueil → « 🧪 Mode essai » : partie d'entraînement séparée (codes 1234 / DJ 5678), la vraie soirée n'est jamais touchée. Onglet Jeu → « Remplir avec des données fictives ». Les QR codes imprimés en essai ouvrent l'essai ; un vrai QR code ramène toujours à la vraie soirée. Lien direct : `/?essai=1` (et `/?essai=0` pour sortir).
 
 ## Musique intégrée
-Le serveur cherche un extrait de 30 s (API iTunes d'Apple, puis Deezer en secours) via `/api/preview`. Le bouton ▶ du DJ (ou de l'animateur + DJ) lance la musique et le chrono ensemble ; la musique se coupe à la fin de l'extrait. Onglet Manches : « 🔊 Vérifier les extraits » et, par morceau, « Écouter / choisir l'extrait » (choix mémorisé). Désactivable par une case à cocher (les liens Apple Music / Spotify / YouTube restent en secours).
+Le serveur cherche un extrait de 30 s (API iTunes d'Apple, puis Deezer en secours) via `/api/preview`. Le bouton ▶ du DJ (ou de l'animateur + DJ) lance la musique et le chrono ensemble ; la musique se coupe à la fin de l'extrait. Onglet Manches : « 🔊 Vérifier les extraits » (bilan ✓ / ⚠️ / ✗, « 🎲 Autre morceau » et « Remplacer tous les ✗ » qui tire un autre morceau du même style jusqu'à en trouver un) et, par morceau, « Écouter / choisir l'extrait » (choix mémorisé). Désactivable par une case à cocher (les liens Apple Music / Spotify / YouTube restent en secours).
+
+## Bibliothèque
+`public/library.js` : 300 morceaux en 11 styles (8 styles × 30 morceaux + Rock, Rap et RnB, Génériques télé × 20). Le pack par défaut reprend les 8 styles d'origine ; les 3 nouveaux se choisissent dans l'onglet Manches.
+
+## Playlists Deezer, mémoire, service de musique
+- Onglet Manches → style « 🌐 Playlist Deezer… » : recherche de playlists Deezer (`/api/dzpl?q=`), tirage au sort parmi leurs morceaux (`/api/dzpl?id=`), titres nettoyés (« - Remastered », « (feat. …) »…). Sans compte.
+- Mémoire : chaque manche publiée enregistre ses morceaux (`played`, par partie main/essai). Le tirage prend d'abord des morceaux jamais joués. Réglages → « Oublier l'historique ».
+- Réglages → « Mon service de musique » (Apple Music / Spotify / Deezer / YouTube) : son lien de secours s'affiche en premier chez le DJ.

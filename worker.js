@@ -62,10 +62,43 @@ async function preview(url) {
   return json({ ok: items.length > 0, items });
 }
 
+// ---- Playlists Deezer (sources de morceaux illimitées, sans compte)
+const cleanTitle = (t) => String(t || "")
+  .replace(/\s*[-–]\s*(\d{4}\s*)?(remaster|remastered|radio edit|single version|album version|version|live|edit|mono|stereo|original mix|extended|from ).*$/i, "")
+  .replace(/\s*[\(\[](feat\.?|ft\.?|with|avec|remaster|remastered|radio edit|single|album version|version|live|edit|mono|stereo|original|extended|from |de |du |tir|bande originale|b\.o\.|bof|\d{4})[^\)\]]*[\)\]]/gi, "")
+  .replace(/\s+/g, " ").trim();
+async function dzPlaylists(url) {
+  const id = (url.searchParams.get("id") || "").replace(/[^0-9]/g, "");
+  if (id) {
+    const tracks = []; let next = "https://api.deezer.com/playlist/" + id + "/tracks?limit=400";
+    try {
+      for (let n = 0; n < 4 && next; n++) {
+        const j = await getJson(next);
+        (j.data || []).forEach((x) => {
+          if (!x || !x.preview || x.readable === false) return;
+          const full = x.title || "", t = cleanTitle(x.title_short || full) || full, a = (x.artist || {}).name || "";
+          const at = []; if (full && full !== t) at.push(clip(full, 80));
+          tracks.push({ t: clip(t, 100), a: clip(a, 100), h: "Extrait", at, aa: [], pv: { s: "dz", id: String(x.id), t: clip(t, 100), a: clip(a, 100) } });
+        });
+        next = j.next && /^https:\/\/api\.deezer\.com\//.test(j.next) ? j.next : null;
+      }
+    } catch (e) { return json({ ok: false, error: "Deezer ne répond pas", tracks: [] }); }
+    const seen = new Set();
+    return json({ ok: true, tracks: tracks.filter((x) => { const k = (x.t + "|" + x.a).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }) });
+  }
+  const q = clip(url.searchParams.get("q"), 100).trim();
+  if (!q) return json({ ok: false, items: [] });
+  try {
+    const j = await getJson("https://api.deezer.com/search/playlist?limit=15&q=" + encodeURIComponent(q));
+    return json({ ok: true, items: (j.data || []).filter((x) => x.nb_tracks >= 5).map((x) => ({ id: String(x.id), title: x.title, n: x.nb_tracks, img: x.picture_medium || "", by: (x.user || {}).name || "" })) });
+  } catch (e) { return json({ ok: false, items: [], error: "Deezer ne répond pas" }); }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/preview") return preview(url);
+    if (url.pathname === "/api/dzpl") return dzPlaylists(url);
     if (url.pathname.startsWith("/api/")) {
       // Mode essai : une partie séparée, la vraie soirée n'est jamais touchée
       const name = request.headers.get("x-essai") === "1" ? "essai" : "main";
@@ -85,7 +118,8 @@ export class Soiree extends DurableObject {
     super(ctx, env);
     this.ctx = ctx;
     this.ready = ctx.blockConcurrencyWhile(async () => {
-      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust"]);
+      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played"]);
+      this.played = d.get("played") || [];
       this.setup = d.get("setup") || defaultSetup();
       this.game = d.get("game") || defaultGame();
       this.answers = d.get("answers") || {};
@@ -169,6 +203,7 @@ export class Soiree extends DurableObject {
       showRanking: !!game.showRanking,
       showRules: !!game.showRules,
       teamNames: setup.teamNames !== false,
+      service: setup.service || "",
       scoring: setup.scoring,
       manches: setup.manches.map((m, i) => ({
         title: m.title,
@@ -289,6 +324,7 @@ export class Soiree extends DurableObject {
         ranking: this.ranking(),
         adjust: this.adjust,
         doubts: this.setup.manches.map((_, i) => this.doubtCount(i)),
+        played: this.played,
       });
     }
 
@@ -310,6 +346,7 @@ export class Soiree extends DurableObject {
         };
       }
       if (typeof s.teamNames === "boolean") this.setup.teamNames = s.teamNames;
+      if (typeof s.service === "string" && ["", "am", "sp", "dz", "yt"].includes(s.service)) this.setup.service = s.service;
       if (s.extractSec) this.setup.extractSec = Math.max(5, Math.min(90, Number(s.extractSec) || 15));
       if (s.answerSec) this.setup.answerSec = Math.max(3, Math.min(90, Number(s.answerSec) || 10));
       if (!partial || this.game.status !== "running") {
@@ -326,7 +363,8 @@ export class Soiree extends DurableObject {
             title: clip(m.title, 60) || "Manche " + (i + 1),
             mult: Math.max(1, Math.min(5, Number(m.mult) || 1)),
             label2: clip(m.label2, 40) || "Artiste",
-            theme: clip(m.theme, 20),
+            theme: clip(m.theme, 24),
+            dz: clip(m.dz, 80),
             songs: (m.songs || []).slice(0, 20).map((x) => ({
               t: clip(x.t, 100),
               a: clip(x.a, 100),
@@ -376,6 +414,11 @@ export class Soiree extends DurableObject {
       } else if (act === "publish") {
         if (g.states[g.m] !== "closed") return json({ error: "clore la manche d'abord" }, 409);
         g.states[g.m] = "published";
+        // mémoire des morceaux joués (pour ne pas les retirer au sort lors des prochaines soirées)
+        const set = new Set(this.played);
+        cur.songs.forEach((x) => set.add((x.t + "|" + x.a).toLowerCase()));
+        this.played = [...set].slice(-5000);
+        await this.save("played");
       } else if (act === "nextManche") {
         if (g.states[g.m] !== "published") return json({ error: "publier la manche d'abord" }, 409);
         if (g.m < mans.length - 1) { g.m++; g.k = 0; g.started = false; g.phaseStart = 0; g.states[g.m] = "open"; }
@@ -478,6 +521,13 @@ export class Soiree extends DurableObject {
         });
       });
       await this.save("answers");
+      return json({ ok: true });
+    }
+
+    if (path === "/played/reset" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      this.played = [];
+      await this.save("played");
       return json({ ok: true });
     }
 

@@ -58,6 +58,8 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .timer.play{background:#0f3d2c;border-color:var(--ok)}.timer.write{background:#4d0f1f;border-color:var(--ko)}.timer.done{border-color:var(--alt)}
 .song .st{font-size:1.45rem;font-weight:800}.song .sa{font-size:1.1rem;color:var(--pri2);font-weight:700}.song .sh{color:var(--mu);margin-top:4px}
 .links{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.links a.pref{flex-basis:100%;background:var(--pri);border-color:var(--pri);color:#fff;font-size:17px}
+.dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
 .links a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--tx);text-decoration:none;font-weight:600;min-width:120px}
 ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity:.45}ol.pl li.cur{color:var(--pri2);font-weight:700}
 .rank{width:100%;border-collapse:collapse}.rank td,.rank th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem}.rank th{color:var(--mu);font-weight:600;font-size:.82rem}
@@ -516,7 +518,15 @@ function renderTeamRes(d) {
 function ytUrl(s) { return "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a); }
 function spUrl(s) { return "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a); }
 function amUrl(s) { return "https://music.apple.com/fr/search?term=" + encodeURIComponent(s.t + " " + s.a); }
-function musicLinks(s) { return '<div class="links"><a target="_blank" rel="noopener" href="' + amUrl(s) + '">🍎 Apple Music</a><a target="_blank" rel="noopener" href="' + spUrl(s) + '">▶ Spotify</a><a target="_blank" rel="noopener" href="' + ytUrl(s) + '">▶ YouTube</a></div>'; }
+function dzUrl(s) { return s.pv && s.pv.s === "dz" ? "https://www.deezer.com/track/" + s.pv.id : "https://www.deezer.com/search/" + encodeURIComponent(s.t + " " + s.a); }
+const SERVICES = [["am", "🍎 Apple Music", amUrl], ["sp", "🟢 Spotify", spUrl], ["dz", "🟣 Deezer", dzUrl], ["yt", "▶ YouTube", ytUrl]];
+const myService = () => (S.pub && S.pub.service) || (S.draft && S.draft.service) || "";
+function orderedServices() { const me = myService(); return SERVICES.slice().sort((a, b) => (b[0] === me) - (a[0] === me)); }
+function musicLinks(s) {
+  const me = myService();
+  return '<div class="links">' + orderedServices().map(([k, l, f]) => '<a target="_blank" rel="noopener" class="' + (k === me ? "pref" : "") + '" href="' + f(s) + '">' + (k === me ? "Ouvrir dans " : "") + l + "</a>").join("") + "</div>";
+}
+function linksInline(s) { return orderedServices().map(([k, l, f]) => '<a style="color:var(--pri2)' + (k === myService() ? ";font-weight:800" : "") + '" target="_blank" rel="noopener" href="' + f(s) + '">' + l.replace(/^\S+ /, "") + "</a>").join(" · "); }
 function playlistText(all) {
   return all.map((m, i) => "MANCHE " + (i + 1) + " – " + m.title + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "\n" +
     m.songs.map((s, j) => (j + 1) + ". " + s.t + " – " + s.a + (s.h ? "  [" + s.h + "]" : "")).join("\n")).join("\n\n");
@@ -538,7 +548,7 @@ function renderDJ(app) {
     d.all.forEach((m, i) => {
       h += '<div class="card"><h3>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? ' <span class="chip warn">×' + m.mult + "</span>" : "") + "</h3>" +
         m.songs.map((s, j) => '<div style="padding:8px 0;border-top:1px solid var(--line)"><button class="btn ghost sm" style="float:right" data-lis="' + i + "_" + j + '">🎧</button><b>' + (j + 1) + ". " + esc(s.t) + "</b> – " + esc(s.a) +
-          '<div class="muted small">▶ ' + esc(s.h || "Refrain") + ' · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + amUrl(s) + '">Apple Music</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + spUrl(s) + '">Spotify</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + ytUrl(s) + '">YouTube</a></div></div>').join("") + "</div>";
+          '<div class="muted small">▶ ' + esc(s.h || "Refrain") + ' · ' + linksInline(s) + '</div></div>').join("") + "</div>";
     });
   } else if (p.status === "setup") {
     h += '<div class="card center"><h3>La partie n\'a pas encore commencé</h3><p class="muted">Préparez la playlist dans l\'onglet « Playlist complète ». Cet écran s\'animera dès que l\'animateur lancera la partie.</p></div>';
@@ -701,28 +711,61 @@ function pvPicker(s, onPick) {
   });
 }
 // Vérifier tous les extraits d'un coup
-function pvCheckAll(manches, onChange) {
+// Vérifier tous les extraits d'un coup (onReplace : tirer un autre morceau du même style)
+function pvCheckAll(manches, onChange, onReplace) {
   const close = () => { pvStop(); closeModal(); };
-  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">L\'appli cherche chaque morceau. ✓ = trouvé · ⚠️ = titre différent, écoutez · ✗ = introuvable. Touchez ▶ pour écouter, « Changer » pour choisir un autre extrait.</p><div id="caL">';
-  manches.forEach((m, i) => { h += '<p style="margin:10px 0 0"><b>Manche ' + (i + 1) + " – " + esc(m.title) + "</b></p>"; m.songs.forEach((s, j) => { h += '<div class="pvrow" id="ca' + i + "_" + j + '"><div class="pt">' + (j + 1) + ". " + esc(s.t) + ' – <span class="muted">' + esc(s.a) + '</span><br><span class="small muted st2">…</span></div></div>'; }); });
+  const stat = {};
+  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">✓ = trouvé · ⚠️ = titre différent, écoutez · ✗ = introuvable. ▶ pour écouter, « Changer » pour choisir une autre version' + (onReplace ? ", « 🎲 Autre morceau » pour remplacer par un autre morceau du même style" : "") + '.</p><div id="caSum" class="row" style="align-items:center"></div><div id="caL">';
+  manches.forEach((m, i) => { h += '<p style="margin:10px 0 0"><b>Manche ' + (i + 1) + " – " + esc(m.title) + "</b></p>"; m.songs.forEach((s, j) => { h += '<div class="pvrow" id="ca' + i + "_" + j + '"></div>'; }); });
   h += '</div><div class="row end"><button class="btn ghost" id="caX">Fermer</button></div>';
+  const summary = (busy) => {
+    const S2 = $("#caSum"); if (!S2) return;
+    const v = Object.values(stat), ok = v.filter((x) => x === "ok").length, w = v.filter((x) => x === "warn").length, b = v.filter((x) => x === "bad").length;
+    S2.innerHTML = '<b style="flex:1">' + ok + " ✓ · " + w + " ⚠️ · " + b + " ✗" + (busy ? " · recherche…" : b ? "" : " 👍") + "</b>" +
+      (!busy && b && onReplace ? '<button class="btn sm" id="caAuto">🎲 Remplacer tous les ✗</button>' : "");
+    const a = $("#caAuto"); if (a) a.onclick = autoAll;
+  };
+  const row = async (i, j) => {
+    const r = $("#ca" + i + "_" + j); if (!r) return "gone";
+    const s = manches[i].songs[j];
+    r.innerHTML = '<div class="pt">' + (j + 1) + ". " + esc(s.t) + ' – <span class="muted">' + esc(s.a) + '</span><br><span class="small muted">🔎 recherche…</span></div>';
+    const it = await pvResolve(s), m = pvMatch(s, it);
+    if (!$("#ca" + i + "_" + j)) return "gone";
+    stat[i + "_" + j] = m;
+    r.innerHTML = '<div class="pt">' + (j + 1) + ". " + esc(s.t) + ' – <span class="muted">' + esc(s.a) + '</span><br><span class="small ' + (m === "bad" ? "" : "muted") + '"' + (m === "bad" ? ' style="color:var(--ko)"' : "") + ">" +
+      (it ? (m === "ok" ? "✓ " : "⚠️ ") + esc(it.t) + " – " + esc(it.a) + " (" + SRC[it.s] + ")" : "✗ introuvable") + "</span></div>" +
+      (it ? '<button class="btn ghost sm" data-pp="1" data-url="' + esc(it.url) + '">▶</button>' : "") +
+      (onChange ? '<button class="btn ghost sm" data-chg="1">Changer</button>' : "") +
+      (onReplace && m !== "ok" ? '<button class="btn sm" data-rep="1">🎲 Autre morceau</button>' : "");
+    const pb = r.querySelector("[data-pp]"); if (pb) pb.onclick = () => { if (PV.playing && PV.url === it.url) pvStop(); else pvPlay(it, 20); };
+    const cb = r.querySelector("[data-chg]"); if (cb) cb.onclick = () => { pvStop(); pvPicker(s, (pv) => { onChange(i, j, pv); }); };
+    const rb = r.querySelector("[data-rep]"); if (rb) rb.onclick = async () => { pvStop(); if (!(await onReplace(i, j))) return; await row(i, j); summary(false); };
+    return m;
+  };
+  // Remplace chaque ✗ par un autre morceau du style, jusqu'à en trouver un (ou épuiser le style)
+  const autoAll = async () => {
+    const todo = Object.keys(stat).filter((k) => stat[k] === "bad");
+    summary(true);
+    for (const k of todo) {
+      const [i, j] = k.split("_").map(Number);
+      for (let n = 0; n < 10 && stat[k] === "bad"; n++) {
+        if (!(await onReplace(i, j, true))) break;
+        if ((await row(i, j)) === "gone") return;
+      }
+    }
+    summary(false);
+    const left = Object.values(stat).filter((x) => x === "bad").length;
+    toast(left ? left + " morceau(x) toujours introuvable(s) : plus de morceaux de rechange dans ce style. Remplacez-le(s) à la main." : "Tous les morceaux sont trouvés 👍", 4500);
+  };
   openModal(h, async (box) => {
     $("#caX", box).onclick = close;
     $("#modal").onclick = (e) => { if (e.target.id === "modal") close(); };
-    let nOk = 0, nW = 0, nB = 0;
+    summary(true);
     for (let i = 0; i < manches.length; i++) for (let j = 0; j < manches[i].songs.length; j++) {
-      if (!$("#caL")) return; // fenêtre fermée
-      const s = manches[i].songs[j], row = $("#ca" + i + "_" + j);
-      const it = await pvResolve(s), m = pvMatch(s, it);
-      if (!row) continue;
-      m === "ok" ? nOk++ : m === "warn" ? nW++ : nB++;
-      row.querySelector(".st2").innerHTML = it ? (m === "ok" ? "✓ " : "⚠️ ") + esc(it.t) + " – " + esc(it.a) + " (" + SRC[it.s] + ")" : '<span style="color:var(--ko)">✗ introuvable</span>';
-      row.insertAdjacentHTML("beforeend", (it ? '<button class="btn ghost sm" data-pp="1" data-url="' + esc(it.url) + '">▶</button>' : "") + (onChange ? '<button class="btn ghost sm" data-chg="1">Changer</button>' : ""));
-      const pb = row.querySelector("[data-pp]"); if (pb) pb.onclick = () => { if (PV.playing && PV.url === it.url) pvStop(); else pvPlay(it, 20); };
-      const cb = row.querySelector("[data-chg]"); if (cb) cb.onclick = () => { pvStop(); pvPicker(s, (pv) => { onChange(i, j, pv); }); };
+      if ((await row(i, j)) === "gone") return;
       await new Promise((r) => setTimeout(r, 120));
     }
-    const L = $("#caL"); if (L) L.insertAdjacentHTML("afterbegin", '<p><b>' + nOk + " ✓</b> · " + nW + " ⚠️ · " + nB + " ✗</p>");
+    summary(false);
   });
 }
 
@@ -774,7 +817,9 @@ const TEAM_NAMES = ["Les Vinyles Rayés", "Les Rois du Refrain", "Les Micros d'O
 const CODE_CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const newCode = () => Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join("");
 function defaultManches() {
-  return LIB.themes.map((th) => ({
+  // le pack par défaut garde les 8 styles d'origine ; les autres sont au choix dans Manches
+  const DEF = ["s6070", "s80", "s90", "s00", "s10", "film", "fr", "fete"];
+  return LIB.themes.filter((th) => DEF.includes(th.id)).map((th) => ({
     title: th.id === "fete" ? "Finale – Tubes de fête" : th.title, mult: th.id === "fete" ? 2 : 1, label2: th.label2, theme: th.id,
     songs: th.songs.slice(0, 5).map((s) => clone(s)),
   }));
@@ -1218,31 +1263,89 @@ function renderImpMap(v) {
 /* ---- Onglet Manches ---- */
 function themeById(id) { return LIB.themes.find((t) => t.id === id); }
 function usedKeys(exceptM) { const s = new Set(); S.draft.manches.forEach((m, i) => { if (i !== exceptM) m.songs.forEach((x) => s.add((x.t + "|" + x.a).toLowerCase())); }); return s; }
-function pickSongs(themeId, n, exclude) {
-  const th = themeById(themeId); if (!th) return [];
-  const pool = shuffle(th.songs.filter((s) => !exclude.has((s.t + "|" + s.a).toLowerCase())));
-  return pool.slice(0, n).map(clone);
+const sKey = (s) => (s.t + "|" + s.a).toLowerCase();
+const playedSet = () => new Set((S.data && S.data.played) || []);
+const isDz = (th) => /^dz:\d+$/.test(th || "");
+const hasSource = (m) => isDz(m.theme) || !!themeById(m.theme);
+// tirage : d'abord les morceaux jamais joués, puis (si besoin) ceux déjà joués
+function pickFrom(pool, n, exclude) {
+  const pl = playedSet(), av = pool.filter((s) => !exclude.has(sKey(s)));
+  const got = shuffle(av.filter((s) => !pl.has(sKey(s)))).concat(shuffle(av.filter((s) => pl.has(sKey(s))))).slice(0, n).map(clone);
+  pickFrom.reused = got.filter((s) => pl.has(sKey(s))).length;
+  return got;
+}
+function pickSongs(themeId, n, exclude) { const th = themeById(themeId); return th ? pickFrom(th.songs, n, exclude) : []; }
+S.dzCache = {};
+async function dzTracks(id) {
+  if (S.dzCache[id]) return S.dzCache[id];
+  const r = await fetch("/api/dzpl?id=" + id).then((x) => x.json()).catch(() => ({ ok: false }));
+  if (!r.ok) throw new Error((r.error || "Pas de connexion") + " : réessayez");
+  S.dzCache[id] = r.tracks; return r.tracks;
+}
+async function drawSongs(m, n, exclude) {
+  if (isDz(m.theme)) return pickFrom(await dzTracks(m.theme.slice(3)), n, exclude);
+  return pickSongs(m.theme, n, exclude);
+}
+const reusedMsg = () => (pickFrom.reused ? " (" + plural(pickFrom.reused, "morceau déjà joué", "morceaux déjà joués") + " : plus assez de nouveaux)" : "");
+// Choisir une playlist Deezer comme source de morceaux
+function dzPicker(onPick) {
+  const SUG = ["Années 80", "Années 90", "Années 2000", "Tubes de l'été", "Disney", "Variété française", "Disco", "Rock", "Rap français", "Génériques dessins animés", "Top France", "Années 60"];
+  openModal('<h3>🌐 Playlist Deezer</h3><p class="muted small">Des milliers de playlists toutes faites, sans compte. Tapez un thème ou touchez une idée, puis choisissez une playlist : les morceaux seront tirés au sort dedans.</p>' +
+    '<div class="row"><input id="dzQ" class="grow" style="flex:1" placeholder="ex. années 80, Disney, disco…"><button class="btn sm" id="dzGo">🔎</button></div>' +
+    '<div class="dzchips">' + SUG.map((x) => '<button data-sg="' + esc(x) + '">' + esc(x) + "</button>").join("") + '</div><div id="dzL" class="small"></div><div class="row end"><button class="btn ghost" id="dzX">Fermer</button></div>', (box) => {
+    const L = $("#dzL", box);
+    const run = async () => {
+      const q = $("#dzQ", box).value.trim(); if (!q) return;
+      L.innerHTML = '<p class="muted">Recherche…</p>';
+      try {
+        const r = await fetch("/api/dzpl?q=" + encodeURIComponent(q)).then((x) => x.json());
+        if (!r.items || !r.items.length) { L.innerHTML = '<p class="muted">Aucune playlist trouvée. Essayez un autre mot.</p>'; return; }
+        L.innerHTML = r.items.map((p, i) => '<div class="pvrow">' + (p.img ? '<img src="' + esc(p.img) + '" alt="">' : "") + '<div class="pt"><b>' + esc(p.title) + '</b><br><span class="muted">' + p.n + " titres" + (p.by ? " · par " + esc(p.by) : "") + '</span></div><button class="btn ok sm" data-dz="' + i + '">Choisir</button></div>').join("");
+        $$("[data-dz]", L).forEach((b) => (b.onclick = async () => {
+          const p = r.items[Number(b.dataset.dz)]; b.disabled = true; b.textContent = "…";
+          try { const t = await dzTracks(p.id); if (t.length < 5) throw new Error("Trop peu de morceaux écoutables dans cette playlist"); closeModal(); onPick(p, t); }
+          catch (e) { toast(e.message, 3500); b.disabled = false; b.textContent = "Choisir"; }
+        }));
+      } catch (e) { L.innerHTML = '<p class="muted">Pas de connexion internet.</p>'; }
+    };
+    $("#dzGo", box).onclick = run; $("#dzQ", box).onkeydown = (e) => { if (e.key === "Enter") run(); };
+    $$("[data-sg]", box).forEach((b) => (b.onclick = () => { $("#dzQ", box).value = b.dataset.sg; run(); }));
+    $("#dzX", box).onclick = closeModal;
+  });
 }
 function tabManches(v) {
   const M = S.draft.manches, st = S.draft;
   const nS = M.reduce((a, m) => a + m.songs.length, 0);
   const dur = Math.round((nS * (st.extractSec + st.answerSec + 6) + M.length * 90) / 60);
-  const thOpts = (sel) => '<option value="">Libre</option>' + LIB.themes.map((t) => '<option value="' + t.id + '"' + (t.id === sel ? " selected" : "") + ">" + esc(t.title) + " (" + t.songs.length + ")</option>").join("");
+  const thOpts = (m) => '<option value="">Libre (je tape mes morceaux)</option>' + LIB.themes.map((t) => '<option value="' + t.id + '"' + (t.id === m.theme ? " selected" : "") + ">" + esc(t.title) + " (" + t.songs.length + ")</option>").join("") +
+    (isDz(m.theme) ? '<option value="' + esc(m.theme) + '" selected>🌐 Deezer : ' + esc(m.dz || "playlist") + "</option>" : "") + '<option value="__dz">🌐 Playlist Deezer (des milliers de morceaux)…</option>';
   let h = lockBanner() + '<div class="card"><b>' + plural(M.length, "manche") + " · " + plural(nS, "morceau", "morceaux") + "</b> · durée estimée ≈ " + dur + " min" +
     '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button><button class="btn ghost sm keep" id="mChk">🔊 Vérifier les extraits</button></div>' +
     '<p class="muted small">Pour chaque manche : choisissez un style puis « 🎲 Tirer au sort », ou tapez vos propres morceaux. Les « variantes acceptées » aident la correction automatique.</p></div>';
   M.forEach((m, i) => {
     h += '<div class="mcard" data-m="' + i + '"><div class="mh"><b>Manche ' + (i + 1) + '</b><div class="row" style="margin:0"><button class="btn ghost sm" data-a="up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="btn ghost sm" data-a="down"' + (i === M.length - 1 ? " disabled" : "") + '>↓</button><button class="btn ghost sm" data-a="delm">🗑</button></div></div>' +
       '<input class="mt" value="' + esc(m.title) + '" placeholder="Titre de la manche" maxlength="60" style="margin-top:6px">' +
-      '<div class="row"><select class="msty grow" style="flex:2">' + thOpts(m.theme) + '</select><select class="mmul" style="flex:1">' + [1, 2, 3].map((x) => '<option value="' + x + '"' + (Number(m.mult) === x ? " selected" : "") + ">Points ×" + x + "</option>").join("") + "</select></div>" +
+      '<div class="row"><select class="msty grow" style="flex:2">' + thOpts(m) + '</select><select class="mmul" style="flex:1">' + [1, 2, 3].map((x) => '<option value="' + x + '"' + (Number(m.mult) === x ? " selected" : "") + ">Points ×" + x + "</option>").join("") + "</select></div>" +
       '<div class="row"><span class="muted small">2e réponse :</span><select class="ml2" style="flex:1"><option' + (m.label2 !== "Film ou dessin animé" ? " selected" : "") + ">Artiste</option><option" + (m.label2 === "Film ou dessin animé" ? " selected" : "") + ">Film ou dessin animé</option></select></div>" +
       m.songs.map((s, j) => '<div class="srow" data-s="' + j + '"><span class="sn">' + (j + 1) + '</span><div class="sf"><input class="st" value="' + esc(s.t) + '" placeholder="Titre"><input class="sa" value="' + esc(s.a) + '" placeholder="' + esc(m.label2 || "Artiste") + '"><input class="sh" value="' + esc(s.h) + '" placeholder="Passage à jouer (refrain, intro…)">' +
-        "<details><summary>Variantes acceptées" + ((s.at || []).length + (s.aa || []).length ? " (" + ((s.at || []).length + (s.aa || []).length) + ")" : "") + '</summary><input class="sat" value="' + esc((s.at || []).join("; ")) + '" placeholder="Autres titres acceptés, séparés par ;"><input class="saa" value="' + esc((s.aa || []).join("; ")) + '" placeholder="Autres ' + esc((m.label2 || "artiste").toLowerCase()) + ' acceptés, séparés par ;"></details><button class="pvb keep" data-a="pv">🔊 ' + (s.pv ? "Extrait choisi ✓" : "Écouter / choisir l\'extrait") + '</button></div><button class="x" data-a="dels">✕</button></div>').join("") +
+        "<details><summary>Variantes acceptées" + ((s.at || []).length + (s.aa || []).length ? " (" + ((s.at || []).length + (s.aa || []).length) + ")" : "") + '</summary><input class="sat" value="' + esc((s.at || []).join("; ")) + '" placeholder="Autres titres acceptés, séparés par ;"><input class="saa" value="' + esc((s.aa || []).join("; ")) + '" placeholder="Autres ' + esc((m.label2 || "artiste").toLowerCase()) + ' acceptés, séparés par ;"></details>' + (playedSet().has(sKey(s)) ? '<div class="small muted">🔁 déjà joué lors d\'une partie précédente</div>' : "") + '<button class="pvb keep" data-a="pv">🔊 ' + (s.pv ? "Extrait choisi ✓" : "Écouter / choisir l\'extrait") + '</button></div><button class="x" data-a="dels">✕</button></div>').join("") +
       '<div class="row"><button class="btn ghost sm" data-a="draw">🎲 Tirer au sort</button><button class="btn ghost sm" data-a="addlib">+ Morceau du style</button><button class="btn ghost sm" data-a="adds">+ Morceau vide</button></div></div>';
   });
   v.innerHTML = h;
   $("#mCopy").onclick = () => copyText(playlistText(S.draft.manches));
-  $("#mChk").onclick = () => pvCheckAll(S.draft.manches, isLocked() ? null : (i, j, pv) => { const s = S.draft.manches[i].songs[j]; if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); });
+  $("#mChk").onclick = () => {
+    let dirty = false;
+    pvCheckAll(S.draft.manches, isLocked() ? null : (i, j, pv) => { const s = S.draft.manches[i].songs[j]; if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); },
+      isLocked() ? null : async (i, j, quiet) => {
+        const m = S.draft.manches[i];
+        if (!hasSource(m)) { if (!quiet) toast("Manche « libre » : tapez un autre morceau à la main dans l'onglet Manches", 3500); return false; }
+        let got; try { got = await drawSongs(m, 1, usedKeys(-1)); } catch (er) { toast(er.message, 3500); return false; }
+        if (!got.length) { if (!quiet) toast("Plus de morceau de rechange dans ce style : remplacez-le à la main", 3500); return false; }
+        m.songs[j] = got[0]; saveDraft(); dirty = true;
+        return true;
+      });
+    const watch = setInterval(() => { if (!$("#caL")) { clearInterval(watch); if (dirty) tabManches(v); } }, 500);
+  };
   $("#mDef").onclick = async () => { if (await confirmBox("Remplacer toutes les manches par le pack par défaut (8 manches de 5 morceaux) ?", "Remplacer", true)) { S.draft.manches = defaultManches(); saveDraft(true); tabManches(v); } };
   $("#mAdd").onclick = () => openModal("<h3>Nouvelle manche</h3><label class=\"f\">Style</label><select id=\"nSty\">" + LIB.themes.map((t) => '<option value="' + t.id + '">' + esc(t.title) + "</option>").join("") + '<option value="">Libre (je tape mes morceaux)</option></select><label class="f">Nombre de morceaux</label><input type="number" id="nNb" value="5" min="1" max="20"><div class="row end"><button class="btn ghost" id="nNo">Annuler</button><button class="btn" id="nOk">Ajouter</button></div>', (b) => {
     $("#nNo", b).onclick = closeModal;
@@ -1269,7 +1372,18 @@ function tabManches(v) {
   v.onchange = (e) => {
     const c = e.target.closest(".mcard"); if (!c) return;
     const m = S.draft.manches[Number(c.dataset.m)], cl = e.target.classList;
-    if (cl.contains("msty")) { m.theme = e.target.value; const th = themeById(m.theme); if (th) { m.label2 = th.label2; if (!m.title || LIB.themes.some((t) => t.title === m.title) || /^Nouvelle manche/.test(m.title)) m.title = th.title; } saveDraft(); tabManches(v); }
+    if (cl.contains("msty") && e.target.value === "__dz") {
+      const prev = m.theme; e.target.value = prev || "";
+      dzPicker(async (p, tracks) => {
+        const oldDz = m.dz; m.theme = "dz:" + p.id; m.dz = p.title; m.label2 = "Artiste";
+        if (!m.title || LIB.themes.some((t) => t.title === m.title) || /^Nouvelle manche/.test(m.title) || (oldDz && m.title === oldDz)) m.title = p.title.slice(0, 60);
+        const n = m.songs.length || 5;
+        if (!m.songs.length || (await confirmBox("Tirer au sort " + n + " morceaux dans « " + esc(p.title) + " » pour cette manche ?", "Tirer au sort"))) { m.songs = pickFrom(tracks, n, usedKeys(Number(c.dataset.m))); if (pickFrom.reused) toast("Tirage fait" + reusedMsg(), 3500); }
+        saveDraft(true); tabManches(v);
+      });
+      return;
+    }
+    if (cl.contains("msty")) { const od = m.dz; m.theme = e.target.value; delete m.dz; const th = themeById(m.theme); if (th) { m.label2 = th.label2; if (!m.title || LIB.themes.some((t) => t.title === m.title) || /^Nouvelle manche/.test(m.title) || (od && m.title === od.slice(0, 60))) m.title = th.title; } saveDraft(); tabManches(v); }
     else if (cl.contains("mmul")) { m.mult = Number(e.target.value); saveDraft(); }
     else if (cl.contains("ml2")) { m.label2 = e.target.value; saveDraft(); tabManches(v); }
   };
@@ -1283,13 +1397,15 @@ function tabManches(v) {
     else if (a === "pv") { const s = m.songs[Number(b.closest(".srow").dataset.s)]; if (!s.t && !s.a) return toast("Tapez d'abord le titre et l'artiste"); pvPicker(s, isLocked() ? null : (pv) => { if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); }); return; }
     else if (a === "adds") { m.songs.push({ t: "", a: "", h: "Refrain", at: [], aa: [] }); }
     else if (a === "addlib" || a === "draw") {
-      if (!themeById(m.theme)) return toast("Choisissez d'abord un style pour cette manche");
-      if (a === "draw") {
-        if (m.songs.length && !(await confirmBox("Remplacer les morceaux de cette manche par un nouveau tirage au sort ?", "Tirer au sort"))) return;
-        const n = m.songs.length || 5; const got = pickSongs(m.theme, n, usedKeys(i)); if (got.length < n) toast("Seulement " + got.length + " morceaux disponibles dans ce style"); m.songs = got;
-      } else {
-        const ex = usedKeys(-1); const got = pickSongs(m.theme, 1, ex); if (!got.length) return toast("Plus de morceaux disponibles dans ce style"); m.songs.push(got[0]);
-      }
+      if (!hasSource(m)) return toast("Choisissez d'abord un style (ou une playlist Deezer) pour cette manche");
+      try {
+        if (a === "draw") {
+          if (m.songs.length && !(await confirmBox("Remplacer les morceaux de cette manche par un nouveau tirage au sort ?", "Tirer au sort"))) return;
+          const n = m.songs.length || 5; const got = await drawSongs(m, n, usedKeys(i)); if (got.length < n) toast("Seulement " + got.length + " morceaux disponibles dans ce style"); else if (pickFrom.reused) toast("Tirage fait" + reusedMsg(), 3500); m.songs = got;
+        } else {
+          const got = await drawSongs(m, 1, usedKeys(-1)); if (!got.length) return toast("Plus de morceaux disponibles dans ce style"); m.songs.push(got[0]);
+        }
+      } catch (er) { return toast(er.message, 3500); }
     } else return;
     saveDraft(true); tabManches(v);
   };
@@ -1351,7 +1467,9 @@ function tabReglages(v) {
     '<div class="row">' + (st.loadedFrom ? '<button class="btn ok" id="svUpd">💾 Mettre à jour « ' + esc(st.loadedFrom.name) + ' »</button>' : '') + '<button class="btn ' + (st.loadedFrom ? 'ghost' : 'ok') + '" id="svNew">➕ Enregistrer comme nouvelle partie</button></div>' +
     '<div id="svList" class="muted small">Chargement…</div></div>' +
     '<div class="card keep"><h3>La soirée</h3><label class="f">Nom de la soirée</label><input id="rName" maxlength="60" value="' + esc(st.name) + '">' +
-    '<label class="f">Adresse de l\'appli (pour les QR codes)</label><input id="rBase" placeholder="' + esc(location.origin) + '" value="' + esc(st.baseUrl || "") + '"><p class="muted small">Laissez vide pour utiliser l\'adresse actuelle.</p></div>' +
+    '<label class="f">Adresse de l\'appli (pour les QR codes)</label><input id="rBase" placeholder="' + esc(location.origin) + '" value="' + esc(st.baseUrl || "") + '"><p class="muted small">Laissez vide pour utiliser l\'adresse actuelle.</p>' +
+    '<label class="f">Mon service de musique (liens de secours)</label><select id="rSvc">' + [["", "Tous (Apple Music, Spotify, Deezer, YouTube)"], ["am", "🍎 Apple Music"], ["sp", "🟢 Spotify"], ["dz", "🟣 Deezer"], ["yt", "▶ YouTube"]].map(([k, l]) => '<option value="' + k + '"' + ((st.service || "") === k ? " selected" : "") + ">" + l + "</option>").join("") + '</select><p class="muted small">L\'appli joue elle-même les extraits, sans compte. Ce service sert de secours : son lien s\'affiche en premier chez le DJ.</p></div>' +
+    '<div class="card keep"><h3>🧠 Morceaux déjà joués</h3><p class="small">' + plural(((S.data && S.data.played) || []).length, "morceau joué", "morceaux joués") + ' lors des parties précédentes. Au tirage au sort, l\'appli prend d\'abord des morceaux jamais joués.</p><button class="btn ghost" id="rPlayed">🧹 Oublier l\'historique</button></div>' +
     '<div class="card keep"><h3>Codes d\'accès</h3><div class="row"><span class="grow">Code animateur : <b>' + esc(st.codes.anim) + '</b></span><button class="btn ghost sm" id="rCA">Changer</button></div>' +
     '<div class="row"><span class="grow">Code DJ : <b>' + (st.codes.dj ? esc(st.codes.dj) : '<span style="color:var(--ko)">non défini</span>') + '</b></span><button class="btn ghost sm" id="rCD">' + (st.codes.dj ? "Changer" : "Définir") + "</button></div></div>" +
     '<div class="card keep"><h3>Noms d\'équipe</h3><label class="row"><input type="checkbox" id="rTN" style="width:auto"' + (st.teamNames !== false ? " checked" : "") + '> Les chefs d\'équipe choisissent leur nom sur leur téléphone (avant le début de la partie)</label><p class="muted small">Sinon, les noms tirés au sort (modifiables dans Équipes) sont gardés.</p></div>' +
@@ -1365,6 +1483,8 @@ function tabReglages(v) {
   let t1 = null;
   const deb = (fn) => { clearTimeout(t1); chip("Enregistrement…"); t1 = setTimeout(fn, 700); };
   $("#rName").oninput = (e) => { st.name = e.target.value; deb(() => partialSave({ name: st.name })); };
+  $("#rSvc").onchange = (e) => { st.service = e.target.value; partialSave({ service: st.service }); };
+  $("#rPlayed").onclick = async () => { if (await confirmBox("Oublier la liste des morceaux déjà joués ? Ils pourront de nouveau être tirés au sort.", "Oublier")) { try { await api("/played/reset", { method: "POST" }); toast("Historique effacé"); S.data.played = []; tabReglages(v); } catch (e) { toast(e.message); } } };
   $("#rBase").oninput = (e) => { st.baseUrl = e.target.value.trim(); deb(() => partialSave({ baseUrl: st.baseUrl })); };
   const num = (id, fn) => ($("#" + id).onchange = (e) => { fn(Number(e.target.value)); partialSave({ scoring: st.scoring, extractSec: st.extractSec, answerSec: st.answerSec }); });
   num("rPT", (x) => (st.scoring.title = Math.max(0, Math.min(10, x || 0))));
