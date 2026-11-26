@@ -251,7 +251,9 @@ export class Soiree extends DurableObject {
       k: game.k,
       started: game.started,
       phaseStart: game.phaseStart,
-      extractSec: setup.extractSec,
+      // durée de l'extrait : celle réglée pour le morceau en cours, sinon celle par défaut
+      extractSec: (() => { const c = game.status === "running" && setup.manches[game.m] && setup.manches[game.m].songs[game.k]; return (c && c.d) || setup.extractSec; })(),
+      extractBase: setup.extractSec,
       answerSec: setup.answerSec,
       showRanking: !!game.showRanking,
       showRules: !!game.showRules,
@@ -365,9 +367,9 @@ export class Soiree extends DurableObject {
       const nxt = this.setup.manches[this.game.m + 1];
       return json({
         pub: this.pub(),
-        songs: mm ? mm.songs.map((s) => ({ t: s.t, a: s.a, h: s.h, pv: s.pv })) : [],
+        songs: mm ? mm.songs.map((s) => ({ t: s.t, a: s.a, h: s.h, pv: s.pv, o: s.o, d: s.d })) : [],
         nextManche: nxt ? nxt.title : null,
-        all: this.setup.manches.map((x) => ({ title: x.title, mult: x.mult || 1, label2: x.label2 || "Artiste", songs: x.songs.map((s) => ({ t: s.t, a: s.a, h: s.h, pv: s.pv })) })),
+        all: this.setup.manches.map((x) => ({ title: x.title, mult: x.mult || 1, label2: x.label2 || "Artiste", songs: x.songs.map((s) => ({ t: s.t, a: s.a, h: s.h, pv: s.pv, o: s.o, d: s.d })) })),
         label2: mm ? mm.label2 || "Artiste" : "Artiste",
       });
     }
@@ -432,6 +434,8 @@ export class Soiree extends DurableObject {
               at: cleanList(x.at),
               aa: cleanList(x.aa),
               pv: cleanPv(x.pv),
+              o: Math.max(0, Math.min(28, Math.round(Number(x.o) || 0))) || undefined,
+              d: x.d ? Math.max(3, Math.min(30, Math.round(Number(x.d)))) : undefined,
             })),
           }));
         }
