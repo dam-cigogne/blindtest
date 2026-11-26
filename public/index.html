@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1033">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Blind test</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#140c29;--bg2:#1f1540;--card:#2a1d55;--line:#43347a;--tx:#f4f1ff;--mu:#b6acd9;--pri:#ff4fa3;--pri2:#ff7bbd;--alt:#5b8cff;--ok:#2ecc8f;--ko:#ff5a5a;--warn:#ffb238;--r:14px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+h1{font-size:1.7rem;margin:.2em 0}h2{font-size:1.2rem;margin:1.2em 0 .5em}h3{margin:.1em 0 .6em;font-size:1.08rem}
+.muted{color:var(--mu)}.small{font-size:.85rem}.center{text-align:center}.pad{padding:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;padding:12px 16px;font-size:1rem;font-weight:600;color:#fff;background:var(--pri);cursor:pointer;min-height:46px;text-decoration:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.alt{background:var(--alt)}.btn.ok{background:var(--ok);color:#06281b}.btn.ko{background:var(--ko)}.btn.warn{background:var(--warn);color:#2b1a00}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--tx)}
+.btn.big{width:100%;font-size:1.15rem;padding:16px;min-height:58px}
+.btn.sm{padding:6px 10px;min-height:34px;font-size:.9rem;border-radius:9px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.row.end{justify-content:flex-end}.row>.grow{flex:1}
+input,select,textarea{width:100%;background:var(--bg2);color:var(--tx);border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pri2)}
+input:disabled,select:disabled,textarea:disabled{opacity:.6}
+label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:12px 0}
+.wrap{max-width:820px;margin:0 auto;padding:0 12px 40px}
+.top{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:rgba(20,12,41,.96);border-bottom:1px solid var(--line)}
+.top .tt{display:flex;flex-direction:column;min-width:0}.top .tt small{color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-block;padding:3px 9px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);font-size:.8rem;color:var(--mu);white-space:nowrap}
+.chip.ok{color:var(--ok);border-color:var(--ok)}.chip.ko{color:var(--ko);border-color:var(--ko)}.chip.warn{color:var(--warn);border-color:var(--warn)}
+.tabs{position:sticky;top:60px;z-index:4;display:flex;gap:6px;overflow-x:auto;padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--bg2);color:var(--tx);border-radius:99px;padding:8px 13px;font-size:.92rem;font-weight:600}
+.tabs button.on{background:var(--pri);border-color:var(--pri)}
+.home{max-width:560px;margin:0 auto;padding:28px 16px 40px;text-align:center}
+.home .logo{font-size:3.4rem}.roles{display:grid;gap:10px;margin:18px 0}
+.teamgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tbtn{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:12px 8px;display:flex;flex-direction:column;gap:2px;font-size:.95rem}
+.tbtn span{color:var(--mu);font-size:.85rem}
+.banner{margin:12px;padding:14px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:4px;text-align:center}
+.banner b{font-size:1.05rem}.banner span{font-size:1.25rem;font-weight:700}
+.banner.play{background:#123d2e;border-color:var(--ok)}.banner.write{background:#4a1630;border-color:var(--pri)}
+.arow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;margin:8px 12px;background:var(--card);border:1.5px solid var(--line)}
+.arow.cur{border-color:var(--pri);box-shadow:0 0 0 3px rgba(255,79,163,.25)}
+.anum{flex:0 0 34px;height:34px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:800}
+.arow.cur .anum{background:var(--pri)}
+.ains{flex:1;display:grid;gap:6px}
+.res{margin:6px 12px}.res li{margin:4px 0}
+.timer{margin:12px 0;padding:18px;border-radius:var(--r);text-align:center;font-size:1.5rem;font-weight:800;background:var(--bg2);border:2px solid var(--line)}
+.timer.play{background:#0f3d2c;border-color:var(--ok)}.timer.write{background:#4d0f1f;border-color:var(--ko)}.timer.done{border-color:var(--alt)}
+.song .st{font-size:1.45rem;font-weight:800}.song .sa{font-size:1.1rem;color:var(--pri2);font-weight:700}.song .sh{color:var(--mu);margin-top:4px}
+.links{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.links a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--tx);text-decoration:none;font-weight:600;min-width:120px}
+ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity:.45}ol.pl li.cur{color:var(--pri2);font-weight:700}
+.rank{width:100%;border-collapse:collapse}.rank td,.rank th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem}.rank th{color:var(--mu);font-weight:600;font-size:.82rem}
+.rank td.n{text-align:right;font-variant-numeric:tabular-nums}.rank input{width:70px;padding:6px}
+.rev{padding:10px;border-radius:12px;background:var(--bg2);border:1px solid var(--warn);margin:8px 0}
+.rev .ty{font-size:1.05rem;font-weight:700;margin:3px 0}
+.badge{display:inline-block;min-width:28px;padding:2px 8px;border-radius:8px;font-weight:700;font-size:.85rem;border:0;cursor:pointer}
+.badge.ok{background:var(--ok);color:#06281b}.badge.ko{background:var(--ko);color:#fff}.badge.doubt{background:var(--warn);color:#2b1a00}
+.ansgrid{width:100%;border-collapse:collapse;font-size:.88rem}.ansgrid td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.tcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0}
+.tcard .hd{display:flex;gap:8px;align-items:center}.tcard .hd input{flex:1;padding:8px}
+.mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mem{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:99px;padding:6px 11px;font-size:.88rem}
+.mcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin:10px 0}
+.mcard .mh{display:flex;justify-content:space-between;align-items:center}
+.srow{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.srow .sn{flex:0 0 22px;font-weight:800;color:var(--mu);padding-top:10px}.srow .sf{flex:1;display:grid;gap:6px}
+.srow .sf input{padding:8px 10px}.srow details summary{color:var(--mu);font-size:.85rem;cursor:pointer}
+.x{background:transparent;border:1px solid var(--line);color:var(--ko);border-radius:9px;width:36px;height:36px;font-size:1rem}
+.qrbox{background:#fff;border-radius:12px;padding:10px;width:200px;max-width:100%;margin:8px auto}
+.qrbox svg{width:100%;height:auto;display:block}
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.qrgrid .it{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;font-size:.85rem}
+.qrgrid .it .qrbox{width:110px;padding:6px}
+.check{list-style:none;padding:0;margin:0 0 12px}.check li{padding:6px 0;color:var(--ko)}.check li.ok{color:var(--ok)}
+.lock{background:#3d2a00;border:1px solid var(--warn);color:var(--warn);padding:10px;border-radius:12px;margin:12px 0}
+#modal{position:fixed;inset:0;z-index:50;background:rgba(5,2,15,.72);display:none;align-items:center;justify-content:center;padding:16px}
+#modal.show{display:flex}
+.mbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;width:100%;max-width:480px;max-height:88vh;overflow:auto}
+.mbox .list{display:grid;gap:6px;margin:10px 0}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:#000;color:#fff;padding:12px 18px;border-radius:12px;z-index:60;transition:transform .25s;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#net{position:fixed;top:6px;right:6px;z-index:70;width:12px;height:12px;border-radius:50%;background:var(--ko);display:none}
+#net.off{display:block}
+.scr{min-height:100vh;display:flex;flex-direction:column;padding:2vw;gap:2vw;text-align:center}
+.scr .nm{font-size:3vw;color:var(--mu);font-weight:700}
+.scr .big{font-size:6vw;font-weight:900;line-height:1.1}
+.scr .mid{font-size:3.2vw;font-weight:700}
+.scr .ph{font-size:5vw;font-weight:900;padding:2vw;border-radius:2vw;background:var(--bg2);border:.3vw solid var(--line)}
+.scr .ph.play{background:#0f3d2c;border-color:var(--ok)}.scr .ph.write{background:#4d0f1f;border-color:var(--pri)}
+.scr .bar{height:1.4vw;background:var(--bg2);border-radius:1vw;overflow:hidden}.scr .bar i{display:block;height:100%;background:var(--pri);transition:width .25s linear}
+.scr .tl{display:grid;grid-template-columns:repeat(auto-fill,minmax(22vw,1fr));gap:1vw;font-size:1.8vw}
+.scr .tl div{background:var(--card);border-radius:1vw;padding:1vw}
+.scr .reveal{font-size:2.4vw;text-align:left;max-width:80vw;margin:0 auto}.scr .reveal li{margin:.6vw 0}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:2vw;margin-top:2vw}
+.podium>div{background:var(--card);border-radius:1.5vw 1.5vw 0 0;width:24vw;padding:1.5vw;font-size:2.4vw;font-weight:800;animation:up .9s ease both}
+.podium .p1{height:30vw;background:linear-gradient(#ffcf4a,#b8860b);color:#2b1a00}.podium .p2{height:23vw;background:linear-gradient(#e6e6f0,#8d8da8);color:#1b1b2b}.podium .p3{height:18vw;background:linear-gradient(#e8a56b,#8b4a1c)}
+.podium .medal{font-size:5vw}
+@keyframes up{from{transform:translateY(40vw);opacity:0}to{transform:none;opacity:1}}
+#printRoot{display:none}
+@media print{
+  @page{size:A4;margin:12mm}
+  body.printing{background:#fff!important;color:#000!important}
+  body.printing>*:not(#printRoot){display:none!important}
+  body.printing #printRoot{display:block}
+  .sheet{break-after:page;page-break-after:always;color:#000;font-family:Arial,sans-serif;text-align:center}
+  .sheet:last-child{break-after:auto;page-break-after:auto}
+  .sheet .ev{font-size:14pt;color:#555}.sheet .tn{font-size:40pt;font-weight:900;margin:4mm 0 0}.sheet .tname{font-size:24pt;font-weight:700;margin-bottom:6mm}
+  .sheet .q{width:85mm;margin:0 auto}.sheet .q svg{width:100%;height:auto}
+  .sheet .how{font-size:13pt;margin:4mm 0}.sheet .code{font-size:16pt;border:2px dashed #000;display:inline-block;padding:3mm 6mm;margin:2mm 0 6mm}
+  .sheet ul{list-style:none;padding:0;margin:0;font-size:14pt;columns:2}.sheet li{padding:1mm 0}
+  .sheet table{width:100%;border-collapse:collapse;text-align:left;font-size:11pt}.sheet td,.sheet th{border:1px solid #999;padding:2mm}
+  .sheet h2{margin:2mm 0}.sheet .left{text-align:left}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="toast"></div>
+<div id="net" title="Connexion perdue"></div>
+<div id="printRoot"></div>
+<script src="library.js"></script>
+<script src="qrcode.js"></script>
+<script src="xlsx.mini.min.js" defer></script>
+<script>
+"use strict";
+/* ================= Outils ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const plural = (n, s, p) => n + " " + (n > 1 ? (p || s + "s") : s);
+const ord = (n) => n + (n === 1 ? "er" : "e");
+
+const S = {
+  sess: LS.get("bt_sess", null),
+  pub: null, data: null, offset: 0,
+  built: null, lastSig: "",
+  tab: LS.get("bt_tab", "jeu"),
+  draft: null, people: LS.get("bt_people", null), imp: null,
+  djTab: "live", tick: null, fails: 0,
+};
+
+/* Liens directs (QR codes) */
+(function () {
+  const q = new URLSearchParams(location.search);
+  let s = null;
+  if (q.get("t") && q.get("c")) s = { role: "team", teamId: Number(q.get("t")), code: q.get("c") };
+  else if (q.get("r") === "screen") s = { role: "screen" };
+  else if ((q.get("r") === "dj" || q.get("r") === "anim") && q.get("c")) s = { role: q.get("r"), code: q.get("c") };
+  if (s) { S.sess = s; LS.set("bt_sess", s); }
+  if (q.toString()) history.replaceState(null, "", location.pathname);
+})();
+
+function toast(msg, ms) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms || 2600);
+}
+function openModal(html, onMount) {
+  const m = $("#modal"); m.innerHTML = '<div class="mbox">' + html + "</div>"; m.classList.add("show");
+  m.onclick = (e) => { if (e.target === m) closeModal(); };
+  if (onMount) onMount(m.firstElementChild);
+}
+function closeModal() { const m = $("#modal"); m.classList.remove("show"); m.innerHTML = ""; }
+function ask(title, o) {
+  o = o || {};
+  return new Promise((res) => {
+    openModal("<h3>" + esc(title) + "</h3>" + (o.help ? '<p class="muted">' + o.help + "</p>" : "") +
+      '<input id="askIn" type="' + (o.type || "text") + '" ' + (o.numeric ? 'inputmode="numeric" pattern="[0-9]*"' : "") +
+      ' placeholder="' + esc(o.placeholder || "") + '" value="' + esc(o.value || "") + '" autocomplete="off" autocapitalize="' + (o.upper ? "characters" : "off") + '">' +
+      '<div class="row end"><button class="btn ghost" id="askNo">Annuler</button><button class="btn" id="askOk">' + esc(o.ok || "Valider") + "</button></div>", (box) => {
+      const i = $("#askIn", box); setTimeout(() => i.focus(), 60);
+      let done = false;
+      const fin = (v) => { if (done) return; done = true; closeModal(); res(v); };
+      $("#askNo", box).onclick = () => fin(null);
+      $("#askOk", box).onclick = () => fin(i.value.trim());
+      i.onkeydown = (e) => { if (e.key === "Enter") fin(i.value.trim()); };
+    });
+  });
+}
+function confirmBox(text, ok, danger) {
+  return new Promise((res) => {
+    openModal("<p>" + text + '</p><div class="row end"><button class="btn ghost" id="cNo">Annuler</button><button class="btn ' + (danger ? "ko" : "") + '" id="cOk">' + esc(ok || "Confirmer") + "</button></div>", (box) => {
+      $("#cNo", box).onclick = () => { closeModal(); res(false); };
+      $("#cOk", box).onclick = () => { closeModal(); res(true); };
+    });
+  });
+}
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); toast("Copié ✓"); }
+  catch (e) {
+    openModal('<h3>Copier le texte</h3><textarea rows="12" id="cpT">' + esc(txt) + '</textarea><div class="row end"><button class="btn" id="cpOk">Fermer</button></div>', (b) => {
+      const t = $("#cpT", b); t.focus(); t.select(); $("#cpOk", b).onclick = closeModal;
+    });
+  }
+}
+
+/* ================= Réseau ================= */
+async function api(path, opt) {
+  opt = opt || {};
+  const s = S.sess || {};
+  const r = await fetch("/api" + path, {
+    method: opt.method || "GET", cache: "no-store",
+    headers: { "content-type": "application/json", "x-role": s.role || "", "x-code": s.code || "", "x-team": String(s.teamId || "") },
+    body: opt.body ? JSON.stringify(opt.body) : undefined,
+  });
+  let j = {};
+  try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const er = new Error(j.error || "Erreur " + r.status); er.status = r.status; throw er; }
+  return j;
+}
+let pollT = null, polling = false, again = false;
+function interval() {
+  const r = S.sess && S.sess.role, p = S.pub;
+  if (document.hidden && r !== "screen") return 15000;
+  if (!p || p.status !== "running") return r === "anim" ? 2500 : 4000;
+  return r === "team" ? 2500 : 1500;
+}
+async function poll() {
+  clearTimeout(pollT);
+  if (polling) { again = true; return; }
+  polling = true;
+  const r = S.sess && S.sess.role;
+  const ep = r === "anim" ? "/anim" : r === "dj" ? "/dj" : r === "team" ? "/team" : "/public";
+  try {
+    const d = await api(ep);
+    S.fails = 0; S.data = d; S.pub = d.pub; S.offset = d.pub.now - Date.now();
+    $("#net").classList.remove("off");
+    onData();
+  } catch (e) {
+    if (e.status === 401) {
+      S.fails++;
+      if (S.fails >= 2) { toast("Code invalide ou équipe supprimée: reconnectez-vous", 4000); logout(); }
+    } else { $("#net").classList.add("off"); }
+  } finally {
+    polling = false;
+    if (again) { again = false; pollT = setTimeout(poll, 50); } else pollT = setTimeout(poll, interval());
+  }
+}
+function pollNow() { clearTimeout(pollT); poll(); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { pollNow(); wake(); } });
+let wl = null;
+async function wake() { try { if ("wakeLock" in navigator && S.sess && !wl) { wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => { wl = null; }); } } catch (e) {} }
+
+async function login(role, code, teamId) {
+  try {
+    const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role, code, teamId }) }).then((x) => x.json());
+    if (!r.ok) { toast("Code incorrect"); return false; }
+    S.sess = { role, code, teamId: teamId || 0 }; LS.set("bt_sess", S.sess);
+    S.data = null; S.draft = null; S.lastSig = ""; render(); pollNow(); wake();
+    return true;
+  } catch (e) { toast("Pas de connexion internet"); return false; }
+}
+function logout() {
+  S.sess = null; LS.del("bt_sess"); S.data = null; S.draft = null; S.lastSig = ""; S.fails = 0;
+  render(); pollNow();
+}
+
+/* ================= Temps / phases ================= */
+function phase(p) {
+  p = p || S.pub;
+  if (!p || !p.started) return { ph: "idle", left: 0, frac: 0 };
+  const el = (Date.now() + S.offset - p.phaseStart) / 1000;
+  const tot = p.extractSec + p.answerSec;
+  if (el < p.extractSec) return { ph: "play", left: Math.max(1, Math.ceil(p.extractSec - el)), frac: el / tot };
+  if (el < tot) return { ph: "write", left: Math.max(1, Math.ceil(tot - el)), frac: el / tot };
+  return { ph: "done", left: 0, frac: 1 };
+}
+setInterval(() => { if (S.tick) { try { S.tick(); } catch (e) {} } }, 250);
+
+/* ================= QR / impression ================= */
+function qrSvg(text) {
+  const q = qrcode(0, "M"); q.addData(text); q.make();
+  const n = q.getModuleCount(); let d = "";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += "M" + (c + 2) + "," + (r + 2) + "h1v1h-1z";
+  return '<svg viewBox="0 0 ' + (n + 4) + " " + (n + 4) + '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
+}
+function baseUrl() { return ((S.draft && S.draft.baseUrl) || location.origin).replace(/\/+$/, ""); }
+function teamUrl(t) { return baseUrl() + "/?t=" + t.id + "&c=" + encodeURIComponent(t.code); }
+function doPrint(html) {
+  const root = $("#printRoot"); root.innerHTML = html;
+  document.body.classList.add("printing");
+  const clean = () => { document.body.classList.remove("printing"); root.innerHTML = ""; window.removeEventListener("afterprint", clean); };
+  window.addEventListener("afterprint", clean);
+  setTimeout(() => window.print(), 150);
+}
+
+/* ================= Rendu principal ================= */
+function render() {
+  S.tick = null; S.lastSig = "";
+  const r = S.sess && S.sess.role;
+  const app = $("#app");
+  if (!r) return renderHome(app);
+  if (r === "team") return buildTeam(app);
+  if (r === "dj") return renderDJ(app);
+  if (r === "screen") return renderScreen(app);
+  if (r === "anim") return renderAnim(app);
+}
+function onData() {
+  const r = (S.sess && S.sess.role) || "home";
+  if (S.built !== r) return render();
+  if (r === "home") renderHome($("#app"));
+  else if (r === "team") updTeam();
+  else if (r === "dj") renderDJ($("#app"));
+  else if (r === "screen") renderScreen($("#app"));
+  else if (r === "anim") updAnim();
+}
+
+/* ================= Accueil ================= */
+function renderHome(app) {
+  const p = S.pub;
+  const sig = JSON.stringify(p ? [p.name, p.teams.map((t) => [t.id, t.name]), p.needInit, p.djReady] : null);
+  if (S.built === "home" && S.lastSig === sig) return;
+  S.built = "home"; S.lastSig = sig;
+  app.innerHTML = '<div class="home"><div class="logo">🎵</div><h1>' + esc(p ? p.name : "Blind test") + '</h1><p class="muted">Choisissez votre rôle</p>' +
+    '<div class="roles"><button class="btn big" data-r="anim">🎤 Je suis l\'animateur</button>' +
+    '<button class="btn big alt" data-r="dj">🎧 Je suis le DJ</button>' +
+    '<button class="btn big ghost" data-r="screen">📺 Écran géant</button></div>' +
+    "<h2>Je suis une équipe</h2>" +
+    (p && p.teams.length
+      ? '<div class="teamgrid">' + p.teams.map((t) => '<button class="tbtn" data-t="' + t.id + '"><b>Équipe ' + t.id + "</b><span>" + esc(t.name) + "</span></button>").join("") + "</div>"
+      : '<p class="muted">' + (p ? "Les équipes ne sont pas encore prêtes." : "Connexion…") + "</p>") +
+    '<p class="muted small" style="margin-top:18px">Chef d\'équipe : le plus simple est de scanner le QR code de votre feuille.</p></div>';
+  $$("[data-r]", app).forEach((b) => (b.onclick = () => pickRole(b.dataset.r)));
+  $$("[data-t]", app).forEach((b) => (b.onclick = async () => {
+    const id = Number(b.dataset.t);
+    const c = await ask("Équipe " + id, { help: "Tapez le code de secours imprimé sur votre feuille.", upper: true, placeholder: "ex. K7QM" });
+    if (c) login("team", c.toUpperCase(), id);
+  }));
+}
+async function pickRole(r) {
+  const p = S.pub;
+  if (!p) return toast("Connexion en cours…");
+  if (r === "screen") { S.sess = { role: "screen" }; LS.set("bt_sess", S.sess); render(); pollNow(); wake(); return; }
+  if (r === "anim" && p.needInit) {
+    const c = await ask("Première utilisation", { help: "Choisissez votre code animateur (4 chiffres par exemple). Notez-le bien : il protège la partie.", numeric: true, type: "tel", ok: "Créer" });
+    if (!c) return;
+    if (c.length < 3) return toast("3 caractères minimum");
+    try { await api("/init", { method: "POST", body: { code: c } }); } catch (e) { return toast(e.message); }
+    return login("anim", c);
+  }
+  if (r === "dj" && !p.djReady) return toast("L'animateur n'a pas encore défini le code DJ", 3500);
+  const c = await ask(r === "anim" ? "Code animateur" : "Code DJ", { numeric: true, type: "tel" });
+  if (c) login(r, c);
+}
+
+/* ================= Équipe ================= */
+function buildTeam(app) {
+  S.built = "team"; S.formM = null; S.formKey = null; S.lastSig = "";
+  app.innerHTML = '<div class="top"><div class="tt"><b id="tName">Mon équipe</b><small id="tMem"></small></div><button class="btn ghost sm" id="out">Quitter</button></div>' +
+    '<div class="wrap" style="padding:0"><div id="tBan" class="banner"><b>Connexion…</b></div><div id="tForm"></div><div id="tSave" class="muted small center"></div><div id="tRes"></div></div>';
+  $("#out").onclick = async () => { if (await confirmBox("Quitter l'équipe sur ce téléphone ?", "Quitter")) logout(); };
+  S.tick = tickTeam;
+  if (S.data && S.data.team) updTeam();
+}
+function updTeam() {
+  const d = S.data; if (!d || !d.team) return;
+  const p = d.pub;
+  $("#tName").textContent = "Équipe " + d.team.id + " – " + d.team.name;
+  $("#tMem").textContent = d.team.members.join(", ");
+  const man = p.manches[p.m];
+  if (p.status === "running" && man) {
+    if (S.formKey !== p.runId + ":" + p.m) buildForm(p.m, man, (d.answers || {})[p.m] || [], p.runId);
+    const open = man.state === "open";
+    $$("#tForm .arow").forEach((r, i) => r.classList.toggle("cur", open && i === p.k));
+    $$("#tForm input").forEach((i) => (i.disabled = !open));
+    if (!open) { clearTimeout(S.saveT); $("#tSave").textContent = "🔒 Réponses verrouillées"; }
+  } else { $("#tForm").innerHTML = ""; S.formM = null; S.formKey = null; $("#tSave").textContent = ""; }
+  const sig = JSON.stringify([p.status, p.manches.map((m) => m.state), d.me]);
+  if (sig !== S.lastSig) { S.lastSig = sig; renderTeamRes(d); }
+  tickTeam();
+}
+function buildForm(m, man, server, runId) {
+  S.formM = m; S.formKey = runId + ":" + m; S.runId = runId;
+  const key = "bt_ans_" + S.sess.teamId + "_" + runId + "_" + m;
+  const local = LS.get(key, null);
+  const vals = [];
+  for (let i = 0; i < man.n; i++) {
+    const sv = server[i] || {}, lv = (local && local[i]) || {};
+    vals.push({ t: sv.t || lv.t || "", a: sv.a || lv.a || "" });
+  }
+  $("#tForm").innerHTML = '<h2 style="margin:16px 12px 4px">Manche ' + (m + 1) + " – " + esc(man.title) + (man.mult > 1 ? ' <span class="chip warn">points ×' + man.mult + "</span>" : "") + "</h2>" +
+    '<p class="muted small" style="margin:0 12px">Tapez vos réponses au fur et à mesure. Elles sont enregistrées automatiquement, vous pouvez les modifier jusqu\'à la fin de la manche.</p>' +
+    vals.map((v, i) => '<div class="arow" data-i="' + i + '"><div class="anum">' + (i + 1) + '</div><div class="ains">' +
+      '<input class="ti" placeholder="Titre" value="' + esc(v.t) + '" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="100">' +
+      '<input class="ar" placeholder="' + esc(man.label2) + '" value="' + esc(v.a) + '" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="100"></div></div>').join("");
+  $$("#tForm input").forEach((i) => { i.addEventListener("input", schedSave); i.addEventListener("blur", () => { if (S.dirty) { clearTimeout(S.saveT); saveAnswers(); } }); });
+  S.dirty = false;
+  $("#tSave").textContent = "";
+}
+function schedSave() { S.dirty = true; $("#tSave").textContent = "✏️ …"; clearTimeout(S.saveT); S.saveT = setTimeout(saveAnswers, 700); }
+async function saveAnswers() {
+  const m = S.formM; if (m == null) return;
+  const ans = $$("#tForm .arow").map((r) => ({ t: $(".ti", r).value, a: $(".ar", r).value }));
+  LS.set("bt_ans_" + S.sess.teamId + "_" + S.runId + "_" + m, ans);
+  try {
+    await api("/team/answers", { method: "PUT", body: { m, answers: ans } });
+    S.dirty = false; if (S.formM === m) $("#tSave").textContent = "✓ Réponses enregistrées";
+  } catch (e) {
+    if (e.status === 409) { S.dirty = false; $("#tSave").textContent = "🔒 Manche terminée : réponses verrouillées"; }
+    else { $("#tSave").textContent = "⚠️ Pas de réseau, nouvel essai…"; clearTimeout(S.saveT); S.saveT = setTimeout(saveAnswers, 2500); }
+  }
+}
+function tickTeam() {
+  const p = S.pub, b = $("#tBan"); if (!b || !p) return;
+  let h = "", cls = "banner";
+  if (p.status === "setup") h = "<b>La partie va bientôt commencer</b><span>Restez prêts ! 🎶</span>";
+  else if (p.status === "finished") {
+    const me = S.data && S.data.me;
+    h = "<b>🏁 Partie terminée, merci !</b><span>" + (me ? "Votre équipe termine " + ord(me.rank) + " avec " + plural(me.total, "point") : "Résultats annoncés par l'animateur") + "</span>";
+  } else {
+    const man = p.manches[p.m];
+    if (man.state !== "open") h = "<b>Manche " + (p.m + 1) + " terminée</b><span>" + (man.state === "closed" ? "⏳ Correction en cours…" : "Prochaine manche dans un instant") + "</span>";
+    else {
+      const f = phase(p);
+      const lab = f.ph === "play" ? "🎵 Écoutez ! " + f.left + " s" : f.ph === "write" ? "✍️ Écrivez ! " + f.left + " s" : f.ph === "done" ? "✍️ Notez votre réponse" : "⏸ Prochain extrait dans un instant";
+      h = "<b>Manche " + (p.m + 1) + "/" + p.manches.length + " · Morceau " + (p.k + 1) + "/" + man.n + "</b><span>" + lab + "</span>";
+      cls += " " + f.ph;
+    }
+  }
+  if (b._h !== h) { b._h = h; b.innerHTML = h; }
+  if (b.className !== cls) b.className = cls;
+}
+function renderTeamRes(d) {
+  const p = d.pub; let h = "";
+  const pubd = p.manches.map((m, i) => ({ m, i })).filter((x) => x.m.reveal).reverse();
+  if (pubd.length) {
+    h += '<h2 style="margin:20px 12px 6px">Les bonnes réponses</h2>';
+    pubd.forEach(({ m, i }) => {
+      h += '<div class="card" style="margin:8px 12px"><b>Manche ' + (i + 1) + " – " + esc(m.title) + '</b><ol class="pl">' +
+        m.reveal.map((s) => "<li>" + esc(s.t) + ' – <span class="muted">' + esc(s.a) + "</span></li>").join("") + "</ol></div>";
+    });
+  }
+  h += '<p class="muted small center" style="margin:16px">🤫 Le classement est gardé secret jusqu\'à la fin.</p>';
+  $("#tRes").innerHTML = h;
+}
+
+/* ================= DJ ================= */
+function ytUrl(s) { return "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.t + " " + s.a); }
+function spUrl(s) { return "https://open.spotify.com/search/" + encodeURIComponent(s.t + " " + s.a); }
+function playlistText(all) {
+  return all.map((m, i) => "MANCHE " + (i + 1) + " – " + m.title + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "\n" +
+    m.songs.map((s, j) => (j + 1) + ". " + s.t + " – " + s.a + (s.h ? "  [" + s.h + "]" : "")).join("\n")).join("\n\n");
+}
+function renderDJ(app) {
+  const d = S.data;
+  if (!d || !d.songs) {
+    if (S.built !== "dj") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "dj"; }
+    return;
+  }
+  const p = d.pub;
+  const sig = JSON.stringify([p.status, p.m, p.k, p.started, p.phaseStart, p.manches.map((m) => m.state), S.djTab, d.all]);
+  if (S.built === "dj" && S.lastSig === sig && $("#djv")) return;
+  S.built = "dj"; S.lastSig = sig;
+  let h = '<div class="top"><div class="tt"><b>🎧 DJ</b><small>' + esc(p.name) + '</small></div><button class="btn ghost sm" id="out">Quitter</button></div>' +
+    '<nav class="tabs" style="top:58px"><button data-dt="live" class="' + (S.djTab === "live" ? "on" : "") + '">🔴 En direct</button><button data-dt="pl" class="' + (S.djTab === "pl" ? "on" : "") + '">📋 Playlist complète</button></nav><div class="wrap" id="djv">';
+  if (S.djTab === "pl") {
+    h += '<div class="card"><p class="muted small">Préparez cette playlist à l\'avance (Spotify, YouTube…) dans cet ordre, idéalement téléchargée pour ne pas dépendre du réseau. Le jour J, l\'onglet « En direct » vous guide morceau par morceau.</p><button class="btn alt" id="cpPl">📋 Copier la playlist</button></div>';
+    d.all.forEach((m, i) => {
+      h += '<div class="card"><h3>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? ' <span class="chip warn">×' + m.mult + "</span>" : "") + "</h3>" +
+        m.songs.map((s, j) => '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>' + (j + 1) + ". " + esc(s.t) + "</b> – " + esc(s.a) +
+          '<div class="muted small">▶ ' + esc(s.h || "Refrain") + ' · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + ytUrl(s) + '">YouTube</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + spUrl(s) + '">Spotify</a></div></div>').join("") + "</div>";
+    });
+  } else if (p.status === "setup") {
+    h += '<div class="card center"><h3>La partie n\'a pas encore commencé</h3><p class="muted">Préparez la playlist dans l\'onglet « Playlist complète ». Cet écran s\'animera dès que l\'animateur lancera la partie.</p></div>';
+  } else if (p.status === "finished") {
+    h += '<div class="card center"><h3>🏁 Partie terminée</h3><p class="muted">Merci ! Vous pouvez relancer la musique d\'ambiance.</p></div>';
+  } else {
+    const man = p.manches[p.m], s = d.songs[p.k];
+    if (man.state !== "open") {
+      h += '<div class="card center"><h3>Manche ' + (p.m + 1) + " terminée</h3><p class=\"muted\">L'animateur corrige. Mettez un fond musical en attendant." + (d.nextManche ? "</p><p>Prochaine manche : <b>" + esc(d.nextManche) + "</b>" : "") + "</p></div>";
+    } else {
+      h += '<div class="card"><div class="muted">Manche ' + (p.m + 1) + "/" + p.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (points ×" + man.mult + ")" : "") + "</div>" +
+        '<div style="font-weight:700;margin:4px 0 8px">Morceau ' + (p.k + 1) + " / " + man.n + "</div>" +
+        '<div class="song"><div class="st">' + esc(s.t) + '</div><div class="sa">' + esc(s.a) + '</div><div class="sh">▶ Passage : ' + esc(s.h || "Refrain") + "</div></div>" +
+        '<div class="links"><a target="_blank" rel="noopener" href="' + ytUrl(s) + '">▶ YouTube</a><a target="_blank" rel="noopener" href="' + spUrl(s) + '">▶ Spotify</a></div></div>' +
+        '<div id="djTimer" class="timer"></div>' +
+        '<button class="btn big ok" id="djPlay">▶ Je lance l\'extrait</button>' +
+        '<div class="row"><button class="btn ghost grow" id="djPrev"' + (p.k === 0 ? " disabled" : "") + '>◀ Précédent</button><button class="btn alt grow" id="djNext"' + (p.k >= man.n - 1 ? " disabled" : "") + ">Morceau suivant ▶</button></div>" +
+        '<div class="card"><b>Cette manche</b><ol class="pl">' + d.songs.map((x, j) => '<li class="' + (j < p.k ? "done" : j === p.k ? "cur" : "") + '">' + esc(x.t) + ' – <span class="muted">' + esc(x.a) + "</span></li>").join("") + "</ol>" +
+        (p.k >= man.n - 1 ? '<p class="muted small">Dernier morceau : l\'animateur clôturera la manche.</p>' : "") + "</div>";
+    }
+  }
+  h += "</div>";
+  app.innerHTML = h;
+  $("#out").onclick = async () => { if (await confirmBox("Quitter l'écran DJ sur ce téléphone ?", "Quitter")) logout(); };
+  $$("[data-dt]", app).forEach((b) => (b.onclick = () => { S.djTab = b.dataset.dt; S.lastSig = ""; renderDJ(app); }));
+  const cp = $("#cpPl"); if (cp) cp.onclick = () => copyText(playlistText(d.all));
+  const act = (a) => async () => { try { await api("/game", { method: "POST", body: { action: a } }); pollNow(); } catch (e) { toast(e.message); } };
+  if ($("#djPlay")) {
+    $("#djPlay").onclick = async () => {
+      if (p.started && phase().ph !== "done" && !(await confirmBox("L'extrait est déjà en cours. Relancer le chrono ?", "Relancer"))) return;
+      act("play")();
+    };
+    $("#djNext").onclick = act("next"); $("#djPrev").onclick = act("prev");
+  }
+  S.tick = tickDJ; tickDJ();
+}
+function tickDJ() {
+  const t = $("#djTimer"); if (!t || !S.pub) return;
+  const f = phase();
+  const h = f.ph === "play" ? "🎵 MUSIQUE – coupez dans " + f.left + " s" : f.ph === "write" ? "⏹ COUPEZ ! Silence " + f.left + " s" : f.ph === "done" ? "✓ Terminé → morceau suivant" : "Prêt : lancez la musique puis appuyez sur le bouton vert";
+  if (t._h !== h) { t._h = h; t.textContent = h; t.className = "timer " + f.ph; }
+  if (S.lastPh === "play" && f.ph === "write" && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  S.lastPh = f.ph;
+  const b = $("#djPlay"); if (b) { const lab = f.ph === "idle" ? "▶ Je lance l'extrait" : "↻ Relancer le chrono"; if (b.textContent !== lab) b.textContent = lab; b.className = "btn big " + (f.ph === "idle" ? "ok" : "ghost"); }
+}
+
+/* ================= Écran géant ================= */
+function renderScreen(app) {
+  const p = S.pub;
+  if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => m.state), p.ranking]);
+  if (S.built === "screen" && S.lastSig === sig) return;
+  S.built = "screen"; S.lastSig = sig;
+  let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
+  if (p.status === "setup") {
+    h += '<div class="big">Blind test</div><div class="mid muted">La partie va commencer…</div>' +
+      '<div class="tl">' + p.teams.map((t) => "<div><b>Équipe " + t.id + "</b><br>" + esc(t.name) + "</div>").join("") + "</div>";
+  } else if (p.status === "finished") {
+    if (p.ranking && p.ranking.length) {
+      const r = p.ranking; const g = (i) => r[i] ? "<b>" + esc(r[i].name) + "</b><br>" + plural(r[i].total, "pt") : "";
+      h += '<div class="big">🏆 Le podium</div><div class="podium">' +
+        (r[1] ? '<div class="p2" style="animation-delay:1.2s"><div class="medal">🥈</div>' + g(1) + "</div>" : "") +
+        '<div class="p1" style="animation-delay:2.4s"><div class="medal">🥇</div>' + g(0) + "</div>" +
+        (r[2] ? '<div class="p3" style="animation-delay:0s"><div class="medal">🥉</div>' + g(2) + "</div>" : "") + "</div>";
+    } else h += '<div class="big">🏁 Partie terminée !</div><div class="mid muted">Et les gagnants sont…</div>';
+  } else {
+    const man = p.manches[p.m];
+    h += '<div class="big">Manche ' + (p.m + 1) + " – " + esc(man.title) + "</div>" + (man.mult > 1 ? '<div class="mid" style="color:var(--warn)">⭐ Points ×' + man.mult + " ⭐</div>" : "");
+    if (man.state === "open") h += '<div class="mid">Morceau ' + (p.k + 1) + " / " + man.n + '</div><div id="scPh" class="ph"></div><div class="bar"><i id="scBar" style="width:0"></i></div>';
+    else if (man.state === "closed") h += '<div class="ph">⏳ Correction en cours…</div>';
+    else h += '<div class="mid">Les bonnes réponses</div><ol class="reveal">' + man.reveal.map((s) => "<li><b>" + esc(s.t) + '</b> – <span class="muted">' + esc(s.a) + "</span></li>").join("") + "</ol>";
+  }
+  h += '</div><button id="scOut" class="btn ghost sm" style="position:fixed;bottom:8px;right:8px;opacity:.25">✕</button>';
+  app.innerHTML = h;
+  $("#scOut").onclick = async () => { if (await confirmBox("Quitter le mode écran géant ?", "Quitter")) logout(); };
+  app.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
+  S.tick = tickScreen; tickScreen();
+}
+function tickScreen() {
+  const el = $("#scPh"); if (!el || !S.pub) return;
+  const f = phase();
+  const h = f.ph === "play" ? "🎵 Écoutez !" : f.ph === "write" ? "✍️ Écrivez ! " + f.left : f.ph === "done" ? "✍️ Notez vos réponses" : "Préparez-vous…";
+  if (el._h !== h) { el._h = h; el.textContent = h; el.className = "ph " + f.ph; }
+  const bar = $("#scBar"); if (bar) bar.style.width = Math.round(f.frac * 100) + "%";
+}
+
+/* ================= Animateur ================= */
+const TABS = [["jeu", "🎮 Jeu"], ["equipes", "👥 Équipes"], ["manches", "🎵 Manches"], ["distrib", "📲 Distribuer"], ["scores", "🏆 Classement"], ["reglages", "⚙️ Réglages"]];
+const TEAM_NAMES = ["Les Vinyles Rayés", "Les Rois du Refrain", "Les Micros d'Or", "Les Platines Chaudes", "Les Fausses Notes", "Les Bémols", "Les Dièses", "Les Mélomanes", "Les Tympans d'Acier", "Les Accords Parfaits", "Les Boules à Facettes", "Les Shazam Humains", "Les Oreilles Musclées", "Les Juke-Box", "Les Cassettes", "Les Walkmans", "Les Refrains Têtus", "Les Disques d'Or", "Les Basses Fréquences", "Les Saxos Fous", "Les Tambours Battants", "Les Guitares Sèches", "Les Maracas", "Les Castagnettes", "Les Pianos Volants", "Les Violons Dingues", "Les Ukulélés", "Les DJ en Herbe", "Les Danseurs du Dimanche", "Les Rythmes Endiablés", "Les Notes Bleues", "Les Casques Fous", "Les Chœurs Battants", "Les Trompettes", "Les Harmonicas", "Les Solistes", "Les Contrebasses", "Les Triangles", "Les Clés de Sol", "Les Mégaphones"];
+const CODE_CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const newCode = () => Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join("");
+function defaultManches() {
+  return LIB.themes.map((th) => ({
+    title: th.id === "fete" ? "Finale – Tubes de fête" : th.title, mult: th.id === "fete" ? 2 : 1, label2: th.label2, theme: th.id,
+    songs: th.songs.slice(0, 5).map((s) => clone(s)),
+  }));
+}
+const isLocked = () => !!(S.data && S.data.game && S.data.game.status === "running");
+
+function renderAnim(app) {
+  S.built = "anim"; S.lastSig = "";
+  app.innerHTML = '<div class="top"><div class="tt"><b>🎤 Animateur</b><small id="aName"></small></div><span id="saveChip" class="chip"></span></div>' +
+    '<nav class="tabs">' + TABS.map(([k, l]) => '<button data-tab="' + k + '" class="' + (S.tab === k ? "on" : "") + '">' + l + "</button>").join("") + '</nav><div class="wrap" id="view"><p class="muted pad center">Chargement…</p></div>';
+  $$(".tabs button", app).forEach((b) => (b.onclick = () => {
+    S.tab = b.dataset.tab; LS.set("bt_tab", S.tab);
+    $$(".tabs button", app).forEach((x) => x.classList.toggle("on", x === b));
+    S.lastSig = ""; renderTab(); window.scrollTo(0, 0);
+  }));
+  if (S.data && S.data.setup) updAnim();
+}
+function chip(t, cls) { const c = $("#saveChip"); if (c) { c.textContent = t; c.className = "chip " + (cls || ""); } }
+function updAnim() {
+  const d = S.data; if (!d || !d.setup) return;
+  $("#aName").textContent = d.pub.name;
+  if (!S.draft) {
+    S.draft = clone(d.setup);
+    if (!S.draft.manches.length) { S.draft.manches = defaultManches(); saveDraft(true); }
+    S.lastSig = ""; renderTab(); return;
+  }
+  if (S.tab === "jeu" || S.tab === "scores") {
+    const ae = document.activeElement;
+    if (ae && $("#view").contains(ae) && ae.matches("input,textarea,select")) return;
+    const sig = JSON.stringify([S.tab, d.game, d.results, d.ranking, d.adjust, Object.keys((d.answers || {})[d.game.m] || {}).length, d.pub.teams.length, d.pub.djReady]);
+    if (sig === S.lastSig) return;
+    S.lastSig = sig; renderTab();
+  }
+}
+let sdT = null;
+function saveDraft(now) {
+  chip("Enregistrement…");
+  clearTimeout(sdT);
+  sdT = setTimeout(async () => {
+    try {
+      await api("/setup", { method: "POST", body: { setup: S.draft, partial: isLocked() } });
+      chip("✓ Enregistré", "ok"); pollNow();
+    } catch (e) { chip("⚠️ " + e.message, "ko"); }
+  }, now ? 10 : 700);
+}
+function renderTab() {
+  const v = $("#view"); if (!v || !S.data || !S.draft) return;
+  const f = { jeu: tabJeu, equipes: tabEquipes, manches: tabManches, distrib: tabDistrib, scores: tabScores, reglages: tabReglages }[S.tab] || tabJeu;
+  S.tick = null; v.oninput = null; v.onchange = null; v.onclick = null;
+  f(v);
+}
+const lockBanner = () => isLocked() ? '<div class="lock">🔒 Partie en cours : les équipes et les manches sont verrouillées. Pour les modifier, remettez la partie à zéro (Réglages).</div>' : "";
+function lockInputs(v) { if (isLocked()) $$("input,select,textarea,button", v).forEach((e) => { if (!e.closest(".keep")) e.disabled = true; }); }
+const gameAct = async (action, extra) => {
+  try { await api("/game", { method: "POST", body: Object.assign({ action }, extra || {}) }); S.lastSig = ""; pollNow(); return true; }
+  catch (e) { toast(e.message, 3500); return false; }
+};
+
+/* ---- Onglet Jeu ---- */
+function tabJeu(v) {
+  const d = S.data, g = d.game, p = d.pub, st = d.setup;
+  let h = "";
+  if (g.status === "setup") {
+    const nS = st.manches.reduce((a, m) => a + m.songs.length, 0);
+    const okT = st.teams.length > 0, okM = st.manches.length > 0 && nS > 0;
+    h += '<div class="card"><h3>Avant de commencer</h3><ul class="check">' +
+      '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
+      '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
+      '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li></ul>" +
+      '<button class="btn big" id="gStart"' + (okT && okM ? "" : " disabled") + '>🚀 Démarrer la partie</button>' +
+      '<p class="muted small">Pour une répétition : démarrez, utilisez « 🧪 Réponses d\'essai » dans chaque manche, puis remettez la partie à zéro dans Réglages.</p></div>' +
+      '<div class="card"><h3>Déroulé d\'une manche</h3><ol class="pl"><li>Le DJ lance l\'extrait et appuie sur son bouton vert : le chrono démarre chez tout le monde.</li><li>Les chefs d\'équipe tapent titre et artiste sur leur téléphone.</li><li>Au dernier morceau, vous clôturez la manche : l\'appli corrige seule.</li><li>Vous validez les réponses douteuses, puis vous publiez : les bonnes réponses s\'affichent sur l\'écran géant.</li><li>Le classement reste secret sur votre téléphone jusqu\'au podium final.</li></ol></div>';
+    v.innerHTML = h;
+    $("#gStart").onclick = async () => { if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
+    return;
+  }
+  if (g.status === "finished") {
+    h += '<div class="card center"><h3>🏁 Partie terminée</h3>' + podiumHtml(d.ranking) +
+      '<label class="row keep" style="justify-content:center"><input type="checkbox" id="shRk" style="width:auto"' + (g.showRanking ? " checked" : "") + "> Afficher le podium sur l'écran géant et sur les téléphones des équipes</label></div>" +
+      rankTable(d.ranking, st) +
+      '<div class="card"><button class="btn ghost" id="gExp">⬇️ Exporter les résultats (CSV)</button> <button class="btn ghost" id="gRe">🔄 Rejouer (mêmes équipes et manches)</button></div>';
+    v.innerHTML = h;
+    $("#shRk").onchange = (e) => gameAct("showRanking", { show: e.target.checked });
+    $("#gExp").onclick = exportCsv;
+    $("#gRe").onclick = async () => { if (await confirmBox("Remettre la partie à zéro ? Les réponses et scores seront effacés.", "Remettre à zéro", true)) { await api("/reset", { method: "POST", body: { mode: "game" } }); S.lastSig = ""; pollNow(); } };
+    return;
+  }
+  const man = st.manches[g.m], state = g.states[g.m], song = man.songs[g.k];
+  const nAns = Object.keys((d.answers || {})[g.m] || {}).length;
+  const stLab = { open: '<span class="chip ok">En cours</span>', closed: '<span class="chip warn">À corriger</span>', published: '<span class="chip">Publiée</span>' }[state] || "";
+  h += '<div class="card"><div class="row" style="justify-content:space-between;margin:0"><b>Manche ' + (g.m + 1) + "/" + st.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (×" + man.mult + ")" : "") + "</b>" + stLab + "</div>";
+  if (state === "open") {
+    h += '<div style="margin-top:10px" class="muted">Morceau ' + (g.k + 1) + " / " + man.songs.length + '</div><div class="song"><div class="st">' + esc(song.t) + '</div><div class="sa">' + esc(song.a) + '</div></div><div id="aTimer" class="timer"></div>' +
+      '<div class="row"><button class="btn ghost" id="gPrev"' + (g.k === 0 ? " disabled" : "") + '>◀</button><button class="btn ok grow" id="gPlay">▶ Lancer le chrono</button><button class="btn alt" id="gNext"' + (g.k >= man.songs.length - 1 ? " disabled" : "") + ">▶▶</button></div>" +
+      '<p class="muted small">Normalement c\'est le DJ qui lance le chrono et passe au morceau suivant. Ces boutons servent de secours.</p>' +
+      "<p>📥 Réponses reçues : <b>" + nAns + " / " + st.teams.length + "</b> équipes</p>" +
+      '<button class="btn big warn" id="gClose">🔒 Clore la manche et corriger</button>' +
+      '<div class="row"><button class="btn ghost sm" id="gTest">🧪 Réponses d\'essai (test)</button></div>';
+  } else {
+    const res = d.results[g.m] || {};
+    const doubts = [];
+    st.teams.forEach((t) => (res[t.id] || []).forEach((it, i) => { ["t", "a"].forEach((f) => { if (it[f] === "doubt") doubts.push({ t, i, f }); }); }));
+    h += doubts.length
+      ? '<h3 style="margin-top:12px">⚠️ ' + plural(doubts.length, "réponse douteuse", "réponses douteuses") + " à vérifier</h3>" +
+        doubts.map((x) => { const a = (((d.answers || {})[g.m] || {})[x.t.id] || [])[x.i] || {}; const s = man.songs[x.i];
+          return '<div class="rev"><div class="small muted">Équipe ' + x.t.id + " – " + esc(x.t.name) + " · morceau " + (x.i + 1) + " · " + (x.f === "t" ? "titre" : esc(man.label2 || "artiste").toLowerCase()) + '</div><div class="ty">« ' + esc(a[x.f]) + ' »</div><div class="muted small">Attendu : ' + esc(x.f === "t" ? s.t : s.a) + '</div><div class="row"><button class="btn ok sm" data-rv="ok" data-tid="' + x.t.id + '" data-i="' + x.i + '" data-f="' + x.f + '">✓ Accepter</button><button class="btn ko sm" data-rv="ko" data-tid="' + x.t.id + '" data-i="' + x.i + '" data-f="' + x.f + '">✗ Refuser</button></div></div>'; }).join("")
+      : '<p style="margin-top:12px">✓ Aucune réponse douteuse.</p>';
+    h += '<details style="margin:10px 0"><summary class="muted">Voir et corriger toutes les réponses (touchez une pastille pour changer)</summary>' + answersGrid(d, g.m) + "</details>";
+    if (state === "closed") h += '<button class="btn big" id="gPub">📣 Publier : afficher les bonnes réponses</button><p class="muted small">Les points ne sont jamais montrés aux équipes : seul votre téléphone voit le classement.' + (doubts.length ? " Une réponse douteuse non validée compte 0 point." : "") + "</p>";
+    else h += g.m < st.manches.length - 1
+      ? '<button class="btn big alt" id="gNextM">Manche suivante ▶ (' + esc(st.manches[g.m + 1].title) + ")</button>"
+      : '<button class="btn big" id="gFin">🏁 Terminer la partie</button>';
+  }
+  h += "</div>" + '<div class="card"><h3>🤫 Classement (visible uniquement ici)</h3>' + miniRank(d.ranking) + "</div>";
+  v.innerHTML = h;
+  const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
+  on("gPlay", async () => { if (d.pub.started && phase().ph !== "done" && !(await confirmBox("Le chrono tourne déjà. Le relancer ?", "Relancer"))) return; gameAct("play"); });
+  on("gNext", () => gameAct("next")); on("gPrev", () => gameAct("prev"));
+  on("gTest", async () => { try { await api("/testfill", { method: "POST" }); toast("Réponses d'essai ajoutées"); pollNow(); } catch (e) { toast(e.message); } });
+  on("gClose", async () => {
+    const msg = g.k < man.songs.length - 1 ? "⚠️ Il reste des morceaux non joués dans cette manche. Clore quand même ?" : "Clore la manche ? Les équipes ne pourront plus modifier leurs réponses. Vérifiez qu'elles ont bien fini d'écrire.";
+    if (await confirmBox(msg, "Clore et corriger")) gameAct("close");
+  });
+  on("gPub", () => gameAct("publish"));
+  on("gNextM", () => gameAct("nextManche"));
+  on("gFin", async () => { if (await confirmBox("Terminer la partie ? Le podium restera caché tant que vous ne l'affichez pas.", "Terminer")) gameAct("nextManche"); });
+  $$("[data-rv]", v).forEach((b) => (b.onclick = () => review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, b.dataset.rv)));
+  $$("[data-cyc]", v).forEach((b) => (b.onclick = () => { const cur = b.dataset.st; review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, cur === "ok" ? "ko" : "ok"); }));
+  S.tick = () => { const t = $("#aTimer"); if (!t) return; const f = phase(); const h2 = f.ph === "play" ? "🎵 Extrait en cours – " + f.left + " s" : f.ph === "write" ? "✍️ Silence pour écrire – " + f.left + " s" : f.ph === "done" ? "✓ Terminé" : "En attente du DJ"; if (t._h !== h2) { t._h = h2; t.textContent = h2; t.className = "timer " + f.ph; } };
+  S.tick();
+}
+async function review(m, teamId, i, field, status) {
+  try { await api("/review", { method: "POST", body: { m, teamId, i, field, status } }); S.lastSig = ""; pollNow(); } catch (e) { toast(e.message); }
+}
+function answersGrid(d, m) {
+  const st = d.setup, man = st.manches[m], res = d.results[m] || {}, ans = (d.answers || {})[m] || {};
+  const bd = (stt, tid, i, f) => '<button class="badge ' + stt + '" data-cyc="1" data-st="' + stt + '" data-tid="' + tid + '" data-i="' + i + '" data-f="' + f + '">' + (stt === "ok" ? "✓" : stt === "ko" ? "✗" : "?") + "</button>";
+  return st.teams.map((t) => {
+    const r = res[t.id] || [], a = ans[t.id] || [];
+    return '<div class="card" style="padding:10px"><b>Équipe ' + t.id + " – " + esc(t.name) + '</b><table class="ansgrid">' + man.songs.map((s, i) => {
+      const x = a[i] || {}, y = r[i] || { t: "ko", a: "ko" };
+      return "<tr><td>" + (i + 1) + "</td><td>" + bd(y.t, t.id, i, "t") + " " + (esc(x.t) || '<span class="muted">—</span>') + "</td><td>" + bd(y.a, t.id, i, "a") + " " + (esc(x.a) || '<span class="muted">—</span>') + "</td></tr>";
+    }).join("") + "</table></div>";
+  }).join("");
+}
+function miniRank(r) {
+  if (!r || !r.length) return '<p class="muted">Pas encore de points.</p>';
+  return '<table class="rank"><tr><th>#</th><th>Équipe</th><th class="n">Points</th></tr>' + r.map((x) => "<tr><td>" + x.rank + "</td><td>" + esc(x.name) + '</td><td class="n"><b>' + x.total + "</b></td></tr>").join("") + "</table>";
+}
+function podiumHtml(r) {
+  if (!r || !r.length) return "";
+  const m = ["🥇", "🥈", "🥉"];
+  return '<div style="font-size:1.2rem;margin:10px 0">' + r.slice(0, 3).map((x, i) => m[i] + " <b>" + esc(x.name) + "</b> – " + plural(x.total, "pt")).join("<br>") + "</div>";
+}
+function maxPoints(st) { return st.manches.reduce((a, m) => a + m.songs.length * (st.scoring.title + st.scoring.artist) * (m.mult || 1), 0); }
+function rankTable(r, st) {
+  const done = S.data.game.states.map((s, i) => (s === "published" ? i : -1)).filter((i) => i >= 0);
+  return '<div class="card" style="overflow-x:auto"><h3>Classement détaillé</h3><p class="muted small">Maximum possible : ' + maxPoints(st) + ' points. Ajustement : bonus ou malus manuel.</p><table class="rank"><tr><th>#</th><th>Équipe</th>' +
+    done.map((i) => '<th class="n">M' + (i + 1) + "</th>").join("") + '<th class="n">Ajust.</th><th class="n">Total</th></tr>' +
+    r.map((x) => "<tr><td>" + x.rank + "</td><td>" + esc(x.name) + "</td>" + done.map((i) => '<td class="n">' + (x.perManche[i] || 0) + "</td>").join("") +
+      '<td class="n keep"><input type="number" data-adj="' + x.id + '" value="' + Number(S.data.adjust[x.id] || 0) + '"></td><td class="n"><b>' + x.total + "</b></td></tr>").join("") + "</table></div>";
+}
+function bindAdjust(v) {
+  $$("[data-adj]", v).forEach((i) => (i.onchange = async () => {
+    try { await api("/adjust", { method: "POST", body: { teamId: Number(i.dataset.adj), value: Number(i.value) || 0 } }); i.blur(); S.lastSig = ""; pollNow(); toast("Ajustement enregistré"); } catch (e) { toast(e.message); }
+  }));
+}
+function exportCsv() {
+  const d = S.data, st = d.setup;
+  const rows = [["Rang", "Équipe", "Membres"].concat(st.manches.map((m, i) => "Manche " + (i + 1))).concat(["Ajustement", "Total"])];
+  d.ranking.forEach((x) => { const t = st.teams.find((y) => y.id === x.id) || { members: [] }; rows.push([x.rank, x.name, t.members.join(" / ")].concat(st.manches.map((m, i) => x.perManche[i] || 0)).concat([d.adjust[x.id] || 0, x.total])); });
+  const csv = "﻿" + rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(";")).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "resultats-blind-test.csv"; a.click();
+}
+
+/* ---- Onglet Classement ---- */
+function tabScores(v) {
+  const d = S.data, g = d.game;
+  if (g.status === "setup") { v.innerHTML = '<div class="card"><p class="muted">Le classement apparaîtra ici pendant la partie. Il n\'est visible que sur votre téléphone.</p></div>'; return; }
+  v.innerHTML = '<div class="card"><h3>🏆 Podium actuel</h3>' + podiumHtml(d.ranking) + '<p class="muted small">🤫 Visible uniquement sur ce téléphone. Les équipes et l\'écran géant ne voient pas les points' + (g.showRanking ? " (sauf le podium final, actuellement affiché)" : "") + ".</p></div>" + rankTable(d.ranking, d.setup) +
+    '<div class="card"><button class="btn ghost" id="sExp">⬇️ Exporter les résultats (CSV)</button></div>';
+  bindAdjust(v);
+  $("#sExp").onclick = exportCsv;
+}
+
+/* ---- Onglet Équipes ---- */
+function trOf(mem) { const c = {}; mem.forEach((m) => { if (m.tr) c[m.tr] = (c[m.tr] || 0) + 1; }); let b = "", n = 0; Object.keys(c).forEach((k) => { if (c[k] > n) { n = c[k]; b = k; } }); return b; }
+function toTr(v) {
+  v = String(v || "").trim(); if (!v) return "";
+  const n = parseInt(v, 10);
+  if (!isNaN(n) && /^\d+/.test(v)) return n < 30 ? "J" : n < 50 ? "M" : "A";
+  const c = v[0].toUpperCase(); return "JMA".includes(c) ? c : "";
+}
+function parsePaste(text) {
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const members = l.split(/\s*(?:\+|&|;|\s\/\s|\bet\b)\s*/i).map((p) => p.trim()).filter(Boolean).map((p) => {
+      const m = p.match(/[\(\[]\s*([JMAjma])\s*[\)\]]\s*$/);
+      return { n: p.replace(/\s*[\(\[]\s*[JMAjma]\s*[\)\]]\s*$/, "").trim(), tr: m ? m[1].toUpperCase() : "" };
+    }).filter((x) => x.n);
+    return { members, tr: trOf(members) };
+  }).filter((u) => u.members.length);
+}
+function countPeople(units) { return (units || []).reduce((a, u) => a + u.members.length, 0); }
+function colLetter(i) { let s = ""; i++; while (i > 0) { const r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); } return s; }
+function guessMap(hdr) {
+  const f = (re, not) => { const i = hdr.findIndex((h) => re.test(h) && !(not && not.test(h))); return i < 0 ? "" : String(i); };
+  return {
+    name: f(/nom|name|amicaliste|adh[eé]rent|invit/i, /pr[eé]nom|first|conjoint|accomp|[eé]poux|compagn/i) || "0",
+    first: f(/pr[eé]nom|first/i, /conjoint|accomp|[eé]poux|compagn/i),
+    spouse: f(/conjoint|accomp|[eé]poux|[eé]pouse|compagn|partenaire/i, /nb|nombre/i),
+    count: f(/nb|nombre/i),
+    group: f(/groupe|couple|famille|foyer/i),
+    age: f(/tranche|^[aâ]ge|g[eé]n[eé]ration/i),
+  };
+}
+function unitsFromImport(imp) {
+  const rows = imp.hdr ? imp.rows.slice(1) : imp.rows;
+  const M = imp.map;
+  const val = (r, c) => (c === "" || c == null ? "" : String(r[Number(c)] == null ? "" : r[Number(c)]).trim());
+  const groups = new Map(); const units = [];
+  rows.forEach((r) => {
+    const name = [val(r, M.first), val(r, M.name)].filter(Boolean).join(" ").replace(/\s+/g, " ");
+    if (!name) return;
+    const tr = toTr(val(r, M.age));
+    const mem = [{ n: name, tr }];
+    const sp = val(r, M.spouse);
+    if (sp && !/^(non|n|no|0|-|\/|aucun|aucune|n[eé]ant|sans)$/i.test(sp)) mem.push({ n: /^(oui|o|yes|y|1|x)$/i.test(sp) ? "Conjoint(e) de " + name : sp, tr });
+    const nb = parseInt(val(r, M.count), 10) || 0;
+    for (let i = 1; i <= Math.min(nb, 10); i++) mem.push({ n: "Invité " + i + " de " + name, tr: "" });
+    const gk = val(r, M.group);
+    if (gk) { if (!groups.has(gk.toLowerCase())) { const u = { members: [] }; groups.set(gk.toLowerCase(), u); units.push(u); } groups.get(gk.toLowerCase()).members.push(...mem); }
+    else units.push({ members: mem });
+  });
+  units.forEach((u) => (u.tr = trOf(u.members)));
+  return units;
+}
+function drawTeams(units, T) {
+  const teams = Array.from({ length: T }, (_, i) => ({ id: i + 1, members: [], tr: {} }));
+  const buckets = {};
+  units.forEach((u) => { const k = u.tr || "?"; (buckets[k] = buckets[k] || []).push(u); });
+  let order = [];
+  ["J", "M", "A", "?"].forEach((k) => { if (buckets[k]) order = order.concat(shuffle(buckets[k]).sort((a, b) => b.members.length - a.members.length)); });
+  order.forEach((u) => {
+    const k = u.tr || "?"; let best = null;
+    shuffle(teams).forEach((t) => {
+      if (!best) { best = t; return; }
+      const a = t.members.length + u.members.length, b = best.members.length + u.members.length;
+      if (a < b || (a === b && (t.tr[k] || 0) < (best.tr[k] || 0))) best = t;
+    });
+    best.members.push(...u.members.map((m) => m.n)); best.tr[k] = (best.tr[k] || 0) + u.members.length;
+  });
+  const names = shuffle(TEAM_NAMES); const codes = new Set();
+  return teams.map((t, i) => { let c; do { c = newCode(); } while (codes.has(c)); codes.add(c); return { id: i + 1, name: names[i % names.length] + (i >= names.length ? " " + (Math.floor(i / names.length) + 1) : ""), code: c, members: t.members }; });
+}
+function drawInfo() {
+  const N = countPeople(S.people); const ds = LS.get("bt_draw", { mode: "s", val: 10 });
+  const val = Math.max(1, Number(ds.val) || 1);
+  const T = !N ? 0 : ds.mode === "n" ? Math.min(val, N) : Math.max(1, Math.round(N / val));
+  return { N, T, ds, lo: T ? Math.floor(N / T) : 0, hi: T ? Math.ceil(N / T) : 0 };
+}
+function tabEquipes(v) {
+  const di = drawInfo(), teams = S.draft.teams, ppl = S.people;
+  let h = lockBanner() + '<div class="card"><h3>1. La liste des invités</h3>' +
+    '<div class="row"><label class="btn alt"><input type="file" id="fImp" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt" hidden>📂 Importer un fichier Excel</label><button class="btn ghost" id="bPaste">✍️ Coller ou taper une liste</button></div>' +
+    '<div id="impMap"></div><p class="muted" id="pplInfo">' + (ppl ? "✓ " + plural(countPeople(ppl), "personne") + " en " + plural(ppl.length, "groupe") + " (les couples restent ensemble)." : "Aucune liste importée pour l'instant.") + "</p></div>";
+  h += '<div class="card"><h3>2. Tirage au sort</h3><div class="row"><label class="row" style="margin:0"><input type="radio" name="dm" value="s" style="width:auto"' + (di.ds.mode !== "n" ? " checked" : "") + '> Personnes par équipe</label><label class="row" style="margin:0"><input type="radio" name="dm" value="n" style="width:auto"' + (di.ds.mode === "n" ? " checked" : "") + "> Nombre d'équipes</label></div>" +
+    '<input type="number" id="dVal" min="1" max="60" inputmode="numeric" value="' + esc(di.ds.val) + '"><p class="muted" id="dInfo"></p>' +
+    '<button class="btn big" id="bDraw"' + (ppl ? "" : " disabled") + ">🎲 " + (teams.length ? "Refaire le tirage au sort" : "Tirer les équipes au sort") + "</button></div>";
+  h += '<div class="card"><h3>3. Les équipes (' + teams.length + ")</h3>" + (teams.length ? '<p class="muted small">Touchez une personne pour la déplacer. Vous pouvez renommer les équipes.</p>' : '<p class="muted">Pas encore d\'équipes.</p>') +
+    teams.map((t, ti) => '<div class="tcard"><div class="hd"><b>N°' + t.id + '</b><input class="tn" data-ti="' + ti + '" value="' + esc(t.name) + '" maxlength="40"><span class="chip">' + esc(t.code) + '</span></div><div class="mems">' +
+      t.members.map((m, mi) => '<button class="mem" data-ti="' + ti + '" data-mi="' + mi + '">' + esc(m) + "</button>").join("") +
+      '<button class="mem" data-add="' + ti + '" style="border-style:dashed">+ ajouter</button></div><div class="muted small" style="margin-top:6px">' + plural(t.members.length, "personne") + "</div></div>").join("") + "</div>";
+  v.innerHTML = h;
+  const upd = () => { const x = drawInfo(); $("#dInfo").textContent = x.N ? x.N + " personnes → " + x.T + " équipes de " + (x.lo === x.hi ? x.lo : x.lo + " à " + x.hi) + " personnes" + (S.people.some((u) => u.members.length > x.lo) ? " (environ, les couples restent ensemble)" : "") : "Importez d'abord la liste."; };
+  upd();
+  $$('[name="dm"]', v).forEach((r) => (r.onchange = () => { const ds = drawInfo().ds; ds.mode = r.value; LS.set("bt_draw", ds); upd(); }));
+  $("#dVal").oninput = (e) => { const ds = drawInfo().ds; ds.val = Number(e.target.value) || 1; LS.set("bt_draw", ds); upd(); };
+  $("#bDraw").onclick = async () => {
+    const x = drawInfo(); if (!x.T) return;
+    if (teams.length && !(await confirmBox("Refaire le tirage ? Les équipes actuelles, leurs noms et leurs codes seront remplacés (il faudra réimprimer les feuilles).", "Refaire le tirage", true))) return;
+    S.draft.teams = drawTeams(S.people, x.T); saveDraft(true); tabEquipes(v); toast("🎲 " + x.T + " équipes tirées au sort");
+  };
+  $("#bPaste").onclick = () => openModal('<h3>Coller ou taper la liste</h3><p class="muted small">Une ligne par personne, ou par couple avec « + » :<br>Marc Dupont + Sophie Dupont<br>Ajoutez (J), (M) ou (A) après un nom pour mélanger jeunes, moyens et anciens.</p><textarea id="pT" rows="12" placeholder="Marc Dupont + Sophie Dupont\nLéa Martin (J)"></textarea><div class="row end"><button class="btn ghost" id="pNo">Annuler</button><button class="btn" id="pOk">Utiliser cette liste</button></div>', (b) => {
+    $("#pNo", b).onclick = closeModal;
+    $("#pOk", b).onclick = () => { const u = parsePaste($("#pT", b).value); if (!u.length) return toast("Liste vide"); S.people = u; LS.set("bt_people", u); closeModal(); tabEquipes(v); };
+  });
+  $("#fImp").onchange = (e) => { const file = e.target.files[0]; if (file) readFile(file, v); e.target.value = ""; };
+  $$(".tn", v).forEach((i) => (i.oninput = () => { S.draft.teams[Number(i.dataset.ti)].name = i.value; saveDraft(); }));
+  $$("[data-mi]", v).forEach((b) => (b.onclick = () => moveMember(Number(b.dataset.ti), Number(b.dataset.mi), v)));
+  $$("[data-add]", v).forEach((b) => (b.onclick = async () => { const n = await ask("Ajouter une personne", { placeholder: "Prénom Nom" }); if (n) { S.draft.teams[Number(b.dataset.add)].members.push(n); saveDraft(true); tabEquipes(v); } }));
+  if (S.imp) renderImpMap(v);
+  lockInputs(v);
+}
+function moveMember(ti, mi, v) {
+  if (isLocked()) return;
+  const t = S.draft.teams[ti], name = t.members[mi];
+  openModal("<h3>" + esc(name) + '</h3><p class="muted">Déplacer vers :</p><div class="list">' +
+    S.draft.teams.map((x, i) => i === ti ? "" : '<button class="btn ghost" data-to="' + i + '">N°' + x.id + " – " + esc(x.name) + " (" + x.members.length + ")</button>").join("") +
+    '</div><div class="row end"><button class="btn ko sm" id="mDel">Retirer de la liste</button><button class="btn ghost sm" id="mNo">Annuler</button></div>', (b) => {
+    $$("[data-to]", b).forEach((x) => (x.onclick = () => { t.members.splice(mi, 1); S.draft.teams[Number(x.dataset.to)].members.push(name); closeModal(); saveDraft(true); tabEquipes(v); }));
+    $("#mDel", b).onclick = () => { t.members.splice(mi, 1); closeModal(); saveDraft(true); tabEquipes(v); };
+    $("#mNo", b).onclick = closeModal;
+  });
+}
+function readFile(file, v) {
+  const go = () => {
+    if (!window.XLSX) return setTimeout(go, 200);
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        let wb;
+        if (/\.(csv|txt)$/i.test(file.name)) {
+          let txt = new TextDecoder("utf-8").decode(new Uint8Array(fr.result));
+          if (txt.includes("�")) txt = new TextDecoder("windows-1252").decode(new Uint8Array(fr.result));
+          wb = XLSX.read(txt, { type: "string" });
+        } else wb = XLSX.read(new Uint8Array(fr.result), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false }).filter((r) => r.some((c) => String(c).trim()));
+        if (!rows.length) return toast("Fichier vide");
+        const hdrLike = rows[0].every((c) => !/^\d+$/.test(String(c).trim()));
+        S.imp = { rows, hdr: hdrLike, map: guessMap(hdrLike ? rows[0].map(String) : []), file: file.name };
+        renderImpMap(v);
+      } catch (e) { toast("Impossible de lire ce fichier"); }
+    };
+    fr.readAsArrayBuffer(file);
+  };
+  go();
+}
+function renderImpMap(v) {
+  const imp = S.imp, box = $("#impMap", v); if (!box) return;
+  const ncol = Math.max(...imp.rows.map((r) => r.length));
+  const opts = (sel, opt) => (opt ? '<option value="">— aucune —</option>' : "") + Array.from({ length: ncol }, (_, i) => '<option value="' + i + '"' + (String(sel) === String(i) ? " selected" : "") + ">Colonne " + colLetter(i) + (imp.hdr ? " – " + esc(String(imp.rows[0][i] || "").slice(0, 30)) : " – ex. " + esc(String(imp.rows[0][i] || "").slice(0, 20))) + "</option>").join("");
+  const F = [["name", "Nom (ou nom complet) *", false], ["first", "Prénom", true], ["spouse", "Conjoint / accompagnant (nom, ou oui/non)", true], ["count", "Nombre d'accompagnants", true], ["group", "Groupe (même valeur = toujours ensemble)", true], ["age", "Âge ou tranche J/M/A", true]];
+  const units = unitsFromImport(imp);
+  box.innerHTML = '<div class="card" style="background:var(--bg2)"><b>📄 ' + esc(imp.file) + "</b> – " + plural(imp.rows.length, "ligne") +
+    '<label class="row"><input type="checkbox" id="mHdr" style="width:auto"' + (imp.hdr ? " checked" : "") + "> La première ligne contient les titres des colonnes</label>" +
+    F.map(([k, l, o]) => '<label class="f">' + l + '</label><select data-map="' + k + '">' + opts(imp.map[k], o) + "</select>").join("") +
+    '<p class="muted small" style="margin-top:10px">Aperçu : ' + plural(countPeople(units), "personne") + " en " + plural(units.length, "groupe") + "<br>" + units.slice(0, 4).map((u) => "• " + esc(u.members.map((m) => m.n + (m.tr ? " (" + m.tr + ")" : "")).join(" + "))).join("<br>") + "</p>" +
+    '<div class="row end"><button class="btn ghost sm" id="mNo">Annuler</button><button class="btn" id="mOk">✓ Utiliser cette liste</button></div></div>';
+  $("#mHdr", box).onchange = (e) => { imp.hdr = e.target.checked; renderImpMap(v); };
+  $$("[data-map]", box).forEach((s) => (s.onchange = () => { imp.map[s.dataset.map] = s.value; renderImpMap(v); }));
+  $("#mNo", box).onclick = () => { S.imp = null; box.innerHTML = ""; };
+  $("#mOk", box).onclick = () => { if (!units.length) return toast("Aucune personne trouvée : vérifiez la colonne Nom"); S.people = units; LS.set("bt_people", units); S.imp = null; tabEquipes(v); toast("✓ " + plural(countPeople(units), "personne") + " importées"); };
+}
+
+/* ---- Onglet Manches ---- */
+function themeById(id) { return LIB.themes.find((t) => t.id === id); }
+function usedKeys(exceptM) { const s = new Set(); S.draft.manches.forEach((m, i) => { if (i !== exceptM) m.songs.forEach((x) => s.add((x.t + "|" + x.a).toLowerCase())); }); return s; }
+function pickSongs(themeId, n, exclude) {
+  const th = themeById(themeId); if (!th) return [];
+  const pool = shuffle(th.songs.filter((s) => !exclude.has((s.t + "|" + s.a).toLowerCase())));
+  return pool.slice(0, n).map(clone);
+}
+function tabManches(v) {
+  const M = S.draft.manches, st = S.draft;
+  const nS = M.reduce((a, m) => a + m.songs.length, 0);
+  const dur = Math.round((nS * (st.extractSec + st.answerSec + 6) + M.length * 90) / 60);
+  const thOpts = (sel) => '<option value="">Libre</option>' + LIB.themes.map((t) => '<option value="' + t.id + '"' + (t.id === sel ? " selected" : "") + ">" + esc(t.title) + " (" + t.songs.length + ")</option>").join("");
+  let h = lockBanner() + '<div class="card"><b>' + plural(M.length, "manche") + " · " + plural(nS, "morceau", "morceaux") + "</b> · durée estimée ≈ " + dur + " min" +
+    '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button></div>' +
+    '<p class="muted small">Pour chaque manche : choisissez un style puis « 🎲 Tirer au sort », ou tapez vos propres morceaux. Les « variantes acceptées » aident la correction automatique.</p></div>';
+  M.forEach((m, i) => {
+    h += '<div class="mcard" data-m="' + i + '"><div class="mh"><b>Manche ' + (i + 1) + '</b><div class="row" style="margin:0"><button class="btn ghost sm" data-a="up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="btn ghost sm" data-a="down"' + (i === M.length - 1 ? " disabled" : "") + '>↓</button><button class="btn ghost sm" data-a="delm">🗑</button></div></div>' +
+      '<input class="mt" value="' + esc(m.title) + '" placeholder="Titre de la manche" maxlength="60" style="margin-top:6px">' +
+      '<div class="row"><select class="msty grow" style="flex:2">' + thOpts(m.theme) + '</select><select class="mmul" style="flex:1">' + [1, 2, 3].map((x) => '<option value="' + x + '"' + (Number(m.mult) === x ? " selected" : "") + ">Points ×" + x + "</option>").join("") + "</select></div>" +
+      '<div class="row"><span class="muted small">2e réponse :</span><select class="ml2" style="flex:1"><option' + (m.label2 !== "Film ou dessin animé" ? " selected" : "") + ">Artiste</option><option" + (m.label2 === "Film ou dessin animé" ? " selected" : "") + ">Film ou dessin animé</option></select></div>" +
+      m.songs.map((s, j) => '<div class="srow" data-s="' + j + '"><span class="sn">' + (j + 1) + '</span><div class="sf"><input class="st" value="' + esc(s.t) + '" placeholder="Titre"><input class="sa" value="' + esc(s.a) + '" placeholder="' + esc(m.label2 || "Artiste") + '"><input class="sh" value="' + esc(s.h) + '" placeholder="Passage à jouer (refrain, intro…)">' +
+        "<details><summary>Variantes acceptées" + ((s.at || []).length + (s.aa || []).length ? " (" + ((s.at || []).length + (s.aa || []).length) + ")" : "") + '</summary><input class="sat" value="' + esc((s.at || []).join("; ")) + '" placeholder="Autres titres acceptés, séparés par ;"><input class="saa" value="' + esc((s.aa || []).join("; ")) + '" placeholder="Autres ' + esc((m.label2 || "artiste").toLowerCase()) + ' acceptés, séparés par ;"></details></div><button class="x" data-a="dels">✕</button></div>').join("") +
+      '<div class="row"><button class="btn ghost sm" data-a="draw">🎲 Tirer au sort</button><button class="btn ghost sm" data-a="addlib">+ Morceau du style</button><button class="btn ghost sm" data-a="adds">+ Morceau vide</button></div></div>';
+  });
+  v.innerHTML = h;
+  $("#mCopy").onclick = () => copyText(playlistText(S.draft.manches));
+  $("#mDef").onclick = async () => { if (await confirmBox("Remplacer toutes les manches par le pack par défaut (8 manches de 5 morceaux) ?", "Remplacer", true)) { S.draft.manches = defaultManches(); saveDraft(true); tabManches(v); } };
+  $("#mAdd").onclick = () => openModal("<h3>Nouvelle manche</h3><label class=\"f\">Style</label><select id=\"nSty\">" + LIB.themes.map((t) => '<option value="' + t.id + '">' + esc(t.title) + "</option>").join("") + '<option value="">Libre (je tape mes morceaux)</option></select><label class="f">Nombre de morceaux</label><input type="number" id="nNb" value="5" min="1" max="20"><div class="row end"><button class="btn ghost" id="nNo">Annuler</button><button class="btn" id="nOk">Ajouter</button></div>', (b) => {
+    $("#nNo", b).onclick = closeModal;
+    $("#nOk", b).onclick = () => {
+      const id = $("#nSty", b).value, n = Math.max(1, Math.min(20, Number($("#nNb", b).value) || 5)), th = themeById(id);
+      const songs = th ? pickSongs(id, n, usedKeys(-1)) : Array.from({ length: n }, () => ({ t: "", a: "", h: "Refrain", at: [], aa: [] }));
+      if (th && songs.length < n) toast("Seulement " + songs.length + " morceaux disponibles dans ce style");
+      S.draft.manches.push({ title: th ? th.title : "Nouvelle manche", mult: 1, label2: th ? th.label2 : "Artiste", theme: id, songs });
+      closeModal(); saveDraft(true); tabManches(v);
+    };
+  });
+  v.oninput = (e) => {
+    const c = e.target.closest(".mcard"); if (!c) return;
+    const m = S.draft.manches[Number(c.dataset.m)], r = e.target.closest(".srow"), s = r ? m.songs[Number(r.dataset.s)] : null, cl = e.target.classList;
+    if (cl.contains("mt")) m.title = e.target.value;
+    else if (s && cl.contains("st")) s.t = e.target.value;
+    else if (s && cl.contains("sa")) s.a = e.target.value;
+    else if (s && cl.contains("sh")) s.h = e.target.value;
+    else if (s && cl.contains("sat")) s.at = e.target.value.split(";").map((x) => x.trim()).filter(Boolean);
+    else if (s && cl.contains("saa")) s.aa = e.target.value.split(";").map((x) => x.trim()).filter(Boolean);
+    else return;
+    saveDraft();
+  };
+  v.onchange = (e) => {
+    const c = e.target.closest(".mcard"); if (!c) return;
+    const m = S.draft.manches[Number(c.dataset.m)], cl = e.target.classList;
+    if (cl.contains("msty")) { m.theme = e.target.value; const th = themeById(m.theme); if (th) { m.label2 = th.label2; if (!m.title || LIB.themes.some((t) => t.title === m.title) || /^Nouvelle manche/.test(m.title)) m.title = th.title; } saveDraft(); tabManches(v); }
+    else if (cl.contains("mmul")) { m.mult = Number(e.target.value); saveDraft(); }
+    else if (cl.contains("ml2")) { m.label2 = e.target.value; saveDraft(); tabManches(v); }
+  };
+  v.onclick = async (e) => {
+    const b = e.target.closest("[data-a]"); if (!b || b.disabled) return;
+    const c = b.closest(".mcard"); const i = Number(c.dataset.m); const m = S.draft.manches[i]; const a = b.dataset.a;
+    if (a === "up" && i > 0) { [M[i - 1], M[i]] = [M[i], M[i - 1]]; }
+    else if (a === "down" && i < M.length - 1) { [M[i + 1], M[i]] = [M[i], M[i + 1]]; }
+    else if (a === "delm") { if (!(await confirmBox("Supprimer la manche " + (i + 1) + " – " + esc(m.title) + " ?", "Supprimer", true))) return; M.splice(i, 1); }
+    else if (a === "dels") { const j = Number(b.closest(".srow").dataset.s); m.songs.splice(j, 1); }
+    else if (a === "adds") { m.songs.push({ t: "", a: "", h: "Refrain", at: [], aa: [] }); }
+    else if (a === "addlib" || a === "draw") {
+      if (!themeById(m.theme)) return toast("Choisissez d'abord un style pour cette manche");
+      if (a === "draw") {
+        if (m.songs.length && !(await confirmBox("Remplacer les morceaux de cette manche par un nouveau tirage au sort ?", "Tirer au sort"))) return;
+        const n = m.songs.length || 5; const got = pickSongs(m.theme, n, usedKeys(i)); if (got.length < n) toast("Seulement " + got.length + " morceaux disponibles dans ce style"); m.songs = got;
+      } else {
+        const ex = usedKeys(-1); const got = pickSongs(m.theme, 1, ex); if (!got.length) return toast("Plus de morceaux disponibles dans ce style"); m.songs.push(got[0]);
+      }
+    } else return;
+    saveDraft(true); tabManches(v);
+  };
+  lockInputs(v);
+}
+
+/* ---- Onglet Distribuer ---- */
+function tabDistrib(v) {
+  const st = S.draft, base = baseUrl();
+  const djUrl = st.codes.dj ? base + "/?r=dj&c=" + encodeURIComponent(st.codes.dj) : null;
+  const scUrl = base + "/?r=screen";
+  let h = '<div class="card"><h3>📲 Distribuer l\'appli</h3><p class="muted small">Tout le monde utilise la même partie, gérée depuis votre téléphone : même playlist, mêmes questions, mêmes réponses. Chacun scanne son QR code avec l\'appareil photo de son téléphone, sans rien installer.</p><p class="small">Adresse : <b>' + esc(base) + "</b></p></div>";
+  h += '<div class="card"><h3>👥 Équipes</h3>' + (st.teams.length
+    ? '<div class="row"><button class="btn" id="pTeams">🖨 Imprimer les feuilles d\'équipe (1 page par équipe)</button><button class="btn ghost" id="pList">🖨 Liste des équipes pour l\'annonce</button></div><div class="qrgrid">' +
+      st.teams.map((t, i) => '<div class="it" data-qt="' + i + '"><div class="qrbox">' + qrSvg(teamUrl(t)) + "</div><b>N°" + t.id + "</b><br>" + esc(t.name) + '<br><span class="muted">Code ' + esc(t.code) + "</span></div>").join("") + "</div>"
+    : '<p class="muted">Faites d\'abord le tirage des équipes.</p>') + "</div>";
+  h += '<div class="card"><h3>🎧 DJ</h3>' + (djUrl
+    ? '<div class="qrbox" data-big="dj">' + qrSvg(djUrl) + '</div><p class="center">Code DJ : <b>' + esc(st.codes.dj) + '</b></p><div class="row" style="justify-content:center"><button class="btn ghost" id="pDj">🖨 Fiche DJ (QR + playlist)</button><button class="btn ghost" id="cpDj">📋 Copier la playlist</button></div>'
+    : '<p class="muted">Définissez d\'abord le code DJ dans Réglages.</p>') + "</div>";
+  h += '<div class="card"><h3>📺 Écran géant</h3><div class="qrbox" data-big="sc">' + qrSvg(scUrl) + '</div><p class="muted small center">À ouvrir sur l\'ordinateur relié au vidéoprojecteur (double-clic = plein écran). Il n\'affiche jamais les points, seulement le podium final si vous le décidez.</p></div>';
+  h += '<div class="card"><h3>🎤 Secours animateur</h3><p class="muted small">Pour reprendre la main sur un autre téléphone si le vôtre tombe en panne. Ne le montrez à personne.</p><button class="btn ghost" id="shAnim">Afficher le QR animateur</button><div id="animQr"></div></div>';
+  v.innerHTML = h;
+  const big = (title, url, sub) => openModal("<h3 class=\"center\">" + esc(title) + '</h3><div class="qrbox" style="width:300px">' + qrSvg(url) + "</div>" + (sub ? '<p class="center">' + sub + "</p>" : "") + '<div class="row end"><button class="btn" id="bq">Fermer</button></div>', (b) => ($("#bq", b).onclick = closeModal));
+  $$("[data-qt]", v).forEach((e) => (e.onclick = () => { const t = st.teams[Number(e.dataset.qt)]; big("Équipe " + t.id + " – " + t.name, teamUrl(t), "Code de secours : <b>" + esc(t.code) + "</b>"); }));
+  const bdj = $('[data-big="dj"]', v); if (bdj) bdj.onclick = () => big("DJ", djUrl, "Code DJ : <b>" + esc(st.codes.dj) + "</b>");
+  $('[data-big="sc"]', v).onclick = () => big("Écran géant", scUrl);
+  $("#shAnim").onclick = () => { $("#animQr").innerHTML = '<div class="qrbox">' + qrSvg(base + "/?r=anim&c=" + encodeURIComponent(st.codes.anim)) + '</div><p class="center small">Code animateur : <b>' + esc(st.codes.anim) + "</b></p>"; };
+  const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
+  on("pTeams", () => doPrint(st.teams.map((t) => '<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">ÉQUIPE ' + t.id + '</div><div class="tname">' + esc(t.name) + '</div><div class="q">' + qrSvg(teamUrl(t)) + '</div><div class="how">📱 Chef d\'équipe : scannez ce QR code avec l\'appareil photo de votre téléphone.</div><div class="code">Code de secours : <b>' + esc(t.code) + '</b></div><div class="left"><b>Membres de l\'équipe</b><ul>' + t.members.map((m) => "<li>• " + esc(m) + "</li>").join("") + "</ul></div></div>").join("")));
+  on("pList", () => doPrint('<div class="sheet left"><h2>' + esc(st.name) + " – Les équipes</h2><table><tr><th>N°</th><th>Équipe</th><th>Code</th><th>Membres</th></tr>" + st.teams.map((t) => "<tr><td>" + t.id + "</td><td><b>" + esc(t.name) + "</b></td><td>" + esc(t.code) + "</td><td>" + t.members.map(esc).join(", ") + "</td></tr>").join("") + "</table></div>"));
+  on("pDj", () => doPrint('<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">DJ</div><div class="q" style="width:60mm">' + qrSvg(djUrl) + '</div><div class="code">Code DJ : <b>' + esc(st.codes.dj) + '</b></div></div><div class="sheet left"><h2>Playlist dans l\'ordre</h2><p>Extraits de ' + st.extractSec + " s, puis " + st.answerSec + " s de silence.</p>" + st.manches.map((m, i) => "<h3>Manche " + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "</h3><table>" + m.songs.map((s, j) => "<tr><td>" + (j + 1) + "</td><td><b>" + esc(s.t) + "</b></td><td>" + esc(s.a) + "</td><td>" + esc(s.h) + "</td></tr>").join("") + "</table>").join("") + "</div>"));
+  on("cpDj", () => copyText(playlistText(st.manches)));
+}
+
+/* ---- Onglet Réglages ---- */
+function tabReglages(v) {
+  const st = S.draft;
+  v.innerHTML = '<div class="card keep"><h3>La soirée</h3><label class="f">Nom de la soirée</label><input id="rName" maxlength="60" value="' + esc(st.name) + '">' +
+    '<label class="f">Adresse de l\'appli (pour les QR codes)</label><input id="rBase" placeholder="' + esc(location.origin) + '" value="' + esc(st.baseUrl || "") + '"><p class="muted small">Laissez vide pour utiliser l\'adresse actuelle.</p></div>' +
+    '<div class="card keep"><h3>Codes d\'accès</h3><div class="row"><span class="grow">Code animateur : <b>' + esc(st.codes.anim) + '</b></span><button class="btn ghost sm" id="rCA">Changer</button></div>' +
+    '<div class="row"><span class="grow">Code DJ : <b>' + (st.codes.dj ? esc(st.codes.dj) : '<span style="color:var(--ko)">non défini</span>') + '</b></span><button class="btn ghost sm" id="rCD">' + (st.codes.dj ? "Changer" : "Définir") + "</button></div></div>" +
+    '<div class="card keep"><h3>Barème et chrono</h3><div class="row"><label class="grow">Points pour le titre<input type="number" id="rPT" min="0" max="10" value="' + st.scoring.title + '"></label><label class="grow">Points pour l\'artiste<input type="number" id="rPA" min="0" max="10" value="' + st.scoring.artist + "\"></label></div>" +
+    '<div class="row"><label class="grow">Durée de l\'extrait (s)<input type="number" id="rEx" min="5" max="90" value="' + st.extractSec + '"></label><label class="grow">Silence pour écrire (s)<input type="number" id="rAn" min="3" max="90" value="' + st.answerSec + '"></label></div>' +
+    '<p class="muted small">Titre et artiste trouvés = ' + (st.scoring.title + st.scoring.artist) + " points ; un seul des deux = " + st.scoring.title + " ou " + st.scoring.artist + " point(s). Les manches « ×2 » doublent les points. Les fautes de frappe sont tolérées.</p></div>" +
+    '<div class="card"><h3>Réutiliser l\'appli</h3><p class="muted small">Sauvegardez vos manches et réglages dans un fichier pour une prochaine soirée.</p><div class="row"><button class="btn ghost keep" id="rExp">⬇️ Exporter la configuration</button><label class="btn ghost">📂 Importer une configuration<input type="file" id="rImp" accept=".json" hidden></label></div></div>' +
+    '<div class="card keep"><h3>Partie</h3><div class="row"><button class="btn warn" id="rReset">🔄 Remettre la partie à zéro</button><button class="btn ko" id="rNew">🆕 Nouvelle soirée (vider les équipes)</button></div><p class="muted small">« Remettre à zéro » efface les réponses et les scores mais garde équipes et manches (idéal après une répétition).</p></div>' +
+    '<div class="card keep"><button class="btn ghost" id="rReload">↻ Recharger depuis le serveur</button> <button class="btn ghost" id="rOut">🚪 Se déconnecter</button></div>';
+  const partialSave = async (setup) => { try { await api("/setup", { method: "POST", body: { setup, partial: true } }); chip("✓ Enregistré", "ok"); pollNow(); } catch (e) { chip("⚠️ " + e.message, "ko"); } };
+  let t1 = null;
+  const deb = (fn) => { clearTimeout(t1); chip("Enregistrement…"); t1 = setTimeout(fn, 700); };
+  $("#rName").oninput = (e) => { st.name = e.target.value; deb(() => partialSave({ name: st.name })); };
+  $("#rBase").oninput = (e) => { st.baseUrl = e.target.value.trim(); deb(() => partialSave({ baseUrl: st.baseUrl })); };
+  const num = (id, fn) => ($("#" + id).onchange = (e) => { fn(Number(e.target.value)); partialSave({ scoring: st.scoring, extractSec: st.extractSec, answerSec: st.answerSec }); });
+  num("rPT", (x) => (st.scoring.title = Math.max(0, Math.min(10, x || 0))));
+  num("rPA", (x) => (st.scoring.artist = Math.max(0, Math.min(10, x || 0))));
+  num("rEx", (x) => (st.extractSec = Math.max(5, Math.min(90, x || 15))));
+  num("rAn", (x) => (st.answerSec = Math.max(3, Math.min(90, x || 10))));
+  const setCode = async (kind) => {
+    const c = await ask(kind === "anim" ? "Nouveau code animateur" : "Code du DJ", { numeric: true, type: "tel", help: "3 à 12 caractères (4 chiffres conseillés). Notez-le bien !" });
+    if (c == null) return; if (c.length < 3) return toast("3 caractères minimum");
+    if (kind === "anim" && c === st.codes.dj) return toast("Le code animateur doit être différent du code DJ");
+    if (kind === "dj" && c === st.codes.anim) return toast("Le code DJ doit être différent du code animateur");
+    const codes = Object.assign({}, st.codes); codes[kind] = c;
+    try {
+      await api("/setup", { method: "POST", body: { setup: { codes }, partial: true } });
+      st.codes = codes; if (kind === "anim") { S.sess.code = c; LS.set("bt_sess", S.sess); }
+      toast("Code enregistré ✓"); tabReglages(v); pollNow();
+    } catch (e) { toast(e.message); }
+  };
+  $("#rCA").onclick = () => setCode("anim"); $("#rCD").onclick = () => setCode("dj");
+  $("#rExp").onclick = () => {
+    const cfg = { app: "blindtest", v: 1, name: st.name, scoring: st.scoring, extractSec: st.extractSec, answerSec: st.answerSec, manches: st.manches, teams: st.teams };
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 1)], { type: "application/json" })); a.download = "blind-test-config.json"; a.click();
+  };
+  $("#rImp").onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return; const fr = new FileReader();
+    fr.onload = async () => {
+      try {
+        const c = JSON.parse(fr.result); if (c.app !== "blindtest" || !Array.isArray(c.manches)) throw 0;
+        const withTeams = Array.isArray(c.teams) && c.teams.length && (await confirmBox("Importer aussi les " + c.teams.length + " équipes de ce fichier ?", "Oui, avec les équipes"));
+        Object.assign(st, { name: c.name || st.name, scoring: c.scoring || st.scoring, extractSec: c.extractSec || st.extractSec, answerSec: c.answerSec || st.answerSec, manches: c.manches });
+        if (withTeams) st.teams = c.teams;
+        saveDraft(true); toast("Configuration importée ✓"); tabReglages(v);
+      } catch (x) { toast("Fichier de configuration invalide"); }
+    };
+    fr.readAsText(f); e.target.value = "";
+  };
+  $("#rReset").onclick = async () => { if (await confirmBox("Remettre la partie à zéro ? Les réponses et les scores seront effacés. Les équipes et les manches sont conservées.", "Remettre à zéro", true)) { try { await api("/reset", { method: "POST", body: { mode: "game" } }); toast("Partie remise à zéro"); S.lastSig = ""; pollNow(); } catch (e) { toast(e.message); } } };
+  $("#rNew").onclick = async () => { if (await confirmBox("Nouvelle soirée ? Les équipes, réponses et scores seront effacés. Les manches et les codes sont conservés.", "Nouvelle soirée", true)) { try { await api("/reset", { method: "POST", body: { mode: "soiree" } }); S.draft.teams = []; S.people = null; LS.del("bt_people"); toast("Nouvelle soirée prête"); pollNow(); tabReglages(v); } catch (e) { toast(e.message); } } };
+  $("#rReload").onclick = () => { S.draft = null; S.lastSig = ""; pollNow(); toast("Rechargé"); };
+  $("#rOut").onclick = async () => { if (await confirmBox("Se déconnecter de ce téléphone ? (Gardez votre code animateur !)", "Se déconnecter")) logout(); };
+  lockInputs(v);
+}
+
+/* ================= Démarrage ================= */
+render();
+poll();
+wake();
+</script>
+</body>
+</html>
