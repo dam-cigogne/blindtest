@@ -257,7 +257,8 @@ export class Soiree extends DurableObject {
       answerSec: setup.answerSec,
       showRanking: !!game.showRanking,
       showRules: !!game.showRules,
-      showTeams: !!game.showTeams,
+      // équipes à l'écran : toutes, ou une par une (pour appeler chaque personne)
+      showTeams: game.showTeams ? (game.showTeams === true ? { mode: "all", i: 0 } : game.showTeams) : null,
       cutAt: game.cutAt || 0,
       // QR codes affichés sur l'écran géant (seulement quand l'animateur le demande)
       showQr: game.showQr ? {
@@ -500,8 +501,9 @@ export class Soiree extends DurableObject {
         if (!body.mode || !n) g.showQr = null;
         else { g.showQr = { mode: body.mode === "one" ? "one" : "all", i: Math.max(0, Math.min(n - 1, Number(body.i) || 0)) }; g.showTeams = false; g.showRules = false; }
       } else if (act === "showTeams") {
-        g.showTeams = !!body.show;
-        if (g.showTeams) { g.showRules = false; g.showQr = null; }
+        const n = this.setup.teams.length;
+        if (!body.show || !n) g.showTeams = false;
+        else { g.showTeams = { mode: body.mode === "one" ? "one" : "all", i: Math.max(0, Math.min(n - 1, Number(body.i) || 0)) }; g.showRules = false; g.showQr = null; }
       } else if (act === "showRanking") {
         g.showRanking = !!body.show;
       } else if (act === "setk") {

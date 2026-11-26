@@ -112,7 +112,11 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 #toast.show{transform:translateX(-50%) translateY(0)}
 #net{position:fixed;top:6px;right:6px;z-index:70;width:12px;height:12px;border-radius:50%;background:var(--ko);display:none}
 #net.off{display:block}
-.scr{min-height:100vh;display:flex;flex-direction:column;padding:2vw;gap:2vw;text-align:center}
+.scr{min-height:100vh;display:flex;flex-direction:column;padding:2vw 3.5vw;gap:2vw;text-align:center}
+.scr .tone{display:flex;flex-direction:column;align-items:center;text-align:center;flex:1}
+.scr .tone .tid{font-size:min(4vw,7vh);font-weight:900;color:var(--pri2)}.scr .tone .tid span{font-size:.45em;color:var(--mu);font-weight:700;margin-left:.6em}
+.scr .tone .tnm{font-size:min(6vw,10vh);font-weight:900;line-height:1.05;margin:.1em 0 .35em}
+.scr .tone .tmem{list-style:none;margin:0;padding:0;column-gap:5vw;text-align:left;width:92vw;max-width:92vw}.scr .tone .tmem li{break-inside:avoid;line-height:1.3;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .scr .tteams{display:grid;gap:1vw;text-align:left;align-content:start}
 .scr .tteams>div{background:var(--card);border:1px solid var(--line);border-radius:1vw;padding:.5em .7em;min-width:0}
 .scr .tteams h4{margin:0 0 .25em;color:var(--pri2);font-size:1.15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -911,14 +915,25 @@ function fitQr() {
 }
 // Ajuste la taille du texte des équipes pour que tout tienne sur l'écran, sans défilement
 function fitTeams() {
+  const one = $(".tone .tmem");
+  if (one) { let f = 90, k = 0; one.style.fontSize = f + "px"; const lis = [...one.querySelectorAll("li")];
+    while ((one.getBoundingClientRect().bottom > window.innerHeight - 16 || one.scrollWidth > one.clientWidth + 2 || lis.some((l) => l.scrollWidth > l.clientWidth + 1)) && f > 14 && k++ < 80) { f *= 0.94; one.style.fontSize = f.toFixed(1) + "px"; } return; }
   const g = $(".tteams"); if (!g) return;
   let f = 44, n = 0; g.style.fontSize = f + "px";
   const over = () => g.getBoundingClientRect().bottom > window.innerHeight - 12 || [...g.querySelectorAll("li,h4")].some((e) => e.scrollWidth > e.clientWidth + 1);
   while (over() && f > 7 && n++ < 60) { f *= 0.94; g.style.fontSize = f.toFixed(1) + "px"; }
 }
 window.addEventListener("resize", () => { if (S.pub && (S.pub.showTeams || S.pub.showQr) && S.built === "screen") { S.lastSig = ""; renderScreen($("#app")); } });
+// Une seule équipe en très grand (on appelle les personnes une à une)
+function teamOneHtml(p) {
+  const T = p.teams.length, i = Math.min(p.showTeams.i || 0, T - 1), t = p.teams[i];
+  const n = t.members.length, cols = n > 16 ? 3 : n > 6 ? 2 : 1;
+  return '<div class="tone"><div class="tid">Équipe ' + t.id + ' <span>' + (i + 1) + " / " + T + '</span></div><div class="tnm">' + esc(t.name) + '</div>' +
+    '<ul class="tmem" style="columns:' + cols + '">' + t.members.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>";
+}
 // Toutes les équipes et leurs membres, calculé pour tenir sur un seul écran
 function teamsScreenHtml(p) {
+  if (p.showTeams && p.showTeams.mode === "one") return teamOneHtml(p);
   const T = p.teams.length || 1, maxM = Math.max(1, ...p.teams.map((t) => t.members.length));
   const cols = Math.min(T, Math.max(1, Math.ceil(Math.sqrt(T * 2.2))), 8), rows = Math.ceil(T / cols);
   const fVh = 64 / (rows * (maxM * 1.25 + 2.6)), fVw = (94 / cols - 2) / 11;
@@ -1219,12 +1234,21 @@ function tabQrShow(v) {
 }
 async function goRules() { S.qrMode = false; S.teamsMode = false; S.rulesMode = true; await gameAct("showRules", { show: true }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); }
 function tabTeamsShow(v) {
-  const d = S.data, p = d.pub;
-  v.innerHTML = '<div class="card"><h3>① 👥 Les équipes</h3><label class="row"><input type="checkbox" id="tsScr" style="width:auto"' + (p.showTeams ? " checked" : "") + '><span style="flex:1">Affichées sur l\'écran géant</span></label><p class="muted small">Laissez le temps à chacun de trouver son nom, puis passez à l\'étape 2.</p></div>' +
+  const d = S.data, p = d.pub, st = p.showTeams, T = p.teams.length;
+  const mode = st ? st.mode : "", i = st ? Math.min(st.i || 0, T - 1) : 0, t = p.teams[i];
+  v.innerHTML = '<div class="card"><h3>① 👥 Les équipes sur l\'écran géant</h3><div class="row"><button class="btn ' + (mode === "all" ? "" : "ghost") + '" id="tsAll">Toutes</button><button class="btn ' + (mode === "one" ? "" : "ghost") + '" id="tsOne">Une par une</button><button class="btn ' + (!mode ? "" : "ghost") + '" id="tsOff">Masquer</button></div>' +
+    (mode === "one" ? '<div class="qnav"><button class="btn big ghost" id="tsPrev"' + (i <= 0 ? " disabled" : "") + '>◀</button><div class="grow">Équipe ' + t.id + '<br><span class="muted small">' + esc(t.name) + " · " + (i + 1) + " / " + T + '</span></div><button class="btn big" id="tsNx"' + (i >= T - 1 ? " disabled" : "") + ">▶</button></div>" +
+      '<div class="qpick">' + p.teams.map((x, k) => '<button data-ti="' + k + '" class="' + (k === i ? "on" : "") + '">' + x.id + "</button>").join("") + "</div>" +
+      '<div class="card" style="margin-top:10px;background:var(--bg2)"><b>À appeler : ' + esc(t.name) + '</b><ol class="pl small" style="margin:6px 0 0">' + t.members.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ol></div>"
+      : mode === "all" ? '<p class="muted small">Toutes les équipes sont affichées. Pour appeler les personnes équipe par équipe, passez en « Une par une ».</p>' : '<p class="muted small">Rien n\'est affiché sur l\'écran géant.</p>') + "</div>" +
     '<button class="btn big ghost" id="tsQr">📲 Afficher les QR codes</button><button class="btn big alt" id="tsNext" style="margin-top:8px">② 📜 Étape suivante : les règles</button>' +
-    '<div class="card"><b>Ce que voit la salle</b>' + p.teams.map((t) => '<div style="padding:6px 0;border-top:1px solid var(--line)"><b>' + t.id + ". " + esc(t.name) + '</b><div class="muted small">' + t.members.map(esc).join(", ") + "</div></div>").join("") + "</div>" +
-    '<button class="btn ghost" id="tsBack" style="width:100%">◀ Retour</button>';
-  $("#tsScr").onchange = (e) => gameAct("showTeams", { show: e.target.checked });
+    (mode !== "one" ? '<div class="card"><b>Ce que voit la salle</b>' + p.teams.map((x) => '<div style="padding:6px 0;border-top:1px solid var(--line)"><b>' + x.id + ". " + esc(x.name) + '</b><div class="muted small">' + x.members.map(esc).join(", ") + "</div></div>").join("") + "</div>" : "") +
+    '<button class="btn ghost" id="tsBack" style="width:100%;margin-top:8px">◀ Retour</button>';
+  const go = (m, k) => gameAct("showTeams", m ? { show: true, mode: m, i: k } : { show: false });
+  $("#tsAll").onclick = () => go("all", i); $("#tsOne").onclick = () => go("one", i); $("#tsOff").onclick = () => go("", 0);
+  if ($("#tsPrev")) $("#tsPrev").onclick = () => go("one", i - 1);
+  if ($("#tsNx")) $("#tsNx").onclick = () => go("one", i + 1);
+  $$("[data-ti]", v).forEach((b) => (b.onclick = () => go("one", Number(b.dataset.ti))));
   $("#tsNext").onclick = () => goRules();
   $("#tsQr").onclick = () => goQr(p.teams.length <= 12 ? "all" : "one", 0);
   $("#tsBack").onclick = async () => { S.teamsMode = false; if (p.showTeams) await gameAct("showTeams", { show: false }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
