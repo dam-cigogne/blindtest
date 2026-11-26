@@ -43,3 +43,9 @@ Chaque modification poussée sur GitHub est redéployée automatiquement.
 ## Consommation
 
 Une soirée représente environ 20 000 à 30 000 requêtes, sous la limite gratuite de Cloudflare (100 000 par jour).
+
+## Mode essai
+Accueil → « 🧪 Mode essai » : partie d'entraînement séparée (codes 1234 / DJ 5678), la vraie soirée n'est jamais touchée. Onglet Jeu → « Remplir avec des données fictives ». Les QR codes imprimés en essai ouvrent l'essai ; un vrai QR code ramène toujours à la vraie soirée. Lien direct : `/?essai=1` (et `/?essai=0` pour sortir).
+
+## Musique intégrée
+Le serveur cherche un extrait de 30 s (API iTunes d'Apple, puis Deezer en secours) via `/api/preview`. Le bouton ▶ du DJ (ou de l'animateur + DJ) lance la musique et le chrono ensemble ; la musique se coupe à la fin de l'extrait. Onglet Manches : « 🔊 Vérifier les extraits » et, par morceau, « Écouter / choisir l'extrait » (choix mémorisé). Désactivable par une case à cocher (les liens Apple Music / Spotify / YouTube restent en secours).

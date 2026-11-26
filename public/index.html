@@ -110,11 +110,24 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .rules{font-size:1.08rem;line-height:1.55}.rules h3{font-size:1.25rem}.rules ol{padding-left:22px}.rules li{margin:10px 0}.rules .pts{width:100%;border-collapse:collapse;margin:8px 0}.rules .pts td{padding:6px 8px;border-bottom:1px solid var(--line)}.rules .pts td.n{text-align:right;font-weight:800;color:var(--pri2);white-space:nowrap}
 .scr .rules{font-size:min(1.6vw,2.6vh);line-height:1.4;text-align:left;max-width:90vw;margin:0 auto}.scr .rules h3{font-size:min(2.6vw,4.2vh);margin:0 0 .4em}.scr .rules li{margin:.35em 0}.scr .rules .pts{width:60%}.scr .rules .pts td{padding:.15em .5em}.scr .rules p{margin:.4em 0}.scr .rules .say{display:none}
 #printRoot{display:none}
+body.essai::after{content:"";position:fixed;inset:0;border:4px solid #ff9f1a;pointer-events:none;z-index:99}
+#essaiBar{background:#ff9f1a;color:#2b1a00;font-weight:700;font-size:14px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#essaiBar button{background:#2b1a00;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px}
+body.essai .top{padding-top:10px}
+.pv{display:flex;gap:10px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0}
+.pv img{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:none;background:#000}
+.pv .pt{flex:1;min-width:0;font-size:14px}.pv .pt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv.bad{border-color:var(--ko)}.pv.warn{border-color:#ff9f1a}
+.pvrow{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.pvrow img{width:40px;height:40px;border-radius:6px;object-fit:cover;flex:none}.pvrow .pt{flex:1;min-width:0}
+.pvrow .src{font-size:11px;padding:1px 6px;border-radius:6px;background:var(--bg2);border:1px solid var(--line)}
+.srow .pvb{background:none;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:2px 6px;font-size:15px;margin-top:4px}
 @media print{
   @page{size:A4;margin:12mm}
   html,body.printing{background:#fff!important;color:#000!important;min-height:0!important;padding:0!important}
   .sheet .rules,.sheet .rules li{text-align:left}.sheet .rules .pts{width:70%}.sheet .rules .pts td.n{color:#000}
   body.printing>*:not(#printRoot){display:none!important}
+  body.printing.essai::after{display:none}
   body.printing #printRoot{display:block}
   body.printing #printRoot{width:186mm}.sheet{width:186mm;box-sizing:border-box;margin:0 auto}
   .sheet{break-after:page;page-break-after:always;color:#000;font-family:Arial,sans-serif;text-align:center}
@@ -154,10 +167,22 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+/* Mode essai : une partie séparée sur le serveur, rien ne touche la vraie soirée */
+const ESSAI = (() => {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.has("essai")) localStorage.setItem("bt_essai", q.get("essai") === "0" ? "0" : "1");
+    else if (q.get("t") || q.get("r")) localStorage.setItem("bt_essai", "0"); // un vrai QR code ramène toujours à la vraie soirée
+    return localStorage.getItem("bt_essai") === "1";
+  } catch (e) { return false; }
+})();
+const ESSAI_Q = ESSAI ? "&essai=1" : "";
+function setEssai(on) { try { localStorage.setItem("bt_essai", on ? "1" : "0"); } catch (e) {} location.href = location.pathname; }
+const lk = (k) => (ESSAI ? "essai_" : "") + k;
 const LS = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  get(k, d) { try { const v = localStorage.getItem(lk(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(lk(k), JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(lk(k)); } catch (e) {} },
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -234,7 +259,7 @@ async function api(path, opt) {
   const s = S.sess || {};
   const r = await fetch("/api" + path, {
     method: opt.method || "GET", cache: "no-store",
-    headers: { "content-type": "application/json", "x-role": s.role || "", "x-code": s.code || "", "x-team": String(s.teamId || "") },
+    headers: { "content-type": "application/json", "x-essai": ESSAI ? "1" : "", "x-role": s.role || "", "x-code": s.code || "", "x-team": String(s.teamId || "") },
     body: opt.body ? JSON.stringify(opt.body) : undefined,
   });
   let j = {};
@@ -277,7 +302,7 @@ async function wake() { try { if ("wakeLock" in navigator && S.sess && !wl) { wl
 
 async function login(role, code, teamId) {
   try {
-    const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role, code, teamId }) }).then((x) => x.json());
+    const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json", "x-essai": ESSAI ? "1" : "" }, body: JSON.stringify({ role, code, teamId }) }).then((x) => x.json());
     if (!r.ok) { toast("Code incorrect"); return false; }
     S.sess = { role, code, teamId: teamId || 0 }; LS.set("bt_sess", S.sess);
     S.data = null; S.draft = null; S.lastSig = ""; render(); pollNow(); wake();
@@ -309,7 +334,7 @@ function qrSvg(text) {
   return '<svg viewBox="0 0 ' + (n + 4) + " " + (n + 4) + '" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
 }
 function baseUrl() { return ((S.draft && S.draft.baseUrl) || location.origin).replace(/\/+$/, ""); }
-function teamUrl(t) { return baseUrl() + "/?t=" + t.id + "&c=" + encodeURIComponent(t.code); }
+function teamUrl(t) { return baseUrl() + "/?t=" + t.id + "&c=" + encodeURIComponent(t.code) + ESSAI_Q; }
 function doPrint(html) {
   const root = $("#printRoot"); root.innerHTML = html;
   document.body.classList.add("printing");
@@ -355,8 +380,12 @@ function renderHome(app) {
       ? '<div class="teamgrid">' + p.teams.map((t) => '<button class="tbtn" data-t="' + t.id + '"><b>Équipe ' + t.id + "</b><span>" + esc(t.name) + "</span></button>").join("") + "</div>"
       : '<p class="muted">' + (p ? "Les équipes ne sont pas encore prêtes." : "Connexion…") + "</p>") +
     '<p class="muted small" style="margin-top:18px">Chef d\'équipe : le plus simple est de scanner le QR code de votre feuille.</p>' +
-    '<p class="muted small">Sur chaque écran, le bouton 🚪 Quitter ramène ici. En cas de souci, ouvrez le lien avec <b>?reset</b> à la fin pour repartir de zéro sur ce téléphone.</p></div>';
+    '<p class="muted small">Sur chaque écran, le bouton 🚪 Quitter ramène ici. En cas de souci, ouvrez le lien avec <b>?reset</b> à la fin pour repartir de zéro sur ce téléphone.</p>' +
+    (ESSAI ? '<div class="card" style="text-align:left;border-color:#ff9f1a"><h3>🧪 Vous êtes en mode essai</h3><p class="small">Tout ce que vous faites ici se passe dans une partie d\'entraînement séparée : la vraie soirée n\'est jamais touchée.</p><p class="small">Code animateur : <b>1234</b> · Code DJ : <b>5678</b></p><p class="small">Puis, dans l\'onglet 🎮 Jeu : « Remplir avec des données fictives ».</p><button class="btn ghost" id="hEssaiOff">Quitter le mode essai</button></div>'
+      : '<button class="btn ghost" id="hEssai" style="margin-top:14px">🧪 Mode essai : s\'entraîner sans toucher à la vraie soirée</button>') + '</div>';
   $$("[data-r]", app).forEach((b) => (b.onclick = () => pickRole(b.dataset.r)));
+  if ($("#hEssai")) $("#hEssai").onclick = async () => { if (await confirmBox("Passer ce téléphone en <b>mode essai</b> ? Vous pourrez tout tester (fausses équipes, QR codes, musique, impressions) dans une partie séparée. La vraie soirée reste intacte.", "Passer en mode essai")) setEssai(true); };
+  if ($("#hEssaiOff")) $("#hEssaiOff").onclick = () => setEssai(false);
   $$("[data-t]", app).forEach((b) => (b.onclick = async () => {
     const id = Number(b.dataset.t);
     const c = await ask("Équipe " + id, { help: "Tapez le code de secours imprimé sur votre feuille.", upper: true, placeholder: "ex. K7QM" });
@@ -505,10 +534,10 @@ function renderDJ(app) {
   let h = '<div class="top"><div class="tt"><b>🎧 DJ</b><small>' + esc(p.name) + '</small></div><button class="btn ghost sm" id="out">Quitter</button></div>' +
     '<nav class="tabs" style="top:58px"><button data-dt="live" class="' + (S.djTab === "live" ? "on" : "") + '">🔴 En direct</button><button data-dt="pl" class="' + (S.djTab === "pl" ? "on" : "") + '">📋 Playlist complète</button></nav><div class="wrap" id="djv">';
   if (S.djTab === "pl") {
-    h += '<div class="card"><p class="muted small">Préparez cette playlist à l\'avance (Apple Music, Spotify, YouTube…) dans cet ordre, idéalement téléchargée pour ne pas dépendre du réseau. Le jour J, l\'onglet « En direct » vous guide morceau par morceau.</p><button class="btn alt" id="cpPl">📋 Copier la playlist</button></div>';
+    h += '<div class="card"><p class="muted small">L\'appli joue elle-même un extrait de 30 s de chaque morceau (🎧 pour écouter). En secours, préparez aussi cette playlist (Apple Music, Spotify, YouTube…) dans cet ordre. Le jour J, l\'onglet « En direct » vous guide morceau par morceau.</p><button class="btn alt" id="cpPl">📋 Copier la playlist</button> <button class="btn ghost" id="cpChk">🔊 Vérifier les extraits</button></div>';
     d.all.forEach((m, i) => {
       h += '<div class="card"><h3>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? ' <span class="chip warn">×' + m.mult + "</span>" : "") + "</h3>" +
-        m.songs.map((s, j) => '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>' + (j + 1) + ". " + esc(s.t) + "</b> – " + esc(s.a) +
+        m.songs.map((s, j) => '<div style="padding:8px 0;border-top:1px solid var(--line)"><button class="btn ghost sm" style="float:right" data-lis="' + i + "_" + j + '">🎧</button><b>' + (j + 1) + ". " + esc(s.t) + "</b> – " + esc(s.a) +
           '<div class="muted small">▶ ' + esc(s.h || "Refrain") + ' · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + amUrl(s) + '">Apple Music</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + spUrl(s) + '">Spotify</a> · <a style="color:var(--pri2)" target="_blank" rel="noopener" href="' + ytUrl(s) + '">YouTube</a></div></div>').join("") + "</div>";
     });
   } else if (p.status === "setup") {
@@ -522,10 +551,12 @@ function renderDJ(app) {
     } else {
       h += '<div class="card"><div class="muted">Manche ' + (p.m + 1) + "/" + p.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (points ×" + man.mult + ")" : "") + "</div>" +
         '<div style="font-weight:700;margin:4px 0 8px">Morceau ' + (p.k + 1) + " / " + man.n + "</div>" +
-        '<div class="song"><div class="st">' + esc(s.t) + '</div><div class="sa">' + esc(s.a) + '</div><div class="sh">▶ Passage : ' + esc(s.h || "Refrain") + "</div></div>" +
-        musicLinks(s) + '</div>' +
+        '<div class="song"><div class="st">' + esc(s.t) + '</div><div class="sa">' + esc(s.a) + '</div>' + (audioOn() ? "" : '<div class="sh">▶ Passage : ' + esc(s.h || "Refrain") + "</div>") + "</div>" +
+        (audioOn() ? pvBox(s, "djPv") : "") + audioToggle("djAud") +
+        (audioOn() ? '<details><summary class="muted small">Autres sources (secours)</summary>' + musicLinks(s) + "</details>" : musicLinks(s)) + '</div>' +
         '<div id="djTimer" class="timer"></div>' +
         '<button class="btn big ok" id="djPlay">▶ Je lance l\'extrait</button>' +
+        '<button class="btn ko pvstop" id="djStop" style="display:none;width:100%;margin-top:6px">⏹ Couper la musique</button>' +
         '<div class="row"><button class="btn ghost grow" id="djPrev"' + (p.k === 0 ? " disabled" : "") + '>◀ Précédent</button><button class="btn alt grow" id="djNext"' + (p.k >= man.n - 1 ? " disabled" : "") + ">Morceau suivant ▶</button></div>" +
         '<div class="card"><b>Cette manche</b><ol class="pl">' + d.songs.map((x, j) => '<li class="' + (j < p.k ? "done" : j === p.k ? "cur" : "") + '">' + esc(x.t) + ' – <span class="muted">' + esc(x.a) + "</span></li>").join("") + "</ol>" +
         (p.k >= man.n - 1 ? '<p class="muted small">Dernier morceau : l\'animateur clôturera la manche.</p>' : "") + "</div>";
@@ -536,24 +567,163 @@ function renderDJ(app) {
   $("#out").onclick = async () => { if (await confirmBox("Quitter l'écran DJ sur ce téléphone ?", "Quitter")) logout(); };
   $$("[data-dt]", app).forEach((b) => (b.onclick = () => { S.djTab = b.dataset.dt; S.lastSig = ""; renderDJ(app); }));
   const cp = $("#cpPl"); if (cp) cp.onclick = () => copyText(playlistText(d.all));
+  if ($("#cpChk")) $("#cpChk").onclick = () => pvCheckAll(d.all, null);
+  $$("[data-lis]", app).forEach((b) => (b.onclick = async () => {
+    const [i, j] = b.dataset.lis.split("_").map(Number), s = d.all[i].songs[j];
+    if (PV.playing && b.textContent === "⏹") { pvStop(); b.textContent = "🎧"; return; }
+    $$("[data-lis]", app).forEach((x) => (x.textContent = "🎧"));
+    const it = await pvResolve(s); if (!it) return toast("Extrait introuvable");
+    pvPlay(it, 20); b.textContent = "⏹";
+  }));
   const act = (a) => async () => { try { await api("/game", { method: "POST", body: { action: a } }); pollNow(); } catch (e) { toast(e.message); } };
   if ($("#djPlay")) {
     $("#djPlay").onclick = async () => {
-      if (p.started && phase().ph !== "done" && !(await confirmBox("L'extrait est déjà en cours. Relancer le chrono ?", "Relancer"))) return;
+      const s = d.songs[p.k];
+      if (p.started && phase().ph !== "done") { if (!(await confirmBox("L'extrait est déjà en cours. Relancer la musique et le chrono ?", "Relancer"))) return; }
+      pvGo(s, p.extractSec);
       act("play")();
     };
-    $("#djNext").onclick = act("next"); $("#djPrev").onclick = act("prev");
+    $("#djNext").onclick = () => { pvStop(); act("next")(); }; $("#djPrev").onclick = () => { pvStop(); act("prev")(); };
+    $("#djStop").onclick = pvStop;
+    $("#djAud").onchange = (e) => { LS.set("bt_audio", e.target.checked); if (!e.target.checked) pvStop(); S.lastSig = ""; renderDJ(app); };
+    if ($("#djPv")) pvBind($("#djPv"), d.songs[p.k]);
+    if (d.songs[p.k + 1]) pvResolve(d.songs[p.k + 1]); // prépare le suivant
+    pvUI();
   }
   S.tick = tickDJ; tickDJ();
 }
 function tickDJ() {
   const t = $("#djTimer"); if (!t || !S.pub) return;
   const f = phase();
-  const h = f.ph === "play" ? "🎵 MUSIQUE – coupez dans " + f.left + " s" : f.ph === "write" ? "⏹ COUPEZ ! Silence " + f.left + " s" : f.ph === "done" ? "✓ Terminé → morceau suivant" : "Prêt : lancez la musique puis appuyez sur le bouton vert";
+  const h = f.ph === "play" ? "🎵 MUSIQUE – coupez dans " + f.left + " s" : f.ph === "write" ? "⏹ COUPEZ ! Silence " + f.left + " s" : f.ph === "done" ? "✓ Terminé → morceau suivant" : (audioOn() ? "Prêt : bouton vert = musique + chrono" : "Prêt : lancez la musique puis appuyez sur le bouton vert");
   if (t._h !== h) { t._h = h; t.textContent = h; t.className = "timer " + f.ph; }
   if (S.lastPh === "play" && f.ph === "write" && navigator.vibrate) navigator.vibrate([200, 100, 200]);
   S.lastPh = f.ph;
   const b = $("#djPlay"); if (b) { const lab = f.ph === "idle" ? "▶ Je lance l'extrait" : "↻ Relancer le chrono"; if (b.textContent !== lab) b.textContent = lab; b.className = "btn big " + (f.ph === "idle" ? "ok" : "ghost"); }
+}
+
+
+/* ================= Lecteur intégré (extraits de 30 s Apple / Deezer) ================= */
+const PV = { cache: {}, audio: null, timers: [], fade: null, playing: false, url: "" };
+const audioOn = () => LS.get("bt_audio", true);
+const normT = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\(.*?\)|\[.*?\]|-.*$/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+function pvKey(s) { return s.pv ? s.pv.s + ":" + s.pv.id : "q:" + normT(s.t) + "|" + normT(s.a); }
+function pvCached(s) { const c = PV.cache[pvKey(s)]; return c && c.exp > Date.now() ? c : null; }
+async function pvResolve(s) {
+  const c = pvCached(s); if (c) return c.it;
+  const k = pvKey(s);
+  if (PV.cache[k] && PV.cache[k].pending) return PV.cache[k].pending;
+  const qs = s.pv ? "src=" + s.pv.s + "&id=" + encodeURIComponent(s.pv.id) : "q=" + encodeURIComponent(s.t + " " + s.a);
+  const pending = fetch("/api/preview?" + qs).then((x) => x.json()).then((r) => {
+    const it = (r.items && r.items[0]) || null;
+    PV.cache[k] = { it, exp: Date.now() + (it ? 15 * 60e3 : 60e3) }; return it;
+  }).catch(() => { delete PV.cache[k]; return null; });
+  PV.cache[k] = { pending, exp: 0 };
+  return pending;
+}
+function pvMatch(s, it) { if (!it) return "bad"; if (s.pv) return "ok"; const a = normT(s.t), b = normT(it.t); return a && b && (a.includes(b) || b.includes(a)) ? "ok" : "warn"; }
+const SRC = { it: "Apple", dz: "Deezer" };
+function pvBox(s, id) {
+  const c = pvCached(s);
+  const inner = (it) => {
+    const m = pvMatch(s, it);
+    if (!it) return '<div class="pv bad"><div class="pt">⚠️ <b>Extrait introuvable</b><span class="muted small">Utilisez les liens ci-dessous, ou choisissez l\'extrait dans Manches → 🔊.</span></div></div>';
+    return '<div class="pv ' + (m === "warn" ? "warn" : "") + '">' + (it.img ? '<img src="' + esc(it.img) + '" alt="">' : "") + '<div class="pt"><b>' + esc(it.t) + '</b><span class="muted small">' + esc(it.a) + " · extrait " + SRC[it.s] + (m === "warn" ? ' · <span style="color:#ff9f1a">⚠️ à vérifier</span>' : "") + "</span></div>" +
+      '<button class="btn ghost sm pvtest" data-pvt="1">' + (PV.playing && PV.url === it.url ? "⏹" : "🎧 Écouter") + "</button></div>";
+  };
+  if (c) return '<div id="' + id + '">' + inner(c.it) + "</div>";
+  pvResolve(s).then((it) => { const e = document.getElementById(id); if (e) { e.innerHTML = inner(it); pvBind(e, s); } if (it && !PV.playing) { const a = pvAudio(); if (a.src !== it.url) { a.src = it.url; a.load(); } } });
+  return '<div id="' + id + '"><div class="pv"><div class="pt muted small">🔎 Recherche de l\'extrait…</div></div></div>';
+}
+function pvBind(root, s) { $$("[data-pvt]", root).forEach((b) => (b.onclick = () => { const c = pvCached(s); if (!c || !c.it) return; if (PV.playing && PV.url === c.it.url) pvStop(); else pvPlay(c.it, 0); })); }
+function pvAudio() { if (!PV.audio) { PV.audio = new Audio(); PV.audio.preload = "auto"; PV.audio.onended = () => { PV.playing = false; pvUI(); }; } return PV.audio; }
+function pvStop() {
+  PV.timers.forEach(clearTimeout); PV.timers = []; clearInterval(PV.fade);
+  if (PV.audio) { PV.audio.pause(); PV.audio.volume = 1; }
+  PV.playing = false; pvUI();
+}
+function pvPlay(it, sec) {
+  pvStop();
+  const a = pvAudio();
+  if (a.src !== it.url) a.src = it.url;
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = 1;
+  PV.playing = true; PV.url = it.url;
+  const pr = a.play();
+  if (pr && pr.catch) pr.catch(() => { PV.playing = false; pvUI(); toast("Le téléphone a bloqué le son : touchez à nouveau le bouton", 3500); });
+  if (sec > 0) {
+    const ms = sec * 1000;
+    PV.timers.push(setTimeout(() => { let v = 1; PV.fade = setInterval(() => { v -= 0.1; if (v <= 0.05) pvStop(); else a.volume = v; }, 150); }, Math.max(0, ms - 1500)));
+    PV.timers.push(setTimeout(pvStop, ms + 200));
+  }
+  pvUI();
+}
+function pvUI() {
+  $$("[data-pvt]").forEach((b) => (b.textContent = PV.playing ? "⏹" : "🎧 Écouter"));
+  $$(".pvstop").forEach((b) => (b.style.display = PV.playing ? "" : "none"));
+  $$("[data-pp]").forEach((b) => (b.textContent = PV.playing && b.dataset.url === PV.url ? "⏹" : "▶"));
+}
+// Joue l'extrait du morceau en cours (appelé directement dans le clic, pour que le téléphone accepte le son)
+async function pvGo(s, sec) {
+  if (!audioOn()) return;
+  const c = pvCached(s);
+  if (c && c.it) return pvPlay(c.it, sec);
+  const it = await pvResolve(s);
+  if (it) pvPlay(it, sec); else toast("Extrait introuvable pour ce morceau : lancez-le depuis Apple Music / YouTube", 4000);
+}
+function audioToggle(id) {
+  return '<label class="row small" style="margin:6px 0"><input type="checkbox" id="' + id + '" style="width:auto"' + (audioOn() ? " checked" : "") + "><span style='flex:1'>🔊 L'appli joue la musique (extrait de 30 s, sur ce téléphone)</span></label>";
+}
+// Choisir l'extrait d'un morceau (onglet Manches)
+function pvPicker(s, onPick) {
+  let q = (s.t + " " + s.a).trim();
+  const close = () => { pvStop(); closeModal(); };
+  openModal('<h3>🔊 Extrait de « ' + esc(s.t || "?") + " »</h3>" +
+    (s.pv ? '<p class="small">Extrait choisi : <b>' + esc(s.pv.t) + "</b> – " + esc(s.pv.a) + ' <button class="btn ghost sm" id="ppAuto">Revenir au choix automatique</button></p>' : '<p class="muted small">Par défaut, l\'appli prend le 1er résultat. Écoutez et choisissez le bon si besoin.</p>') +
+    '<div class="row"><input id="ppQ" class="grow" style="flex:1" value="' + esc(q) + '"><button class="btn sm" id="ppGo">🔎</button></div><div id="ppL" class="muted small">Recherche…</div>' +
+    '<div class="row end"><button class="btn ghost" id="ppX">Fermer</button></div>', (box) => {
+    const L = $("#ppL", box);
+    const run = async () => {
+      L.innerHTML = "Recherche…";
+      try {
+        const r = await fetch("/api/preview?all=1&q=" + encodeURIComponent($("#ppQ", box).value)).then((x) => x.json());
+        if (!r.items || !r.items.length) { L.innerHTML = "Aucun extrait trouvé. Essayez avec moins de mots (titre seul, ou artiste seul)."; return; }
+        L.innerHTML = r.items.map((it, i) => '<div class="pvrow">' + (it.img ? '<img src="' + esc(it.img) + '" alt="">' : "") + '<div class="pt"><b>' + esc(it.t) + '</b><br><span class="muted">' + esc(it.a) + '</span> <span class="src">' + SRC[it.s] + '</span></div><button class="btn ghost sm" data-pp="' + i + '" data-url="' + esc(it.url) + '">▶</button>' + (onPick ? '<button class="btn ok sm" data-ch="' + i + '">Choisir</button>' : "") + "</div>").join("");
+        $$("[data-pp]", L).forEach((b) => (b.onclick = () => { const it = r.items[Number(b.dataset.pp)]; if (PV.playing && PV.url === it.url) pvStop(); else pvPlay(it, 20); }));
+        $$("[data-ch]", L).forEach((b) => (b.onclick = () => { const it = r.items[Number(b.dataset.ch)]; onPick({ s: it.s, id: it.id, t: it.t, a: it.a }); PV.cache[it.s + ":" + it.id] = { it, exp: Date.now() + 15 * 60e3 }; close(); toast("Extrait choisi ✓"); }));
+      } catch (e) { L.innerHTML = "Pas de connexion internet."; }
+    };
+    $("#ppGo", box).onclick = run; $("#ppQ", box).onkeydown = (e) => { if (e.key === "Enter") run(); };
+    $("#ppX", box).onclick = close;
+    if ($("#ppAuto", box)) $("#ppAuto", box).onclick = () => { onPick(null); close(); toast("Choix automatique rétabli"); };
+    $("#modal").onclick = (e) => { if (e.target.id === "modal") close(); };
+    run();
+  });
+}
+// Vérifier tous les extraits d'un coup
+function pvCheckAll(manches, onChange) {
+  const close = () => { pvStop(); closeModal(); };
+  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">L\'appli cherche chaque morceau. ✓ = trouvé · ⚠️ = titre différent, écoutez · ✗ = introuvable. Touchez ▶ pour écouter, « Changer » pour choisir un autre extrait.</p><div id="caL">';
+  manches.forEach((m, i) => { h += '<p style="margin:10px 0 0"><b>Manche ' + (i + 1) + " – " + esc(m.title) + "</b></p>"; m.songs.forEach((s, j) => { h += '<div class="pvrow" id="ca' + i + "_" + j + '"><div class="pt">' + (j + 1) + ". " + esc(s.t) + ' – <span class="muted">' + esc(s.a) + '</span><br><span class="small muted st2">…</span></div></div>'; }); });
+  h += '</div><div class="row end"><button class="btn ghost" id="caX">Fermer</button></div>';
+  openModal(h, async (box) => {
+    $("#caX", box).onclick = close;
+    $("#modal").onclick = (e) => { if (e.target.id === "modal") close(); };
+    let nOk = 0, nW = 0, nB = 0;
+    for (let i = 0; i < manches.length; i++) for (let j = 0; j < manches[i].songs.length; j++) {
+      if (!$("#caL")) return; // fenêtre fermée
+      const s = manches[i].songs[j], row = $("#ca" + i + "_" + j);
+      const it = await pvResolve(s), m = pvMatch(s, it);
+      if (!row) continue;
+      m === "ok" ? nOk++ : m === "warn" ? nW++ : nB++;
+      row.querySelector(".st2").innerHTML = it ? (m === "ok" ? "✓ " : "⚠️ ") + esc(it.t) + " – " + esc(it.a) + " (" + SRC[it.s] + ")" : '<span style="color:var(--ko)">✗ introuvable</span>';
+      row.insertAdjacentHTML("beforeend", (it ? '<button class="btn ghost sm" data-pp="1" data-url="' + esc(it.url) + '">▶</button>' : "") + (onChange ? '<button class="btn ghost sm" data-chg="1">Changer</button>' : ""));
+      const pb = row.querySelector("[data-pp]"); if (pb) pb.onclick = () => { if (PV.playing && PV.url === it.url) pvStop(); else pvPlay(it, 20); };
+      const cb = row.querySelector("[data-chg]"); if (cb) cb.onclick = () => { pvStop(); pvPicker(s, (pv) => { onChange(i, j, pv); }); };
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    const L = $("#caL"); if (L) L.insertAdjacentHTML("afterbegin", '<p><b>' + nOk + " ✓</b> · " + nW + " ⚠️ · " + nB + " ✗</p>");
+  });
 }
 
 /* ================= Écran géant ================= */
@@ -672,6 +842,31 @@ const gameAct = async (action, extra) => {
   catch (e) { toast(e.message, 3500); return false; }
 };
 
+
+/* ---- Données fictives (mode essai) ---- */
+const FAKE_FN = ["Marie", "Jean", "Sophie", "Pierre", "Julie", "Nicolas", "Isabelle", "Laurent", "Céline", "Thomas", "Nathalie", "Stéphane", "Aurélie", "David", "Sandrine", "Julien", "Émilie", "Christophe", "Camille", "Olivier", "Léa", "Hugo", "Manon", "Lucas", "Chloé", "Mathieu", "Sarah", "Antoine", "Pauline", "Kévin", "Monique", "Gérard", "Josiane", "Bernard", "Chantal", "Alain"];
+const FAKE_LN = ["Martin", "Bernard", "Dubois", "Durand", "Lefebvre", "Moreau", "Simon", "Michel", "Garcia", "Roux", "Fournier", "Girard", "Bonnet", "Dupont", "Lambert", "Fontaine", "Rousseau", "Vincent", "Muller", "Faure", "André", "Mercier", "Blanc", "Guérin", "Perrin", "Morel", "Chevalier", "Robin", "Masson", "Henry"];
+async function fakeFill() {
+  if (!ESSAI) return;
+  const n = await ask("Combien de faux invités ?", { numeric: true, value: "60", help: "Ils seront répartis en équipes d'environ 8 personnes (couples ensemble, jeunes / moyens / anciens mélangés). Les équipes et manches actuelles de l'essai seront remplacées." });
+  if (!n) return;
+  const N = Math.max(4, Math.min(300, Number(n) || 60));
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const units = []; let c = 0;
+  while (c < N) {
+    const ln = pick(FAKE_LN), tr = pick(["J", "M", "M", "A"]);
+    const mem = [{ n: pick(FAKE_FN) + " " + ln, tr }];
+    if (c + 1 < N && Math.random() < 0.55) { let f2; do { f2 = pick(FAKE_FN); } while (mem[0].n.startsWith(f2 + " ")); mem.push({ n: f2 + " " + ln, tr }); }
+    units.push({ members: mem, tr }); c += mem.length;
+  }
+  S.people = units; LS.set("bt_people", units);
+  S.draft.teams = drawTeams(units, Math.max(2, Math.round(c / 8)));
+  S.draft.manches = defaultManches().map((m) => Object.assign(m, { songs: pickSongs(m.theme, 5, new Set()) }));
+  saveDraft(true);
+  toast("✓ " + c + " faux invités, " + S.draft.teams.length + " équipes, " + S.draft.manches.length + " manches", 3500);
+  setTimeout(() => { S.lastSig = ""; renderTab(); }, 400);
+}
+
 /* ---- Onglet Jeu ---- */
 function tabJeu(v) {
   const d = S.data, g = d.game, p = d.pub, st = d.setup;
@@ -680,6 +875,7 @@ function tabJeu(v) {
   if (g.status === "setup") {
     const nS = st.manches.reduce((a, m) => a + m.songs.length, 0);
     const okT = st.teams.length > 0, okM = st.manches.length > 0 && nS > 0;
+    if (ESSAI) h += '<div class="card" style="border-color:#ff9f1a"><h3>🧪 Mode essai</h3><p class="small">Créez en un clic de faux invités, le tirage des équipes et des manches au hasard. Ensuite : imprimez les feuilles (onglet 📲 Distribuer), scannez un QR code avec un autre téléphone, testez la musique, lancez une partie.</p><button class="btn big" id="gFake" style="background:#ff9f1a;color:#2b1a00">🎲 Remplir avec des données fictives</button></div>';
     h += '<div class="card"><h3>Avant de commencer</h3><ul class="check">' +
       '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
       '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
@@ -689,6 +885,7 @@ function tabJeu(v) {
       '<p class="muted small">Pour une répétition : démarrez, utilisez « 🧪 Réponses d\'essai » dans chaque manche, puis remettez la partie à zéro dans Réglages.</p></div>' +
       '<div class="card"><h3>Déroulé d\'une manche</h3><ol class="pl"><li>Le DJ lance l\'extrait et appuie sur son bouton vert : le chrono démarre chez tout le monde.</li><li>Les chefs d\'équipe tapent titre et artiste sur leur téléphone.</li><li>Au dernier morceau, vous clôturez la manche : l\'appli corrige seule.</li><li>Vous validez les réponses douteuses, puis vous publiez : les bonnes réponses s\'affichent sur l\'écran géant.</li><li>Le classement reste secret sur votre téléphone jusqu\'au podium final.</li></ol></div>';
     v.innerHTML = h;
+    if ($("#gFake")) $("#gFake").onclick = fakeFill;
     $("#gRules").onclick = () => { S.rulesMode = true; S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
     $("#gStart").onclick = async () => { if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
     return;
@@ -709,9 +906,12 @@ function tabJeu(v) {
   const stLab = { open: '<span class="chip ok">En cours</span>', closed: '<span class="chip warn">À corriger</span>', published: '<span class="chip">Publiée</span>' }[state] || "";
   h += '<div class="card"><div class="row" style="justify-content:space-between;margin:0"><b>Manche ' + (g.m + 1) + "/" + st.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (×" + man.mult + ")" : "") + "</b>" + stLab + "</div>";
   if (state === "open") {
-    h += '<div style="margin-top:10px" class="muted">Morceau ' + (g.k + 1) + " / " + man.songs.length + '</div><div class="song"><div class="st">' + esc(song.t) + '</div><div class="sa">' + esc(song.a) + '</div><div class="sh">▶ Passage : ' + esc(song.h || "Refrain") + '</div></div>' + musicLinks(song) + '<div id="aTimer" class="timer"></div>' +
+    h += '<div style="margin-top:10px" class="muted">Morceau ' + (g.k + 1) + " / " + man.songs.length + '</div><div class="song"><div class="st">' + esc(song.t) + '</div><div class="sa">' + esc(song.a) + '</div><div class="sh">▶ Passage : ' + esc(song.h || "Refrain") + '</div></div>' +
+      (LS.get("bt_combo", false) ? (audioOn() ? pvBox(song, "aPv") : "") + audioToggle("aAud") + (audioOn() ? '<details><summary class="muted small">Autres sources (secours)</summary>' + musicLinks(song) + "</details>" : musicLinks(song)) : musicLinks(song)) +
+      '<div id="aTimer" class="timer"></div>' +
       '<div class="row"><button class="btn ghost" id="gPrev"' + (g.k === 0 ? " disabled" : "") + '>◀</button><button class="btn ok grow" id="gPlay">▶ ' + (LS.get("bt_combo", false) ? "Je lance l\'extrait" : "Lancer le chrono") + '</button><button class="btn alt" id="gNext"' + (g.k >= man.songs.length - 1 ? " disabled" : "") + ">▶▶</button></div>" +
-      (LS.get("bt_combo", false) ? '<p class="muted small">Lancez la musique au passage indiqué, puis appuyez sur le bouton vert : le chrono démarre chez tout le monde. ▶▶ = morceau suivant.</p>' : '<p class="muted small">Normalement c\'est le DJ qui lance le chrono et passe au morceau suivant. Ces boutons servent de secours.</p>') +
+      '<button class="btn ko pvstop" id="aStop" style="display:none;width:100%">⏹ Couper la musique</button>' +
+      (LS.get("bt_combo", false) && audioOn() ? '<p class="muted small">Appuyez sur le bouton vert : la musique et le chrono démarrent ensemble, la musique se coupe toute seule. ▶▶ = morceau suivant.</p>' : LS.get("bt_combo", false) ? '<p class="muted small">Lancez la musique au passage indiqué, puis appuyez sur le bouton vert : le chrono démarre chez tout le monde. ▶▶ = morceau suivant.</p>' : '<p class="muted small">Normalement c\'est le DJ qui lance le chrono et passe au morceau suivant. Ces boutons servent de secours.</p>') +
       "<p>📥 Réponses reçues : <b>" + nAns + " / " + st.teams.length + "</b> équipes</p>" +
       '<button class="btn big warn" id="gClose">🔒 Clore la manche et corriger</button>' +
       '<div class="row"><button class="btn ghost sm" id="gTest">🧪 Réponses d\'essai (test)</button></div>';
@@ -734,8 +934,14 @@ function tabJeu(v) {
     '<div class="card"><button class="btn ghost" id="gRules2">📜 Revoir les règles</button></div>';
   v.innerHTML = h;
   const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
-  on("gPlay", async () => { if (d.pub.started && phase().ph !== "done" && !(await confirmBox("Le chrono tourne déjà. Le relancer ?", "Relancer"))) return; gameAct("play"); });
-  on("gNext", () => gameAct("next")); on("gPrev", () => gameAct("prev"));
+  const combo = LS.get("bt_combo", false);
+  on("gPlay", async () => { if (d.pub.started && phase().ph !== "done" && !(await confirmBox("Le chrono tourne déjà. Le relancer ?", "Relancer"))) return; if (combo) pvGo(song, p.extractSec); gameAct("play"); });
+  on("gNext", () => { pvStop(); gameAct("next"); }); on("gPrev", () => { pvStop(); gameAct("prev"); });
+  on("aStop", pvStop);
+  if ($("#aAud")) $("#aAud").onchange = (e) => { LS.set("bt_audio", e.target.checked); if (!e.target.checked) pvStop(); S.lastSig = ""; renderTab(); };
+  if ($("#aPv")) pvBind($("#aPv"), song);
+  if (combo && song && man.songs[g.k + 1]) pvResolve(man.songs[g.k + 1]);
+  pvUI();
   on("gRules2", () => { S.rulesMode = true; S.lastSig = ""; renderTab(); window.scrollTo(0, 0); });
   on("gTest", async () => { try { await api("/testfill", { method: "POST" }); toast("Réponses d'essai ajoutées"); pollNow(); } catch (e) { toast(e.message); } });
   on("gClose", async () => {
@@ -1023,7 +1229,7 @@ function tabManches(v) {
   const dur = Math.round((nS * (st.extractSec + st.answerSec + 6) + M.length * 90) / 60);
   const thOpts = (sel) => '<option value="">Libre</option>' + LIB.themes.map((t) => '<option value="' + t.id + '"' + (t.id === sel ? " selected" : "") + ">" + esc(t.title) + " (" + t.songs.length + ")</option>").join("");
   let h = lockBanner() + '<div class="card"><b>' + plural(M.length, "manche") + " · " + plural(nS, "morceau", "morceaux") + "</b> · durée estimée ≈ " + dur + " min" +
-    '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button></div>' +
+    '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button><button class="btn ghost sm keep" id="mChk">🔊 Vérifier les extraits</button></div>' +
     '<p class="muted small">Pour chaque manche : choisissez un style puis « 🎲 Tirer au sort », ou tapez vos propres morceaux. Les « variantes acceptées » aident la correction automatique.</p></div>';
   M.forEach((m, i) => {
     h += '<div class="mcard" data-m="' + i + '"><div class="mh"><b>Manche ' + (i + 1) + '</b><div class="row" style="margin:0"><button class="btn ghost sm" data-a="up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="btn ghost sm" data-a="down"' + (i === M.length - 1 ? " disabled" : "") + '>↓</button><button class="btn ghost sm" data-a="delm">🗑</button></div></div>' +
@@ -1031,11 +1237,12 @@ function tabManches(v) {
       '<div class="row"><select class="msty grow" style="flex:2">' + thOpts(m.theme) + '</select><select class="mmul" style="flex:1">' + [1, 2, 3].map((x) => '<option value="' + x + '"' + (Number(m.mult) === x ? " selected" : "") + ">Points ×" + x + "</option>").join("") + "</select></div>" +
       '<div class="row"><span class="muted small">2e réponse :</span><select class="ml2" style="flex:1"><option' + (m.label2 !== "Film ou dessin animé" ? " selected" : "") + ">Artiste</option><option" + (m.label2 === "Film ou dessin animé" ? " selected" : "") + ">Film ou dessin animé</option></select></div>" +
       m.songs.map((s, j) => '<div class="srow" data-s="' + j + '"><span class="sn">' + (j + 1) + '</span><div class="sf"><input class="st" value="' + esc(s.t) + '" placeholder="Titre"><input class="sa" value="' + esc(s.a) + '" placeholder="' + esc(m.label2 || "Artiste") + '"><input class="sh" value="' + esc(s.h) + '" placeholder="Passage à jouer (refrain, intro…)">' +
-        "<details><summary>Variantes acceptées" + ((s.at || []).length + (s.aa || []).length ? " (" + ((s.at || []).length + (s.aa || []).length) + ")" : "") + '</summary><input class="sat" value="' + esc((s.at || []).join("; ")) + '" placeholder="Autres titres acceptés, séparés par ;"><input class="saa" value="' + esc((s.aa || []).join("; ")) + '" placeholder="Autres ' + esc((m.label2 || "artiste").toLowerCase()) + ' acceptés, séparés par ;"></details></div><button class="x" data-a="dels">✕</button></div>').join("") +
+        "<details><summary>Variantes acceptées" + ((s.at || []).length + (s.aa || []).length ? " (" + ((s.at || []).length + (s.aa || []).length) + ")" : "") + '</summary><input class="sat" value="' + esc((s.at || []).join("; ")) + '" placeholder="Autres titres acceptés, séparés par ;"><input class="saa" value="' + esc((s.aa || []).join("; ")) + '" placeholder="Autres ' + esc((m.label2 || "artiste").toLowerCase()) + ' acceptés, séparés par ;"></details><button class="pvb keep" data-a="pv">🔊 ' + (s.pv ? "Extrait choisi ✓" : "Écouter / choisir l\'extrait") + '</button></div><button class="x" data-a="dels">✕</button></div>').join("") +
       '<div class="row"><button class="btn ghost sm" data-a="draw">🎲 Tirer au sort</button><button class="btn ghost sm" data-a="addlib">+ Morceau du style</button><button class="btn ghost sm" data-a="adds">+ Morceau vide</button></div></div>';
   });
   v.innerHTML = h;
   $("#mCopy").onclick = () => copyText(playlistText(S.draft.manches));
+  $("#mChk").onclick = () => pvCheckAll(S.draft.manches, isLocked() ? null : (i, j, pv) => { const s = S.draft.manches[i].songs[j]; if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); });
   $("#mDef").onclick = async () => { if (await confirmBox("Remplacer toutes les manches par le pack par défaut (8 manches de 5 morceaux) ?", "Remplacer", true)) { S.draft.manches = defaultManches(); saveDraft(true); tabManches(v); } };
   $("#mAdd").onclick = () => openModal("<h3>Nouvelle manche</h3><label class=\"f\">Style</label><select id=\"nSty\">" + LIB.themes.map((t) => '<option value="' + t.id + '">' + esc(t.title) + "</option>").join("") + '<option value="">Libre (je tape mes morceaux)</option></select><label class="f">Nombre de morceaux</label><input type="number" id="nNb" value="5" min="1" max="20"><div class="row end"><button class="btn ghost" id="nNo">Annuler</button><button class="btn" id="nOk">Ajouter</button></div>', (b) => {
     $("#nNo", b).onclick = closeModal;
@@ -1051,8 +1258,8 @@ function tabManches(v) {
     const c = e.target.closest(".mcard"); if (!c) return;
     const m = S.draft.manches[Number(c.dataset.m)], r = e.target.closest(".srow"), s = r ? m.songs[Number(r.dataset.s)] : null, cl = e.target.classList;
     if (cl.contains("mt")) m.title = e.target.value;
-    else if (s && cl.contains("st")) s.t = e.target.value;
-    else if (s && cl.contains("sa")) s.a = e.target.value;
+    else if (s && cl.contains("st")) { s.t = e.target.value; delete s.pv; }
+    else if (s && cl.contains("sa")) { s.a = e.target.value; delete s.pv; }
     else if (s && cl.contains("sh")) s.h = e.target.value;
     else if (s && cl.contains("sat")) s.at = e.target.value.split(";").map((x) => x.trim()).filter(Boolean);
     else if (s && cl.contains("saa")) s.aa = e.target.value.split(";").map((x) => x.trim()).filter(Boolean);
@@ -1073,6 +1280,7 @@ function tabManches(v) {
     else if (a === "down" && i < M.length - 1) { [M[i + 1], M[i]] = [M[i], M[i + 1]]; }
     else if (a === "delm") { if (!(await confirmBox("Supprimer la manche " + (i + 1) + " – " + esc(m.title) + " ?", "Supprimer", true))) return; M.splice(i, 1); }
     else if (a === "dels") { const j = Number(b.closest(".srow").dataset.s); m.songs.splice(j, 1); }
+    else if (a === "pv") { const s = m.songs[Number(b.closest(".srow").dataset.s)]; if (!s.t && !s.a) return toast("Tapez d'abord le titre et l'artiste"); pvPicker(s, isLocked() ? null : (pv) => { if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); }); return; }
     else if (a === "adds") { m.songs.push({ t: "", a: "", h: "Refrain", at: [], aa: [] }); }
     else if (a === "addlib" || a === "draw") {
       if (!themeById(m.theme)) return toast("Choisissez d'abord un style pour cette manche");
@@ -1091,8 +1299,8 @@ function tabManches(v) {
 /* ---- Onglet Distribuer ---- */
 function tabDistrib(v) {
   const st = S.draft, base = baseUrl();
-  const djUrl = st.codes.dj ? base + "/?r=dj&c=" + encodeURIComponent(st.codes.dj) : null;
-  const scUrl = base + "/?r=screen";
+  const djUrl = st.codes.dj ? base + "/?r=dj&c=" + encodeURIComponent(st.codes.dj) + ESSAI_Q : null;
+  const scUrl = base + "/?r=screen" + ESSAI_Q;
   let h = '<div class="card"><h3>📲 Distribuer l\'appli</h3><p class="muted small">Tout le monde utilise la même partie, gérée depuis votre téléphone : même playlist, mêmes questions, mêmes réponses. Chacun scanne son QR code avec l\'appareil photo de son téléphone, sans rien installer.</p><p class="small">Adresse : <b>' + esc(base) + "</b></p></div>";
   h += '<div class="card"><h3>👥 Équipes</h3>' + (st.teams.length
     ? '<div class="row"><button class="btn" id="pTeams">🖨 Imprimer les feuilles d\'équipe (1 page par équipe)</button><button class="btn ghost" id="pList">🖨 Liste des équipes pour l\'annonce</button></div><div class="qrgrid">' +
@@ -1111,7 +1319,7 @@ function tabDistrib(v) {
   $$("[data-qt]", v).forEach((e) => (e.onclick = () => { const t = st.teams[Number(e.dataset.qt)]; big("Équipe " + t.id + " – " + t.name, teamUrl(t), "Code de secours : <b>" + esc(t.code) + "</b>"); }));
   const bdj = $('[data-big="dj"]', v); if (bdj) bdj.onclick = () => big("DJ", djUrl, "Code DJ : <b>" + esc(st.codes.dj) + "</b>");
   $('[data-big="sc"]', v).onclick = () => big("Écran géant", scUrl);
-  $("#shAnim").onclick = () => { $("#animQr").innerHTML = '<div class="qrbox">' + qrSvg(base + "/?r=anim&c=" + encodeURIComponent(st.codes.anim)) + '</div><p class="center small">Code animateur : <b>' + esc(st.codes.anim) + "</b></p>"; };
+  $("#shAnim").onclick = () => { $("#animQr").innerHTML = '<div class="qrbox">' + qrSvg(base + "/?r=anim&c=" + encodeURIComponent(st.codes.anim) + ESSAI_Q) + '</div><p class="center small">Code animateur : <b>' + esc(st.codes.anim) + "</b></p>"; };
   const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
   on("pTeams", () => doPrint(st.teams.map((t) => '<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">ÉQUIPE ' + t.id + '</div><div class="tname">' + (st.teamNames !== false ? "Nom de l\'équipe : à choisir sur votre téléphone 📱" : esc(t.name)) + '</div><div class="q">' + qrSvg(teamUrl(t)) + '</div><div class="how">📱 Chef d\'équipe : scannez ce QR code avec l\'appareil photo de votre téléphone.</div><div class="code">Code de secours : <b>' + esc(t.code) + '</b></div><div class="left"><b>Membres de l\'équipe</b><ul>' + t.members.map((m) => "<li>• " + esc(m) + "</li>").join("") + "</ul></div></div>").join("")));
   on("pList", () => doPrint('<div class="sheet left"><h2>' + esc(st.name) + " – Les équipes</h2><table><tr><th>N°</th><th>Équipe</th><th>Code</th><th>Membres</th></tr>" + st.teams.map((t) => "<tr><td>" + t.id + "</td><td><b>" + esc(t.name) + "</b></td><td>" + esc(t.code) + "</td><td>" + t.members.map(esc).join(", ") + "</td></tr>").join("") + "</table></div>"));
@@ -1232,6 +1440,13 @@ async function loadSaves(v) {
 }
 
 /* ================= Démarrage ================= */
+if (ESSAI) {
+  document.body.classList.add("essai");
+  const b = document.createElement("div"); b.id = "essaiBar";
+  b.innerHTML = '<span>🧪 MODE ESSAI · la vraie soirée n\'est pas touchée</span><button id="ebOff">Quitter l\'essai</button>';
+  document.body.insertBefore(b, $("#app"));
+  $("#ebOff").onclick = async () => { if (await confirmBox("Quitter le mode essai et revenir à la vraie soirée sur ce téléphone ?", "Quitter l'essai")) setEssai(false); };
+}
 render();
 poll();
 wake();

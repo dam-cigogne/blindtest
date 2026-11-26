@@ -21,11 +21,55 @@ const defaultSetup = () => ({
 });
 const defaultGame = () => ({ status: "setup", runId: 0, m: 0, k: 0, started: false, phaseStart: 0, states: [], showRanking: false });
 
+// ---- Extraits musicaux (30 s) : Apple (iTunes) puis Deezer en secours
+const UA = { "user-agent": "Mozilla/5.0 (blindtest amicale)" };
+async function getJson(u) {
+  const r = await fetch(u, { headers: UA, cf: { cacheTtl: 3600, cacheEverything: true } });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+const itItem = (x) => x && x.previewUrl ? { s: "it", id: String(x.trackId), t: x.trackName, a: x.artistName, img: (x.artworkUrl100 || "").replace("100x100", "200x200"), url: x.previewUrl } : null;
+const dzItem = (x) => x && x.preview ? { s: "dz", id: String(x.id), t: x.title, a: (x.artist || {}).name || "", img: (x.album || {}).cover_medium || "", url: x.preview } : null;
+async function itSearch(q, n) {
+  const j = await getJson("https://itunes.apple.com/search?country=FR&media=music&entity=song&limit=" + n + "&term=" + encodeURIComponent(q));
+  return (j.results || []).map(itItem).filter(Boolean);
+}
+async function dzSearch(q, n) {
+  const j = await getJson("https://api.deezer.com/search?limit=" + n + "&q=" + encodeURIComponent(q));
+  return (j.data || []).map(dzItem).filter(Boolean);
+}
+async function preview(url) {
+  const src = url.searchParams.get("src"), id = (url.searchParams.get("id") || "").replace(/[^0-9]/g, "");
+  const q = clip(url.searchParams.get("q"), 200).trim();
+  const many = url.searchParams.get("all") === "1";
+  let items = [];
+  const tries = [];
+  if (src && id) {
+    if (src === "it") tries.push(async () => { const j = await getJson("https://itunes.apple.com/lookup?country=FR&id=" + id); return (j.results || []).map(itItem).filter(Boolean); });
+    if (src === "dz") tries.push(async () => [dzItem(await getJson("https://api.deezer.com/track/" + id))].filter(Boolean));
+  }
+  if (q) {
+    if (many) tries.push(async () => {
+      const [a, b] = await Promise.allSettled([itSearch(q, 5), dzSearch(q, 5)]);
+      return [...(a.value || []), ...(b.value || [])];
+    });
+    else { tries.push(() => itSearch(q, 1)); tries.push(() => dzSearch(q, 1)); }
+  }
+  for (const f of tries) {
+    try { items = await f(); } catch (e) { items = []; }
+    if (items.length) break;
+  }
+  return json({ ok: items.length > 0, items });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/preview") return preview(url);
     if (url.pathname.startsWith("/api/")) {
-      const stub = env.SOIREE.get(env.SOIREE.idFromName("main"));
+      // Mode essai : une partie séparée, la vraie soirée n'est jamais touchée
+      const name = request.headers.get("x-essai") === "1" ? "essai" : "main";
+      const stub = env.SOIREE.get(env.SOIREE.idFromName(name));
       return stub.fetch(request);
     }
     return env.ASSETS.fetch(request);
@@ -33,6 +77,7 @@ export default {
 };
 
 const clip = (s, n) => String(s == null ? "" : s).slice(0, n);
+const cleanPv = (p) => (p && (p.s === "it" || p.s === "dz") && /^\d{1,15}$/.test(String(p.id)) ? { s: p.s, id: String(p.id), t: clip(p.t, 100), a: clip(p.a, 100) } : undefined);
 const cleanList = (a) => (Array.isArray(a) ? a.map((x) => clip(x, 80)).filter(Boolean).slice(0, 12) : []);
 
 export class Soiree extends DurableObject {
@@ -149,6 +194,11 @@ export class Soiree extends DurableObject {
     const role = request.headers.get("x-role") || "";
     const code = (request.headers.get("x-code") || "").trim();
     const teamId = Number(request.headers.get("x-team") || 0);
+    if (request.headers.get("x-essai") === "1" && !this.setup.codes.anim) {
+      this.setup.codes = { anim: "1234", dj: "5678" };
+      this.setup.name = "Blind test – ESSAI";
+      await this.save("setup");
+    }
     const who = this.auth(role, code, teamId);
 
     // ---- public
@@ -220,9 +270,9 @@ export class Soiree extends DurableObject {
       const nxt = this.setup.manches[this.game.m + 1];
       return json({
         pub: this.pub(),
-        songs: mm ? mm.songs.map((s) => ({ t: s.t, a: s.a, h: s.h })) : [],
+        songs: mm ? mm.songs.map((s) => ({ t: s.t, a: s.a, h: s.h, pv: s.pv })) : [],
         nextManche: nxt ? nxt.title : null,
-        all: this.setup.manches.map((x) => ({ title: x.title, mult: x.mult || 1, label2: x.label2 || "Artiste", songs: x.songs.map((s) => ({ t: s.t, a: s.a, h: s.h })) })),
+        all: this.setup.manches.map((x) => ({ title: x.title, mult: x.mult || 1, label2: x.label2 || "Artiste", songs: x.songs.map((s) => ({ t: s.t, a: s.a, h: s.h, pv: s.pv })) })),
         label2: mm ? mm.label2 || "Artiste" : "Artiste",
       });
     }
@@ -283,6 +333,7 @@ export class Soiree extends DurableObject {
               h: clip(x.h, 80),
               at: cleanList(x.at),
               aa: cleanList(x.aa),
+              pv: cleanPv(x.pv),
             })),
           }));
         }
