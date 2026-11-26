@@ -309,6 +309,7 @@ function interval() {
   const r = S.sess && S.sess.role, p = S.pub;
   if (document.hidden && r !== "screen") return 15000;
   if (!p || p.status !== "running") return r === "anim" ? 2500 : 4000;
+  if (sonoOn()) return 700; // la sono doit réagir vite quand l'animateur lance l'extrait
   return r === "team" ? 2500 : 1500;
 }
 async function poll() {
@@ -400,6 +401,7 @@ function onData() {
   else if (r === "dj") renderDJ($("#app"));
   else if (r === "screen") renderScreen($("#app"));
   else if (r === "anim") updAnim();
+  sonoSync();
 }
 
 /* ================= Accueil ================= */
@@ -598,7 +600,7 @@ function renderDJ(app) {
       h += '<div class="card"><div class="muted">Manche ' + (p.m + 1) + "/" + p.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (points ×" + man.mult + ")" : "") + "</div>" +
         '<div style="font-weight:700;margin:4px 0 8px">Morceau ' + (p.k + 1) + " / " + man.n + "</div>" +
         '<div class="song"><div class="st">' + esc(s.t) + '</div><div class="sa">' + esc(s.a) + '</div>' + (audioOn() ? "" : '<div class="sh">▶ Passage : ' + esc(s.h || "Refrain") + "</div>") + "</div>" +
-        (audioOn() ? pvBox(s, "djPv") : "") + audioToggle("djAud") +
+        (audioOn() ? pvBox(s, "djPv") : "") + audioToggle("djAud") + (audioOn() ? sonoToggle("djSono") : "") +
         (audioOn() ? '<details><summary class="muted small">Autres sources (secours)</summary>' + musicLinks(s) + "</details>" : musicLinks(s)) + '</div>' +
         '<div id="djTimer" class="timer"></div>' +
         '<button class="btn big ok" id="djPlay">▶ Je lance l\'extrait</button>' +
@@ -626,11 +628,12 @@ function renderDJ(app) {
     $("#djPlay").onclick = async () => {
       const s = d.songs[p.k];
       if (p.started && phase().ph !== "done") { if (!(await confirmBox("L'extrait est déjà en cours. Relancer la musique et le chrono ?", "Relancer"))) return; }
-      pvGo(s, p.extractSec);
+      sonoLocal(); pvGo(s, p.extractSec);
       act("play")();
     };
     $("#djNext").onclick = () => { pvStop(); act("next")(); }; $("#djPrev").onclick = () => { pvStop(); act("prev")(); };
     $("#djStop").onclick = pvStop;
+    if ($("#djSono")) $("#djSono").onchange = (e) => { LS.set("bt_sono", e.target.checked); S.lastSig = ""; renderDJ(app); };
     $("#djAud").onchange = (e) => { LS.set("bt_audio", e.target.checked); if (!e.target.checked) pvStop(); S.lastSig = ""; renderDJ(app); };
     if ($("#djPv")) pvBind($("#djPv"), d.songs[p.k]);
     if (d.songs[p.k + 1]) pvResolve(d.songs[p.k + 1]); // prépare le suivant
@@ -852,6 +855,35 @@ function pvCheckAll(manches, onChange, onReplace, lockedMsg) {
     }
     summary(false);
   });
+}
+
+/* ================= Sono télécommandée ================= */
+// Le téléphone branché à la sono joue l'extrait dès que le chrono est lancé, par lui ou par l'animateur.
+const sonoOn = () => { const r = S.sess && S.sess.role; return audioOn() && (r === "dj" || (r === "anim" && LS.get("bt_combo", false))) && LS.get("bt_sono", r === "dj"); };
+function sonoSync() {
+  const p = S.pub; if (!p || !sonoOn()) return;
+  const songs = (S.data && (S.data.songs || (S.data.setup && S.data.setup.manches[p.m] && S.data.setup.manches[p.m].songs))) || [];
+  const s = songs[p.k];
+  const key = p.runId + ":" + p.m + ":" + p.k + ":" + (p.started ? p.phaseStart : 0);
+  // coupure demandée à distance
+  if (PV.cutSeen === undefined) PV.cutSeen = p.cutAt || 0;
+  else if ((p.cutAt || 0) !== PV.cutSeen) { PV.cutSeen = p.cutAt || 0; if (PV.playing) { pvStop(); toast("⏹ Musique coupée par l'animateur"); } }
+  if (key === PV.sonoKey) return;
+  const prev = PV.sonoKey; PV.sonoKey = key;
+  if (prev === undefined) return; // premier passage : on ne rejoue pas un extrait déjà lancé
+  if (!p.started || p.status !== "running" || !s) { if (PV.playing && PV.byGame) pvStop(); return; }
+  if (PV.localKey && Date.now() - PV.localAt < 4000) return; // lancé depuis ce téléphone : déjà en cours
+  const el = (Date.now() + S.offset - p.phaseStart) / 1000;
+  if (el > p.extractSec - 1) return; // trop tard, l'extrait est déjà fini
+  const late = Math.max(0, el);
+  PV.byGame = true;
+  pvGo(Object.assign({}, s, { o: (Number(s.o) || 0) + late, d: Math.max(2, p.extractSec - late) }), p.extractSec - late, true);
+}
+// appelé quand ce téléphone lance lui-même l'extrait
+function sonoLocal() { PV.localKey = 1; PV.localAt = Date.now(); PV.byGame = true; }
+function sonoToggle(id) {
+  return '<label class="row small" style="margin:6px 0"><input type="checkbox" id="' + id + '" style="width:auto"' + (LS.get("bt_sono", S.sess && S.sess.role === "dj") ? " checked" : "") + "><span style='flex:1'>📻 Ce téléphone est branché à la sono : il joue l'extrait dès que l'animateur lance le chrono</span></label>" +
+    (!PV.unlocked ? '<p class="small" style="color:#ff9f1a">👆 Touchez l\'écran une fois pour autoriser le son, puis laissez l\'appli ouverte.</p>' : "");
 }
 
 /* ================= Écran géant ================= */
@@ -1090,11 +1122,12 @@ function tabJeu(v) {
   h += '<div class="card"><div class="row" style="justify-content:space-between;margin:0"><b>Manche ' + (g.m + 1) + "/" + st.manches.length + " – " + esc(man.title) + (man.mult > 1 ? " (×" + man.mult + ")" : "") + "</b>" + stLab + "</div>";
   if (state === "open") {
     h += '<div style="margin-top:10px" class="muted">Morceau ' + (g.k + 1) + " / " + man.songs.length + '</div><div class="song"><div class="st">' + esc(song.t) + '</div><div class="sa">' + esc(song.a) + '</div><div class="sh">▶ Passage : ' + esc(song.h || "Refrain") + '</div></div>' +
-      (LS.get("bt_combo", false) ? (audioOn() ? pvBox(song, "aPv") : "") + audioToggle("aAud") + (audioOn() ? '<details><summary class="muted small">Autres sources (secours)</summary>' + musicLinks(song) + "</details>" : musicLinks(song)) : musicLinks(song)) +
+      (LS.get("bt_combo", false) ? (audioOn() ? pvBox(song, "aPv") : "") + audioToggle("aAud") + (audioOn() ? sonoToggle("aSono") : "") + (audioOn() ? '<details><summary class="muted small">Autres sources (secours)</summary>' + musicLinks(song) + "</details>" : musicLinks(song)) : musicLinks(song)) +
       '<div id="aTimer" class="timer"></div>' +
-      '<div class="row"><button class="btn ghost" id="gPrev"' + (g.k === 0 ? " disabled" : "") + '>◀</button><button class="btn ok grow" id="gPlay">▶ ' + (LS.get("bt_combo", false) ? "Je lance l\'extrait" : "Lancer le chrono") + '</button><button class="btn alt" id="gNext"' + (g.k >= man.songs.length - 1 ? " disabled" : "") + ">▶▶</button></div>" +
+      '<div class="row"><button class="btn ghost" id="gPrev"' + (g.k === 0 ? " disabled" : "") + '>◀</button><button class="btn ok grow" id="gPlay">▶ ' + (LS.get("bt_combo", false) ? "Je lance l\'extrait" : "Lancer l\'extrait (sono du DJ)") + '</button><button class="btn alt" id="gNext"' + (g.k >= man.songs.length - 1 ? " disabled" : "") + ">▶▶</button></div>" +
       '<button class="btn ko pvstop" id="aStop" style="display:none;width:100%">⏹ Couper la musique</button>' +
-      (LS.get("bt_combo", false) && audioOn() ? '<p class="muted small">Appuyez sur le bouton vert : la musique et le chrono démarrent ensemble, la musique se coupe toute seule. ▶▶ = morceau suivant.</p>' : LS.get("bt_combo", false) ? '<p class="muted small">Lancez la musique au passage indiqué, puis appuyez sur le bouton vert : le chrono démarre chez tout le monde. ▶▶ = morceau suivant.</p>' : '<p class="muted small">Normalement c\'est le DJ qui lance le chrono et passe au morceau suivant. Ces boutons servent de secours.</p>') +
+      (LS.get("bt_combo", false) ? "" : '<button class="btn ghost" id="aCut" style="width:100%;margin-top:6px">⏹ Couper la musique chez le DJ</button>') +
+      (LS.get("bt_combo", false) && audioOn() ? '<p class="muted small">Appuyez sur le bouton vert : la musique et le chrono démarrent ensemble, la musique se coupe toute seule. ▶▶ = morceau suivant.</p>' : LS.get("bt_combo", false) ? '<p class="muted small">Lancez la musique au passage indiqué, puis appuyez sur le bouton vert : le chrono démarre chez tout le monde. ▶▶ = morceau suivant.</p>' : '<p class="muted small">Le DJ peut lancer l\'extrait, mais vous aussi : avec ▶, la musique part sur le téléphone du DJ branché à la sono (case 📻 cochée chez lui). ▶▶ = morceau suivant.</p>') +
       "<p>📥 Réponses reçues : <b>" + nAns + " / " + st.teams.length + "</b> équipes</p>" +
       '<button class="btn big warn" id="gClose">🔒 Clore la manche et corriger</button>' +
       '<div class="row"><button class="btn ghost sm" id="gTest">🧪 Réponses d\'essai (test)</button></div>';
@@ -1118,9 +1151,11 @@ function tabJeu(v) {
   v.innerHTML = h;
   const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
   const combo = LS.get("bt_combo", false);
-  on("gPlay", async () => { if (d.pub.started && phase().ph !== "done" && !(await confirmBox("Le chrono tourne déjà. Le relancer ?", "Relancer"))) return; if (combo) pvGo(song, p.extractSec); gameAct("play"); });
+  on("gPlay", async () => { if (d.pub.started && phase().ph !== "done" && !(await confirmBox("Le chrono tourne déjà. Le relancer ?", "Relancer"))) return; if (combo) { sonoLocal(); pvGo(song, p.extractSec); } gameAct("play"); });
   on("gNext", () => { pvStop(); gameAct("next"); }); on("gPrev", () => { pvStop(); gameAct("prev"); });
   on("aStop", pvStop);
+  on("aCut", () => gameAct("cut").then(() => toast("⏹ Demande envoyée à la sono du DJ")));
+  if ($("#aSono")) $("#aSono").onchange = (e) => { LS.set("bt_sono", e.target.checked); S.lastSig = ""; renderTab(); };
   if ($("#aAud")) $("#aAud").onchange = (e) => { LS.set("bt_audio", e.target.checked); if (!e.target.checked) pvStop(); S.lastSig = ""; renderTab(); };
   if ($("#aPv")) pvBind($("#aPv"), song);
   if (combo && song && man.songs[g.k + 1]) pvResolve(man.songs[g.k + 1]);

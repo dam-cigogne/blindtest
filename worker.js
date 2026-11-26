@@ -258,6 +258,7 @@ export class Soiree extends DurableObject {
       showRanking: !!game.showRanking,
       showRules: !!game.showRules,
       showTeams: !!game.showTeams,
+      cutAt: game.cutAt || 0,
       // QR codes affichés sur l'écran géant (seulement quand l'animateur le demande)
       showQr: game.showQr ? {
         mode: game.showQr.mode, i: game.showQr.i || 0,
@@ -448,7 +449,7 @@ export class Soiree extends DurableObject {
       if (who !== "anim" && who !== "dj") return json({ error: "non autorisé" }, 401);
       const act = body.action;
       const g = this.game;
-      const djOk = ["play", "next", "prev"];
+      const djOk = ["play", "next", "prev", "cut"];
       if (who === "dj" && !djOk.includes(act)) return json({ error: "réservé à l'animateur" }, 403);
       const mans = this.setup.manches;
       const cur = mans[g.m];
@@ -492,6 +493,8 @@ export class Soiree extends DurableObject {
       } else if (act === "showRules") {
         g.showRules = !!body.show;
         if (g.showRules) { g.showTeams = false; g.showQr = null; }
+      } else if (act === "cut") {
+        g.cutAt = Date.now(); // demande à la sono du DJ de couper la musique
       } else if (act === "showQr") {
         const n = this.setup.teams.length;
         if (!body.mode || !n) g.showQr = null;
