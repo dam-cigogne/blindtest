@@ -643,7 +643,7 @@ async function pvResolve(s) {
   const c = pvCached(s); if (c) return c.it;
   const k = pvKey(s);
   if (PV.cache[k] && PV.cache[k].pending) return PV.cache[k].pending;
-  const qs = s.pv ? "src=" + s.pv.s + "&id=" + encodeURIComponent(s.pv.id) : "q=" + encodeURIComponent(s.t + " " + s.a);
+  const qs = s.pv ? "src=" + s.pv.s + "&id=" + encodeURIComponent(s.pv.id) : "q=" + encodeURIComponent(s.t + " " + s.a) + "&t=" + encodeURIComponent(s.t) + "&a=" + encodeURIComponent(s.a);
   const pending = fetch("/api/preview?" + qs).then((x) => x.json()).then((r) => {
     const it = (r.items && r.items[0]) || null;
     PV.cache[k] = { it, exp: Date.now() + (it ? 8 * 60e3 : 60e3) }; return it;
@@ -651,7 +651,8 @@ async function pvResolve(s) {
   PV.cache[k] = { pending, exp: 0 };
   return pending;
 }
-function pvMatch(s, it) { if (!it) return "bad"; if (s.pv) return "ok"; const a = normT(s.t), b = normT(it.t); return a && b && (a.includes(b) || b.includes(a)) ? "ok" : "warn"; }
+const JUNK_RE = /karaok|instrumental|originally performed|made famous|in the style of|tribute|backing track|hit the button|playback|berceuse|lullab/i;
+function pvMatch(s, it) { if (!it) return "bad"; if (s.pv) return "ok"; if (JUNK_RE.test(it.t + " " + it.a)) return "warn"; const a = normT(s.t), b = normT(it.t); return a && b && (a.includes(b) || b.includes(a)) ? "ok" : "warn"; }
 const SRC = { it: "Apple", dz: "Deezer" };
 function pvBox(s, id) {
   const c = pvCached(s);
@@ -735,15 +736,16 @@ function pvPicker(s, onPick) {
   const close = () => { pvStop(); closeModal(); };
   openModal('<h3>🔊 Extrait de « ' + esc(s.t || "?") + " »</h3>" +
     (s.pv ? '<p class="small">Extrait choisi : <b>' + esc(s.pv.t) + "</b> – " + esc(s.pv.a) + ' <button class="btn ghost sm" id="ppAuto">Revenir au choix automatique</button></p>' : '<p class="muted small">Par défaut, l\'appli prend le 1er résultat. Écoutez et choisissez le bon si besoin.</p>') +
+    (onPick ? "" : '<div class="lock">🔒 Partie en cours : écoute seulement. Pour choisir un autre extrait, remettez la partie à zéro (Réglages).</div>') +
     '<div class="row"><input id="ppQ" class="grow" style="flex:1" value="' + esc(q) + '"><button class="btn sm" id="ppGo">🔎</button></div><div id="ppL" class="muted small">Recherche…</div>' +
     '<div class="row end"><button class="btn ghost" id="ppX">Fermer</button></div>', (box) => {
     const L = $("#ppL", box);
     const run = async () => {
       L.innerHTML = "Recherche…";
       try {
-        const r = await fetch("/api/preview?all=1&q=" + encodeURIComponent($("#ppQ", box).value)).then((x) => x.json());
+        const r = await fetch("/api/preview?all=1&q=" + encodeURIComponent($("#ppQ", box).value) + "&t=" + encodeURIComponent(s.t) + "&a=" + encodeURIComponent(s.a)).then((x) => x.json());
         if (!r.items || !r.items.length) { L.innerHTML = "Aucun extrait trouvé. Essayez avec moins de mots (titre seul, ou artiste seul)."; return; }
-        L.innerHTML = r.items.map((it, i) => '<div class="pvrow">' + (it.img ? '<img src="' + esc(it.img) + '" alt="">' : "") + '<div class="pt"><b>' + esc(it.t) + '</b><br><span class="muted">' + esc(it.a) + '</span> <span class="src">' + SRC[it.s] + '</span></div><button class="btn ghost sm" data-pp="' + i + '" data-url="' + esc(it.url) + '">▶</button>' + (onPick ? '<button class="btn ok sm" data-ch="' + i + '">Choisir</button>' : "") + "</div>").join("");
+        L.innerHTML = r.items.map((it, i) => '<div class="pvrow">' + (it.img ? '<img src="' + esc(it.img) + '" alt="">' : "") + '<div class="pt"><b>' + esc(it.t) + '</b><br><span class="muted">' + esc(it.a) + '</span> <span class="src">' + SRC[it.s] + "</span>" + (JUNK_RE.test(it.t + " " + it.a) ? ' <span class="src" style="color:var(--ko)">⚠️ karaoké / reprise</span>' : "") + '</div><button class="btn ghost sm" data-pp="' + i + '" data-url="' + esc(it.url) + '">▶</button>' + (onPick ? '<button class="btn ok sm" data-ch="' + i + '">Choisir</button>' : "") + "</div>").join("");
         $$("[data-pp]", L).forEach((b) => (b.onclick = () => { const it = r.items[Number(b.dataset.pp)]; if (PV.playing && PV.url === it.url) pvStop(); else pvPlay(it, 20); }));
         $$("[data-ch]", L).forEach((b) => (b.onclick = () => { const it = r.items[Number(b.dataset.ch)]; onPick({ s: it.s, id: it.id, t: it.t, a: it.a }); PV.cache[it.s + ":" + it.id] = { it, exp: Date.now() + 15 * 60e3 }; close(); toast("Extrait choisi ✓"); }));
       } catch (e) { L.innerHTML = "Pas de connexion internet."; }
@@ -770,10 +772,10 @@ function pvProbe(url) {
 }
 // Vérifier tous les extraits d'un coup
 // Vérifier tous les extraits d'un coup (onReplace : tirer un autre morceau du même style)
-function pvCheckAll(manches, onChange, onReplace) {
+function pvCheckAll(manches, onChange, onReplace, lockedMsg) {
   const close = () => { pvStop(); closeModal(); };
   const stat = {};
-  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">L\'appli cherche chaque morceau et teste vraiment sa lecture. ✓ = OK · ⚠️ = titre différent, écoutez · ✗ = introuvable ou illisible. ▶ pour écouter, « Changer » pour choisir une autre version' + (onReplace ? ", « 🎲 Autre morceau » pour remplacer par un autre morceau du même style" : "") + '.</p><div id="caSum" class="row" style="align-items:center"></div><div id="caL">';
+  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">L\'appli cherche chaque morceau et teste vraiment sa lecture. ✓ = OK · ⚠️ = titre différent, écoutez · ✗ = introuvable ou illisible. ▶ pour écouter, « Changer » pour choisir une autre version' + (onReplace ? ", « 🎲 Autre morceau » pour remplacer par un autre morceau du même style" : "") + '.</p>' + (lockedMsg ? '<div class="lock">' + lockedMsg + "</div>" : "") + '<div id="caSum" class="row" style="align-items:center"></div><div id="caL">';
   manches.forEach((m, i) => { h += '<p style="margin:10px 0 0"><b>Manche ' + (i + 1) + " – " + esc(m.title) + "</b></p>"; m.songs.forEach((s, j) => { h += '<div class="pvrow" id="ca' + i + "_" + j + '"></div>'; }); });
   h += '</div><div class="row end"><button class="btn ghost" id="caX">Fermer</button></div>';
   const summary = (busy) => {
@@ -1488,7 +1490,7 @@ function tabManches(v) {
         if (!got.length) { if (!quiet) toast("Plus de morceau de rechange dans ce style : remplacez-le à la main", 3500); return false; }
         m.songs[j] = got[0]; saveDraft(); dirty = true;
         return true;
-      });
+      }, isLocked() ? "🔒 Partie en cours : vous pouvez écouter, mais pas changer de morceau. Pour changer : Réglages → « 🔄 Remettre la partie à zéro » (équipes et manches gardées), puis revenez ici." : "");
     const watch = setInterval(() => { if (!$("#caL")) { clearInterval(watch); if (dirty) tabManches(v); } }, 500);
   };
   $("#mDef").onclick = async () => { if (await confirmBox("Remplacer toutes les manches par le pack par défaut (8 manches de 5 morceaux) ?", "Remplacer", true)) { S.draft.manches = defaultManches(); saveDraft(true); tabManches(v); } };

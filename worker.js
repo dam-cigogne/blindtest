@@ -52,6 +52,23 @@ async function audio(request, url) {
   out.set("cache-control", "private, max-age=600");
   return new Response(up.body, { status: up.status, headers: out });
 }
+// Versions à éviter dans un blind test : karaoké, instrumentales, reprises « à la manière de »…
+const JUNK = /karaok|instrumental|originally performed|made famous|in the style of|as made famous|tribute|backing track|hit the button|sing ?along|playback|lullab|berceuse|8[- ]?bit|piano version|music box|boîte à musique|cover version|version piano|minus one|re-?recorded/i;
+const isJunk = (it) => JUNK.test(it.t + " " + it.a);
+const nrm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+// Classe les résultats : jamais de karaoké en premier, et priorité au bon artiste
+function rank(items, t, a) {
+  const T = nrm(t), A = nrm(a);
+  const sc = (it) => {
+    let n = 0; const it_t = nrm(it.t), it_a = nrm(it.a);
+    if (isJunk(it)) n -= 10;
+    if (A && it_a && (it_a.includes(A) || A.includes(it_a))) n += 3;
+    if (T && it_t && (it_t.includes(T) || T.includes(it_t))) n += 2;
+    if (/\blive\b|en concert|\(live/i.test(it.t)) n -= 1;
+    return n;
+  };
+  return items.map((it, i) => ({ it, s: sc(it), i })).sort((x, y) => y.s - x.s || x.i - y.i).map((x) => x.it);
+}
 async function itSearch(q, n) {
   const j = await getJson("https://itunes.apple.com/search?country=FR&media=music&entity=song&limit=" + n + "&term=" + encodeURIComponent(q));
   return (j.results || []).map(itItem).filter(Boolean);
@@ -63,6 +80,7 @@ async function dzSearch(q, n) {
 async function preview(url) {
   const src = url.searchParams.get("src"), id = (url.searchParams.get("id") || "").replace(/[^0-9]/g, "");
   const q = clip(url.searchParams.get("q"), 200).trim();
+  const qt = clip(url.searchParams.get("t"), 100), qa = clip(url.searchParams.get("a"), 100);
   const many = url.searchParams.get("all") === "1";
   let items = [];
   const tries = [];
@@ -73,9 +91,14 @@ async function preview(url) {
   if (q) {
     if (many) tries.push(async () => {
       const [a, b] = await Promise.allSettled([itSearch(q, 5), dzSearch(q, 5)]);
-      return [...(a.value || []), ...(b.value || [])];
+      return rank([...(a.value || []), ...(b.value || [])], qt, qa);
     });
-    else { tries.push(() => itSearch(q, 1)); tries.push(() => dzSearch(q, 1)); }
+    else {
+      // on prend 10 résultats et on garde le meilleur (pas de karaoké, bon artiste)
+      const best = async (f) => { const r = rank(await f(q, 10), qt, qa); return r.length && !isJunk(r[0]) ? [r[0]] : []; };
+      tries.push(() => best(itSearch)); tries.push(() => best(dzSearch));
+      tries.push(async () => rank(await dzSearch(q, 10), qt, qa).slice(0, 1)); // en dernier recours seulement
+    }
   }
   for (const f of tries) {
     try { items = await f(); } catch (e) { items = []; }
@@ -98,6 +121,7 @@ async function dzPlaylists(url) {
         const j = await getJson(next);
         (j.data || []).forEach((x) => {
           if (!x || !x.preview || x.readable === false) return;
+          if (JUNK.test((x.title || "") + " " + ((x.artist || {}).name || ""))) return;
           const full = x.title || "", t = cleanTitle(x.title_short || full) || full, a = (x.artist || {}).name || "";
           const at = []; if (full && full !== t) at.push(clip(full, 80));
           tracks.push({ t: clip(t, 100), a: clip(a, 100), h: "Extrait", at, aa: [], pv: { s: "dz", id: String(x.id), t: clip(t, 100), a: clip(a, 100) } });
