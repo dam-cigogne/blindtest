@@ -1245,6 +1245,7 @@ function tabJeu(v) {
       (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") + "</ul></div>" +
       '<div class="card"><h3>🎬 Lancer la soirée</h3><p class="muted small">Tout se pilote d\'ici : l\'écran géant suit chaque étape.</p><div class="steps">' +
       '<div><span class="n">1</span><div class="b"><button class="btn big" id="gTeams"' + (okT ? "" : " disabled") + '>👥 Afficher les équipes</button><p class="muted small">Chacun trouve son nom et son équipe sur le grand écran.</p></div></div>' +
+      '<div><span class="n">⚡</span><div class="b"><button class="btn big ghost" id="gChain"' + (okT ? "" : " disabled") + '>👥➜📲 Équipe par équipe : membres puis QR code</button><p class="muted small">Le plus rapide : l\'équipe 1 s\'affiche, ses membres vous rejoignent et choisissent un chef, il scanne le QR, puis ▶ équipe suivante.</p></div></div>' +
       '<div><span class="n">+</span><div class="b"><button class="btn big ghost" id="gQr"' + (okT ? "" : " disabled") + '>📲 QR codes à l\'écran</button><p class="muted small">Facultatif : chaque équipe (ou chaque joueur) scanne son QR code directement sur le grand écran, sans feuille.</p></div></div>' +
       '<div><span class="n">2</span><div class="b"><button class="btn big alt" id="gRules">📜 Présenter les règles</button><p class="muted small">Le texte à lire au micro, affiché aussi sur l\'écran.</p></div></div>' +
       '<div><span class="n">3</span><div class="b"><button class="btn big ok" id="gStart"' + (okT && okM ? "" : " disabled") + '>🚀 C\'est parti !</button><p class="muted small">L\'écran passe en direct : chrono, réponses, podium.</p></div></div></div>' +
@@ -1253,6 +1254,7 @@ function tabJeu(v) {
     v.innerHTML = h;
     if ($("#gFake")) $("#gFake").onclick = fakeFill;
     $("#gRules").onclick = () => goRules();
+    $("#gChain").onclick = () => chainGo("teams", 0);
     $("#gQr").onclick = () => goQr(st.teams.length <= 12 ? "all" : "one", 0);
     $("#gTeams").onclick = async () => { S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
     $("#gStart").onclick = async () => { if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
@@ -1363,6 +1365,13 @@ function rulesHtml(p, screen) {
   h += "</ol>" + (M.length ? '<p style="font-size:1.15em"><b>Prêts ? On commence par la manche 1 : ' + esc(M[0].title) + " ! 🎶</b></p>" : "") + "</div>";
   return h;
 }
+// Enchaînement équipe par équipe : membres de l'équipe → son QR code → équipe suivante…
+async function chainGo(kind, i) {
+  if (kind === "qr") { S.teamsMode = false; S.qrMode = true; await gameAct("showQr", { mode: "one", i }); }
+  else { S.qrMode = false; S.teamsMode = true; await gameAct("showTeams", { show: true, mode: "one", i }); }
+  S.lastSig = ""; renderTab(); window.scrollTo(0, 0);
+}
+function teamState(t) { return t.joined && t.named ? '<span style="color:var(--ok);font-weight:800">✅ Prête</span>' : t.joined ? "📱 Connectée, nom pas encore choisi" : "⏳ QR pas encore scanné"; }
 // Liste des équipes avec leur état : prête (nom choisi), connectée, en attente
 function readyHtml(p) {
   const T = p.teams.length, ok = p.teams.filter((t) => t.joined && t.named).length;
@@ -1380,7 +1389,9 @@ function tabQrShow(v) {
   v.innerHTML = '<div class="card"><h3>📲 QR codes sur l\'écran géant</h3><div class="row"><button class="btn ' + (mode === "all" ? "" : "ghost") + '" id="qAll">Tous à la fois</button><button class="btn ' + (mode === "one" ? "" : "ghost") + '" id="qOne">Un par un</button><button class="btn ' + (!mode ? "" : "ghost") + '" id="qOff">Masquer</button></div>' +
     (mode === "all" ? '<p class="muted small">Les ' + T + " QR codes sont affichés ensemble. Au-delà d\'une douzaine d\'équipes, ils deviennent petits : passez en « Un par un ».</p>" : "") +
     (mode === "one" ? '<div class="qnav"><button class="btn big ghost" id="qPrev"' + (i <= 0 ? " disabled" : "") + '>◀</button><div class="grow">Équipe ' + t.id + "<br><span class=\"muted small\">" + esc(t.name) + " · " + (i + 1) + " / " + T + '</span></div><button class="btn big" id="qNext"' + (i >= T - 1 ? " disabled" : "") + ">▶</button></div>" +
-      '<div class="qpick">' + st.teams.map((x, k) => '<button data-qi="' + k + '" class="' + (k === i ? "on" : "") + '">' + x.id + "</button>").join("") + "</div>" : "") +
+      '<div class="qpick">' + st.teams.map((x, k) => '<button data-qi="' + k + '" class="' + (k === i ? "on" : "") + '">' + x.id + "</button>").join("") + "</div>" +
+      '<p style="text-align:center;margin:10px 0 4px">Équipe ' + t.id + " : " + teamState(p.teams[i] || {}) + "</p>" +
+      (i < T - 1 ? '<button class="btn big ok" id="chNextT">▶ Suivant : membres de l\'équipe ' + st.teams[i + 1].id + "</button>" : '<p class="center muted small">C\'était la dernière équipe 👍</p>') : "") +
     (!mode ? '<p class="muted small">Rien n\'est affiché : l\'écran géant montre l\'accueil.</p>' : "") + "</div>" +
     readyHtml(p) +
     '<button class="btn big alt" id="qRules">② 📜 Étape suivante : les règles</button>' +
@@ -1391,6 +1402,7 @@ function tabQrShow(v) {
   if ($("#qNext")) $("#qNext").onclick = () => go("one", i + 1);
   $$("[data-qi]", v).forEach((b) => (b.onclick = () => go("one", Number(b.dataset.qi))));
   $("#qRules").onclick = () => goRules();
+  if ($("#chNextT")) $("#chNextT").onclick = () => chainGo("teams", i + 1);
   $("#qTeams").onclick = async () => { S.qrMode = false; S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); };
   $("#qBack").onclick = async () => { S.qrMode = false; if (p.showQr) await gameAct("showQr", { mode: "" }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
 }
@@ -1401,6 +1413,7 @@ function tabTeamsShow(v) {
   v.innerHTML = '<div class="card"><h3>① 👥 Les équipes sur l\'écran géant</h3><div class="row"><button class="btn ' + (mode === "all" ? "" : "ghost") + '" id="tsAll">Toutes</button><button class="btn ' + (mode === "one" ? "" : "ghost") + '" id="tsOne">Une par une</button><button class="btn ' + (!mode ? "" : "ghost") + '" id="tsOff">Masquer</button></div>' +
     (mode === "one" ? '<div class="qnav"><button class="btn big ghost" id="tsPrev"' + (i <= 0 ? " disabled" : "") + '>◀</button><div class="grow">Équipe ' + t.id + '<br><span class="muted small">' + esc(t.name) + " · " + (i + 1) + " / " + T + '</span></div><button class="btn big" id="tsNx"' + (i >= T - 1 ? " disabled" : "") + ">▶</button></div>" +
       '<div class="qpick">' + p.teams.map((x, k) => '<button data-ti="' + k + '" class="' + (k === i ? "on" : "") + '">' + x.id + "</button>").join("") + "</div>" +
+      '<button class="btn big ok" id="chNext" style="margin-top:10px">▶ Suivant : QR code de l\'équipe ' + t.id + "</button>" +
       '<div class="card" style="margin-top:10px;background:var(--bg2)"><b>À appeler : ' + esc(t.name) + '</b><ol class="pl small" style="margin:6px 0 0">' + t.members.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ol></div>"
       : mode === "all" ? '<p class="muted small">Toutes les équipes sont affichées. Pour appeler les personnes équipe par équipe, passez en « Une par une ».</p>' : '<p class="muted small">Rien n\'est affiché sur l\'écran géant.</p>') + "</div>" +
     '<button class="btn big ghost" id="tsQr">📲 Afficher les QR codes</button><button class="btn big alt" id="tsNext" style="margin-top:8px">② 📜 Étape suivante : les règles</button>' +
@@ -1412,6 +1425,7 @@ function tabTeamsShow(v) {
   if ($("#tsNx")) $("#tsNx").onclick = () => go("one", i + 1);
   $$("[data-ti]", v).forEach((b) => (b.onclick = () => go("one", Number(b.dataset.ti))));
   $("#tsNext").onclick = () => goRules();
+  if ($("#chNext")) $("#chNext").onclick = () => chainGo("qr", i);
   $("#tsQr").onclick = () => goQr(p.teams.length <= 12 ? "all" : "one", 0);
   $("#tsBack").onclick = async () => { S.teamsMode = false; if (p.showTeams) await gameAct("showTeams", { show: false }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
 }
