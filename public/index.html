@@ -69,6 +69,9 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .badge{display:inline-block;min-width:28px;padding:2px 8px;border-radius:8px;font-weight:700;font-size:.85rem;border:0;cursor:pointer}
 .badge.ok{background:var(--ok);color:#06281b}.badge.ko{background:var(--ko);color:#fff}.badge.doubt{background:var(--warn);color:#2b1a00}
 .ansgrid{width:100%;border-collapse:collapse;font-size:.88rem}.ansgrid td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.imptab{border-collapse:collapse;font-size:12px;min-width:100%}.imptab td,.imptab th{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}.imptab th{color:var(--mu);font-weight:600}.imptab tr.h td{background:var(--pri);color:#fff;font-weight:700}
+.impl{max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--card)}
+.impr{display:flex;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:14px}.impr input{width:auto;flex:none}.impr .grow{flex:1;min-width:0}.impr.junk .grow{text-decoration:line-through;opacity:.6}
 .tcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0}
 .tcard .hd{display:flex;gap:8px;align-items:center}.tcard .hd input{flex:1;padding:8px}
 .mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -1277,12 +1280,16 @@ function guessMap(hdr) {
     age: f(/tranche|^[aâ]ge|g[eé]n[eé]ration/i),
   };
 }
-function unitsFromImport(imp) {
-  const rows = imp.hdr ? imp.rows.slice(1) : imp.rows;
-  const M = imp.map;
+// Lignes de données (après la ligne des titres), chacune avec son numéro de ligne Excel
+function impData(imp) { return imp.all.slice(imp.hdrRow + 1).filter((x) => x.cells.some((c) => String(c).trim())); }
+function impHeader(imp) { return imp.hdrRow >= 0 ? imp.all[imp.hdrRow].cells.map(String) : []; }
+// Une entrée par ligne : la personne, son conjoint, ses invités
+function impEntries(imp) {
+  const M = imp.map, H = impHeader(imp).map((x) => x.trim().toLowerCase());
   const val = (r, c) => (c === "" || c == null ? "" : String(r[Number(c)] == null ? "" : r[Number(c)]).trim());
-  const groups = new Map(); const units = [];
-  rows.forEach((r) => {
+  const out = [];
+  impData(imp).forEach((x) => {
+    const r = x.cells;
     const name = [val(r, M.first), val(r, M.name)].filter(Boolean).join(" ").replace(/\s+/g, " ");
     if (!name) return;
     const tr = toTr(val(r, M.age));
@@ -1290,13 +1297,31 @@ function unitsFromImport(imp) {
     const sp = val(r, M.spouse);
     if (sp && !/^(non|n|no|0|-|\/|aucun|aucune|n[eé]ant|sans)$/i.test(sp)) mem.push({ n: /^(oui|o|yes|y|1|x)$/i.test(sp) ? "Conjoint(e) de " + name : sp, tr });
     const nb = parseInt(val(r, M.count), 10) || 0;
-    for (let i = 1; i <= Math.min(nb, 10); i++) mem.push({ n: "Invité " + i + " de " + name, tr: "" });
-    const gk = val(r, M.group);
-    if (gk) { if (!groups.has(gk.toLowerCase())) { const u = { members: [] }; groups.set(gk.toLowerCase(), u); units.push(u); } groups.get(gk.toLowerCase()).members.push(...mem); }
-    else units.push({ members: mem });
+    for (let k = 1; k <= Math.min(nb, 10); k++) mem.push({ n: "Invité " + k + " de " + name, tr: "" });
+    // lignes à écarter d'office : totaux, titres répétés, nombres seuls
+    const raw = val(r, M.name).toLowerCase();
+    const junk = /^(total|sous[- ]?total|nombre|nb\b|effectif|somme)/i.test(name) || (H.length && H[Number(M.name)] === raw) || /^[\d\s.,]+$/.test(name);
+    out.push({ row: x.n, mem, tr, gk: val(r, M.group), junk });
+  });
+  return out;
+}
+function unitsFromImport(imp) {
+  const groups = new Map(); const units = [];
+  impEntries(imp).forEach((e) => {
+    if (imp.off[e.row] ?? e.junk) return;
+    if (e.gk) { const k = e.gk.toLowerCase(); if (!groups.has(k)) { const u = { members: [] }; groups.set(k, u); units.push(u); } groups.get(k).members.push(...e.mem); }
+    else units.push({ members: e.mem });
   });
   units.forEach((u) => (u.tr = trOf(u.members)));
   return units;
+}
+// Devine la ligne des titres : celle qui contient « nom », « prénom »… dans les 15 premières lignes
+function guessHeaderRow(all) {
+  const KW = /nom|name|pr[eé]nom|conjoint|amicaliste|adh[eé]rent|invit|[aâ]ge|groupe|accomp/i;
+  const lim = Math.min(all.length, 15);
+  for (let i = 0; i < lim; i++) { const c = all[i].cells.filter((x) => String(x).trim()); if (c.length >= 1 && c.some((x) => KW.test(x)) && c.every((x) => !/^\d+([.,]\d+)?$/.test(String(x).trim()))) return i; }
+  const first = all.findIndex((x) => x.cells.some((c) => String(c).trim()));
+  return first;
 }
 function drawTeams(units, T) {
   const teams = Array.from({ length: T }, (_, i) => ({ id: i + 1, members: [], tr: {} }));
@@ -1326,7 +1351,7 @@ function tabEquipes(v) {
   const di = drawInfo(), teams = S.draft.teams, ppl = S.people;
   let h = lockBanner() + '<div class="card"><h3>1. La liste des invités</h3>' +
     '<div class="row"><label class="btn alt"><input type="file" id="fImp" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt" hidden>📂 Importer un fichier Excel</label><button class="btn ghost" id="bPaste">✍️ Coller ou taper une liste</button></div>' +
-    '<div id="impMap"></div><p class="muted" id="pplInfo">' + (ppl ? "✓ " + plural(countPeople(ppl), "personne") + " en " + plural(ppl.length, "groupe") + " (les couples restent ensemble)." : "Aucune liste importée pour l'instant.") + "</p></div>";
+    '<div id="impMap"></div><p class="muted" id="pplInfo">' + (ppl ? "✓ " + plural(countPeople(ppl), "personne") + " en " + plural(ppl.length, "groupe") + " (les couples restent ensemble)." : "Aucune liste importée pour l'instant.") + "</p>" + (ppl ? '<button class="btn ghost sm" id="bEdit">✏️ Voir / retirer des personnes</button>' : "") + "</div>";
   h += '<div class="card"><h3>2. Tirage au sort</h3><div class="row"><label class="row" style="margin:0"><input type="radio" name="dm" value="s" style="width:auto"' + (di.ds.mode !== "n" ? " checked" : "") + '> Personnes par équipe</label><label class="row" style="margin:0"><input type="radio" name="dm" value="n" style="width:auto"' + (di.ds.mode === "n" ? " checked" : "") + "> Nombre d'équipes</label></div>" +
     '<input type="number" id="dVal" min="1" max="60" inputmode="numeric" value="' + esc(di.ds.val) + '"><p class="muted" id="dInfo"></p>' +
     '<button class="btn big" id="bDraw"' + (ppl ? "" : " disabled") + ">🎲 " + (teams.length ? "Refaire le tirage au sort" : "Tirer les équipes au sort") + "</button></div>";
@@ -1348,6 +1373,7 @@ function tabEquipes(v) {
     $("#pNo", b).onclick = closeModal;
     $("#pOk", b).onclick = () => { const u = parsePaste($("#pT", b).value); if (!u.length) return toast("Liste vide"); S.people = u; LS.set("bt_people", u); closeModal(); tabEquipes(v); };
   });
+  if ($("#bEdit")) $("#bEdit").onclick = () => editPeople(v);
   $("#fImp").onchange = (e) => { const file = e.target.files[0]; if (file) readFile(file, v); e.target.value = ""; };
   $$(".tn", v).forEach((i) => (i.oninput = () => { S.draft.teams[Number(i.dataset.ti)].name = i.value; saveDraft(); }));
   $$("[data-mi]", v).forEach((b) => (b.onclick = () => moveMember(Number(b.dataset.ti), Number(b.dataset.mi), v)));
@@ -1378,12 +1404,18 @@ function readFile(file, v) {
           if (txt.includes("�")) txt = new TextDecoder("windows-1252").decode(new Uint8Array(fr.result));
           wb = XLSX.read(txt, { type: "string" });
         } else wb = XLSX.read(new Uint8Array(fr.result), { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false }).filter((r) => r.some((c) => String(c).trim()));
-        if (!rows.length) return toast("Fichier vide");
-        const hdrLike = rows[0].every((c) => !/^\d+$/.test(String(c).trim()));
-        S.imp = { rows, hdr: hdrLike, map: guessMap(hdrLike ? rows[0].map(String) : []), file: file.name };
-        renderImpMap(v);
+        const pick = (name) => {
+          const ws = wb.Sheets[name];
+          const off = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0;
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false, blankrows: true });
+          const all = rows.map((cells, k) => ({ n: k + off + 1, cells: cells.map((c) => String(c == null ? "" : c)) })).filter((x) => x.cells.some((c) => c.trim()));
+          if (!all.length) return toast("Cette feuille est vide");
+          const hdrRow = guessHeaderRow(all);
+          S.imp = { all, hdrRow, map: guessMap(hdrRow >= 0 ? all[hdrRow].cells : []), off: {}, q: "", file: file.name, sheets: wb.SheetNames, sheet: name, wb };
+          renderImpMap(v);
+        };
+        S.impPick = pick;
+        pick(wb.SheetNames[0]);
       } catch (e) { toast("Impossible de lire ce fichier"); }
     };
     fr.readAsArrayBuffer(file);
@@ -1392,19 +1424,55 @@ function readFile(file, v) {
 }
 function renderImpMap(v) {
   const imp = S.imp, box = $("#impMap", v); if (!box) return;
-  const ncol = Math.max(...imp.rows.map((r) => r.length));
-  const opts = (sel, opt) => (opt ? '<option value="">— aucune —</option>' : "") + Array.from({ length: ncol }, (_, i) => '<option value="' + i + '"' + (String(sel) === String(i) ? " selected" : "") + ">Colonne " + colLetter(i) + (imp.hdr ? " – " + esc(String(imp.rows[0][i] || "").slice(0, 30)) : " – ex. " + esc(String(imp.rows[0][i] || "").slice(0, 20))) + "</option>").join("");
+  const ncol = Math.max(...imp.all.map((r) => r.cells.length));
+  const H = impHeader(imp), data = impData(imp);
+  const ex = (i) => { const d = data.find((x) => String(x.cells[i] || "").trim()); return d ? d.cells[i] : ""; };
+  const opts = (sel, opt) => (opt ? '<option value="">— aucune —</option>' : "") + Array.from({ length: ncol }, (_, i) => '<option value="' + i + '"' + (String(sel) === String(i) ? " selected" : "") + ">" + colLetter(i) + " – " + esc(String((H[i] || "").trim() || "ex. " + ex(i)).slice(0, 28)) + "</option>").join("");
   const F = [["name", "Nom (ou nom complet) *", false], ["first", "Prénom", true], ["spouse", "Conjoint / accompagnant (nom, ou oui/non)", true], ["count", "Nombre d'accompagnants", true], ["group", "Groupe (même valeur = toujours ensemble)", true], ["age", "Âge ou tranche J/M/A", true]];
-  const units = unitsFromImport(imp);
-  box.innerHTML = '<div class="card" style="background:var(--bg2)"><b>📄 ' + esc(imp.file) + "</b> – " + plural(imp.rows.length, "ligne") +
-    '<label class="row"><input type="checkbox" id="mHdr" style="width:auto"' + (imp.hdr ? " checked" : "") + "> La première ligne contient les titres des colonnes</label>" +
+  const cut = (t) => esc(String(t).slice(0, 18));
+  const showCols = Math.min(ncol, 8);
+  const prev = imp.all.slice(Math.max(0, imp.hdrRow), Math.max(0, imp.hdrRow) + 6);
+  const entries = impEntries(imp);
+  const on = (e) => !(imp.off[e.row] ?? e.junk);
+  box.innerHTML = '<div class="card" style="background:var(--bg2)"><b>📄 ' + esc(imp.file) + "</b>" +
+    (imp.sheets.length > 1 ? '<label class="f">Feuille du classeur</label><select id="mSheet">' + imp.sheets.map((n) => "<option" + (n === imp.sheet ? " selected" : "") + ">" + esc(n) + "</option>").join("") + "</select>" : "") +
+    '<h4 style="margin:12px 0 4px">① La ligne des titres</h4><select id="mHdr"><option value="-1"' + (imp.hdrRow < 0 ? " selected" : "") + ">Pas de ligne de titres (les données commencent tout de suite)</option>" +
+    imp.all.slice(0, 15).map((x, k) => '<option value="' + k + '"' + (k === imp.hdrRow ? " selected" : "") + ">Ligne " + x.n + " : " + esc(x.cells.filter((c) => c.trim()).slice(0, 4).join(" | ").slice(0, 50)) + "</option>").join("") + "</select>" +
+    '<div style="overflow-x:auto;margin-top:8px"><table class="imptab"><tr><th></th>' + Array.from({ length: showCols }, (_, i) => "<th>" + colLetter(i) + "</th>").join("") + "</tr>" +
+    prev.map((x, k) => '<tr class="' + (k === 0 && imp.hdrRow >= 0 ? "h" : "") + '"><th>' + x.n + "</th>" + Array.from({ length: showCols }, (_, i) => "<td>" + cut(x.cells[i] || "") + "</td>").join("") + "</tr>").join("") + "</table></div>" +
+    '<p class="muted small">La ligne surlignée contient les titres. Les personnes sont lues à partir de la ligne suivante.</p>' +
+    '<h4 style="margin:12px 0 4px">② Les colonnes</h4>' +
     F.map(([k, l, o]) => '<label class="f">' + l + '</label><select data-map="' + k + '">' + opts(imp.map[k], o) + "</select>").join("") +
-    '<p class="muted small" style="margin-top:10px">Aperçu : ' + plural(countPeople(units), "personne") + " en " + plural(units.length, "groupe") + "<br>" + units.slice(0, 4).map((u) => "• " + esc(u.members.map((m) => m.n + (m.tr ? " (" + m.tr + ")" : "")).join(" + "))).join("<br>") + "</p>" +
+    '<h4 style="margin:14px 0 4px">③ Les personnes (<span id="mCnt"></span>)</h4><p class="muted small">Décochez celles à ne pas inclure. Les lignes « Total » et les titres répétés sont décochés d\'office.</p>' +
+    '<input id="mQ" placeholder="🔎 Chercher un nom" value="' + esc(imp.q) + '"><div class="row"><button class="btn ghost sm" id="mAll">Tout cocher</button><button class="btn ghost sm" id="mNone">Tout décocher</button></div>' +
+    '<div class="impl" id="mList">' + (entries.length ? entries.map((e) => '<label class="impr' + (e.junk ? " junk" : "") + '" data-txt="' + esc(e.mem.map((m) => m.n).join(" ").toLowerCase()) + '"><input type="checkbox" data-row="' + e.row + '"' + (on(e) ? " checked" : "") + '><span class="muted small">L' + e.row + '</span><span class="grow">' + esc(e.mem[0].n) + (e.mem.length > 1 ? ' <span class="muted">+ ' + esc(e.mem.slice(1).map((m) => m.n).join(" + ")) + "</span>" : "") + (e.tr ? ' <span class="chip">' + e.tr + "</span>" : "") + (e.gk ? ' <span class="muted small">groupe ' + esc(e.gk) + "</span>" : "") + "</span></label>").join("") : '<p class="muted">Aucune personne : vérifiez la ligne des titres et la colonne Nom.</p>') + "</div>" +
     '<div class="row end"><button class="btn ghost sm" id="mNo">Annuler</button><button class="btn" id="mOk">✓ Utiliser cette liste</button></div></div>';
-  $("#mHdr", box).onchange = (e) => { imp.hdr = e.target.checked; renderImpMap(v); };
+  const count = () => { const u = unitsFromImport(imp); const n = countPeople(u); $("#mCnt", box).textContent = n + " personne" + (n > 1 ? "s" : "") + " retenue" + (n > 1 ? "s" : "") + " sur " + entries.length + " ligne" + (entries.length > 1 ? "s" : ""); $("#mOk", box).textContent = "✓ Utiliser ces " + n + " personnes"; return u; };
+  const filt = () => { const q = imp.q.trim().toLowerCase(); $$(".impr", box).forEach((l) => (l.style.display = !q || l.dataset.txt.includes(q) ? "" : "none")); };
+  count(); filt();
+  if ($("#mSheet", box)) $("#mSheet", box).onchange = (e) => S.impPick(e.target.value);
+  $("#mHdr", box).onchange = (e) => { imp.hdrRow = Number(e.target.value); imp.map = guessMap(impHeader(imp)); imp.off = {}; renderImpMap(v); };
   $$("[data-map]", box).forEach((s) => (s.onchange = () => { imp.map[s.dataset.map] = s.value; renderImpMap(v); }));
+  $$("[data-row]", box).forEach((c) => (c.onchange = () => { imp.off[c.dataset.row] = !c.checked; count(); }));
+  $("#mQ", box).oninput = (e) => { imp.q = e.target.value; filt(); };
+  const setAll = (val) => { $$(".impr", box).forEach((l) => { if (l.style.display === "none") return; const c = l.querySelector("input"); c.checked = val; imp.off[c.dataset.row] = !val; }); count(); };
+  $("#mAll", box).onclick = () => setAll(true); $("#mNone", box).onclick = () => setAll(false);
   $("#mNo", box).onclick = () => { S.imp = null; box.innerHTML = ""; };
-  $("#mOk", box).onclick = () => { if (!units.length) return toast("Aucune personne trouvée : vérifiez la colonne Nom"); S.people = units; LS.set("bt_people", units); S.imp = null; tabEquipes(v); toast("✓ " + plural(countPeople(units), "personne") + " importées"); };
+  $("#mOk", box).onclick = () => { const units = unitsFromImport(imp); if (!units.length) return toast("Aucune personne retenue : vérifiez la colonne Nom"); S.people = units; LS.set("bt_people", units); S.imp = null; tabEquipes(v); toast("✓ " + plural(countPeople(units), "personne") + " importées"); };
+}
+// Retirer des personnes de la liste déjà importée
+function editPeople(v) {
+  const P = S.people || []; const keep = P.map(() => true);
+  openModal('<h3>✏️ La liste des invités</h3><p class="muted small">Décochez les personnes (ou couples) à retirer. Pour ajouter quelqu\'un : bouton « + ajouter » dans une équipe, ou réimportez la liste.</p><input id="eQ" placeholder="🔎 Chercher un nom"><div class="impl" style="max-height:55vh">' +
+    P.map((u, k) => '<label class="impr" data-txt="' + esc(u.members.map((m) => m.n).join(" ").toLowerCase()) + '"><input type="checkbox" data-k="' + k + '" checked><span class="grow">' + esc(u.members.map((m) => m.n).join(" + ")) + (u.tr ? ' <span class="chip">' + u.tr + "</span>" : "") + "</span></label>").join("") +
+    '</div><div class="row end"><button class="btn ghost" id="eNo">Annuler</button><button class="btn" id="eOk">✓ Enregistrer</button></div>', (b) => {
+    const cnt = () => { $("#eOk", b).textContent = "✓ Garder " + plural(P.filter((u, k) => keep[k]).reduce((a, u) => a + u.members.length, 0), "personne"); };
+    $$("[data-k]", b).forEach((c) => (c.onchange = () => { keep[Number(c.dataset.k)] = c.checked; cnt(); }));
+    $("#eQ", b).oninput = (e) => { const q = e.target.value.trim().toLowerCase(); $$(".impr", b).forEach((l) => (l.style.display = !q || l.dataset.txt.includes(q) ? "" : "none")); };
+    $("#eNo", b).onclick = closeModal;
+    $("#eOk", b).onclick = () => { S.people = P.filter((u, k) => keep[k]); LS.set("bt_people", S.people); closeModal(); tabEquipes(v); toast("✓ Liste mise à jour : " + plural(countPeople(S.people), "personne") + ". Refaites le tirage pour l'appliquer aux équipes.", 4000); };
+    cnt();
+  });
 }
 
 /* ---- Onglet Manches ---- */
