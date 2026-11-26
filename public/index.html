@@ -116,6 +116,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
   .sheet .rules,.sheet .rules li{text-align:left}.sheet .rules .pts{width:70%}.sheet .rules .pts td.n{color:#000}
   body.printing>*:not(#printRoot){display:none!important}
   body.printing #printRoot{display:block}
+  body.printing #printRoot{width:186mm}.sheet{width:186mm;box-sizing:border-box;margin:0 auto}
   .sheet{break-after:page;page-break-after:always;color:#000;font-family:Arial,sans-serif;text-align:center}
   .sheet:last-child{break-after:auto;page-break-after:auto}
   .sheet .ev{font-size:14pt;color:#555}.sheet .tn{font-size:40pt;font-weight:900;margin:4mm 0 0}.sheet .tname{font-size:24pt;font-weight:700;margin-bottom:6mm}
@@ -124,10 +125,15 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
   .sheet ul{list-style:none;padding:0;margin:0;font-size:14pt;columns:2}.sheet li{padding:1mm 0}
   .sheet table{width:100%;border-collapse:collapse;text-align:left;font-size:11pt}.sheet td,.sheet th{border:1px solid #999;padding:2mm}
   .sheet h2{margin:2mm 0}.sheet .left{text-align:left}
-  .pb{break-inside:avoid;page-break-inside:avoid;margin:0 0 4mm;text-align:left}
-  .pb .ph2{display:flex;justify-content:space-between;font-size:11pt;font-weight:700;border-bottom:2px solid #000;padding:1mm 0}
-  .sheet table.ans td{height:9mm;font-size:10pt}.sheet table.ans td.no{width:7mm;text-align:center;font-weight:700}.sheet table.ans td.ck{width:9mm}
-  .sheet table.ans th{font-size:9pt;background:#eee}
+  .pgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:3mm 5mm}.pgrid .pb{min-width:0}.sheet table{box-sizing:border-box}.pb .ph2 span:first-child{overflow:hidden;text-overflow:ellipsis}
+  .pb{break-inside:avoid;page-break-inside:avoid;margin:0;text-align:left}
+  .pb .ph2{display:flex;justify-content:space-between;font-size:9.5pt;font-weight:700;border-bottom:1.5px solid #000;padding:.5mm 0;white-space:nowrap;overflow:hidden}
+  .sheet table.ans{table-layout:fixed}.sheet table.ans td,.sheet table.ans th{padding:.6mm 1.2mm;overflow:hidden}
+  .sheet table.ans td{height:7.2mm;font-size:8.5pt}.sheet table.ans td.no{width:5mm;text-align:center;font-weight:700}.sheet table.ans td.ck,.sheet table.ans th.ck{width:9mm}.sheet table.ans th.no{width:5mm}
+  .sheet table.ans.key td{height:auto;padding:1mm 1.2mm}
+  .sheet table.ans th{font-size:8pt;background:#eee;text-align:left}
+  .sheet .tot td{height:6mm;font-size:8pt}
+  .sheet h2.c{margin:0 0 1mm;font-size:16pt}.sheet .ev.c{font-size:10pt}
   .sheet table.sc td{height:9mm;text-align:center}.sheet table.sc td:nth-child(2){text-align:left}
   .sheet .hint{font-size:9pt;color:#444;margin:1mm 0 3mm}
 }
@@ -396,6 +402,17 @@ function updTeam() {
     $$("#tForm .arow").forEach((r, i) => r.classList.toggle("cur", open && i === p.k));
     $$("#tForm input").forEach((i) => (i.disabled = !open));
     if (!open) { clearTimeout(S.saveT); $("#tSave").textContent = "🔒 Réponses verrouillées"; }
+  } else if (p.status === "setup" && p.teamNames) {
+    S.formM = null; S.formKey = null;
+    if (!$("#tNameIn")) {
+      $("#tForm").innerHTML = '<div class="card" style="margin:12px"><h3>✏️ Choisissez le nom de votre équipe</h3><p class="muted small">Mettez-vous d\'accord avec votre table ! Modifiable jusqu\'au début de la partie.</p><input id="tNameIn" maxlength="30" value="' + esc(d.team.name) + '"><button class="btn big" id="tNameOk" style="margin-top:10px">✓ Valider ce nom</button></div>';
+      $("#tSave").textContent = "";
+      $("#tNameOk").onclick = async () => {
+        const n = $("#tNameIn").value.trim();
+        try { await api("/team/name", { method: "POST", body: { name: n } }); toast("✓ Votre équipe s'appelle « " + n + " »"); $("#tNameIn").blur(); pollNow(); }
+        catch (e) { toast(e.message, 3500); }
+      };
+    }
   } else { $("#tForm").innerHTML = ""; S.formM = null; S.formKey = null; $("#tSave").textContent = ""; }
   const sig = JSON.stringify([p.status, p.manches.map((m) => m.state), d.me]);
   if (sig !== S.lastSig) { S.lastSig = sig; renderTeamRes(d); }
@@ -615,6 +632,13 @@ function updAnim() {
     if (!S.draft.manches.length) { S.draft.manches = defaultManches(); saveDraft(true); }
     S.lastSig = ""; renderTab(); return;
   }
+  // noms choisis par les équipes : on les reprend dans le brouillon (sauf enregistrement en cours)
+  if (!S.saving) {
+    let ch = false;
+    S.draft.teams.forEach((t) => { const sv = d.setup.teams.find((x) => x.id === t.id && x.code === t.code); if (sv && sv.name !== t.name) { t.name = sv.name; ch = true; } });
+    if (ch && S.tab === "equipes") { const ae = document.activeElement; if (!(ae && ae.classList.contains("tn"))) renderTab(); }
+    if (ch && S.tab === "distrib") renderTab();
+  }
   if (S.tab === "jeu" || S.tab === "scores") {
     const ae = document.activeElement;
     if (ae && $("#view").contains(ae) && ae.matches("input,textarea,select")) return;
@@ -626,12 +650,13 @@ function updAnim() {
 let sdT = null;
 function saveDraft(now) {
   chip("Enregistrement…");
-  clearTimeout(sdT);
+  clearTimeout(sdT); S.saving = true;
   sdT = setTimeout(async () => {
     try {
       await api("/setup", { method: "POST", body: { setup: S.draft, partial: isLocked() } });
-      chip("✓ Enregistré", "ok"); pollNow();
+      chip("✓ Enregistré", "ok");
     } catch (e) { chip("⚠️ " + e.message, "ko"); }
+    S.saving = false; pollNow();
   }, now ? 10 : 700);
 }
 function renderTab() {
@@ -1088,22 +1113,22 @@ function tabDistrib(v) {
   $('[data-big="sc"]', v).onclick = () => big("Écran géant", scUrl);
   $("#shAnim").onclick = () => { $("#animQr").innerHTML = '<div class="qrbox">' + qrSvg(base + "/?r=anim&c=" + encodeURIComponent(st.codes.anim)) + '</div><p class="center small">Code animateur : <b>' + esc(st.codes.anim) + "</b></p>"; };
   const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
-  on("pTeams", () => doPrint(st.teams.map((t) => '<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">ÉQUIPE ' + t.id + '</div><div class="tname">' + esc(t.name) + '</div><div class="q">' + qrSvg(teamUrl(t)) + '</div><div class="how">📱 Chef d\'équipe : scannez ce QR code avec l\'appareil photo de votre téléphone.</div><div class="code">Code de secours : <b>' + esc(t.code) + '</b></div><div class="left"><b>Membres de l\'équipe</b><ul>' + t.members.map((m) => "<li>• " + esc(m) + "</li>").join("") + "</ul></div></div>").join("")));
+  on("pTeams", () => doPrint(st.teams.map((t) => '<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">ÉQUIPE ' + t.id + '</div><div class="tname">' + (st.teamNames !== false ? "Nom de l\'équipe : à choisir sur votre téléphone 📱" : esc(t.name)) + '</div><div class="q">' + qrSvg(teamUrl(t)) + '</div><div class="how">📱 Chef d\'équipe : scannez ce QR code avec l\'appareil photo de votre téléphone.</div><div class="code">Code de secours : <b>' + esc(t.code) + '</b></div><div class="left"><b>Membres de l\'équipe</b><ul>' + t.members.map((m) => "<li>• " + esc(m) + "</li>").join("") + "</ul></div></div>").join("")));
   on("pList", () => doPrint('<div class="sheet left"><h2>' + esc(st.name) + " – Les équipes</h2><table><tr><th>N°</th><th>Équipe</th><th>Code</th><th>Membres</th></tr>" + st.teams.map((t) => "<tr><td>" + t.id + "</td><td><b>" + esc(t.name) + "</b></td><td>" + esc(t.code) + "</td><td>" + t.members.map(esc).join(", ") + "</td></tr>").join("") + "</table></div>"));
   on("pDj", () => doPrint('<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">DJ</div><div class="q" style="width:60mm">' + qrSvg(djUrl) + '</div><div class="code">Code DJ : <b>' + esc(st.codes.dj) + '</b></div></div><div class="sheet left"><h2>Playlist dans l\'ordre</h2><p>Extraits de ' + st.extractSec + " s, puis " + st.answerSec + " s de silence.</p>" + st.manches.map((m, i) => "<h3>Manche " + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "</h3><table>" + m.songs.map((s, j) => "<tr><td>" + (j + 1) + "</td><td><b>" + esc(s.t) + "</b></td><td>" + esc(s.a) + "</td><td>" + esc(s.h) + "</td></tr>").join("") + "</table>").join("") + "</div>"));
   on("cpDj", () => copyText(playlistText(st.manches)));
   const sc = st.scoring, both = sc.title + sc.artist;
   const ansSheet = (t) => {
     const who = t ? "Équipe " + t.id + " – " + esc(t.name) : "Équipe n° ____ : ______________________";
-    return '<div class="sheet left"><div class="ev center">' + esc(st.name) + '</div><h2 class="center">' + who + '</h2><p class="hint center">Écrivez le titre et l\'artiste de chaque morceau. Titre = ' + pts(sc.title) + ", artiste = " + pts(sc.artist) + ", les deux = " + pts(both) + ". Rendez la feuille à l'animateur à la fin de chaque manche.</p>" +
-      st.manches.map((m, i) => '<div class="pb"><div class="ph2"><span>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "</span><span>" + (t ? "Éq. " + t.id : "") + '</span></div><table class="ans"><tr><th></th><th>Titre</th><th>' + esc(m.label2 || "Artiste") + '</th><th>Pts</th></tr>' +
-        m.songs.map((_, j) => '<tr><td class="no">' + (j + 1) + '</td><td></td><td></td><td class="ck"></td></tr>').join("") + '<tr><td colspan="3" style="text-align:right;font-weight:700">Total manche ' + (i + 1) + '</td><td class="ck"></td></tr></table></div>').join("") + "</div>";
+    return '<div class="sheet left"><div class="ev c center">' + esc(st.name) + '</div><h2 class="c center">' + who + '</h2><p class="hint center">Écrivez le titre et l\'artiste de chaque morceau. Titre = ' + pts(sc.title) + ", artiste = " + pts(sc.artist) + ", les deux = " + pts(both) + ". Rendez la feuille à l'animateur à la fin de la partie.</p><div class=\"pgrid\">" +
+      st.manches.map((m, i) => '<div class="pb"><div class="ph2"><span>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "</span><span>" + (t ? "Éq. " + t.id : "") + '</span></div><table class="ans"><tr><th class="no"></th><th style="width:55%">Titre</th><th>' + esc(m.label2 === "Artiste" || !m.label2 ? "Artiste" : "Film / dessin animé") + '</th><th class="ck">Pts</th></tr>' +
+        m.songs.map((_, j) => '<tr><td class="no">' + (j + 1) + '</td><td></td><td></td><td class="ck"></td></tr>').join("") + '<tr class="tot"><td colspan="3" style="text-align:right;font-weight:700">Total manche ' + (i + 1) + '</td><td class="ck"></td></tr></table></div>').join("") + '</div><table class="ans" style="margin-top:3mm"><tr class="tot"><td style="text-align:right;font-weight:800;font-size:11pt">TOTAL DE L\'ÉQUIPE</td><td class="ck" style="width:20mm"></td></tr></table></div>';
   };
   on("pAns", () => doPrint(st.teams.map(ansSheet).join("")));
   on("pBlank", () => doPrint(ansSheet(null)));
-  on("pKey", () => doPrint('<div class="sheet left"><h2>Corrigé – ' + esc(st.name) + '</h2><p class="hint">Titre = ' + pts(sc.title) + ", artiste = " + pts(sc.artist) + ", les deux = " + pts(both) + ". Fautes de frappe tolérées.</p>" +
-    st.manches.map((m, i) => '<div class="pb"><div class="ph2"><span>Manche ' + (i + 1) + " – " + esc(m.title) + "</span><span>" + (m.mult > 1 ? "points ×" + m.mult + " → " + pts(both * m.mult) + " max/morceau" : pts(both) + " max/morceau") + '</span></div><table class="ans"><tr><th></th><th>Titre</th><th>' + esc(m.label2 || "Artiste") + "</th></tr>" +
-      m.songs.map((x, j) => '<tr><td class="no">' + (j + 1) + "</td><td><b>" + esc(x.t) + "</b></td><td>" + esc(x.a) + "</td></tr>").join("") + "</table></div>").join("") + "</div>"));
+  on("pKey", () => doPrint('<div class="sheet left"><h2>Corrigé – ' + esc(st.name) + '</h2><p class="hint">Titre = ' + pts(sc.title) + ", artiste = " + pts(sc.artist) + ", les deux = " + pts(both) + ". Fautes de frappe tolérées.</p><div class=\"pgrid\">" +
+    st.manches.map((m, i) => '<div class="pb"><div class="ph2"><span>Manche ' + (i + 1) + " – " + esc(m.title) + "</span><span>" + (m.mult > 1 ? "×" + m.mult + " · " + pts(both * m.mult) + "/morceau" : pts(both) + "/morceau") + '</span></div><table class="ans key"><tr><th class="no"></th><th style="width:55%">Titre</th><th>' + esc(m.label2 || "Artiste") + "</th></tr>" +
+      m.songs.map((x, j) => '<tr><td class="no">' + (j + 1) + "</td><td><b>" + esc(x.t) + "</b></td><td>" + esc(x.a) + "</td></tr>").join("") + "</table></div>").join("") + "</div></div>"));
   on("pScore", () => doPrint('<div class="sheet left"><h2>Tableau des scores – ' + esc(st.name) + '</h2><p class="hint">Reportez le total de chaque manche. Maximum possible : ' + pts(maxPoints(st)) + '.</p><table class="sc"><tr><th>N°</th><th>Équipe</th>' + st.manches.map((m, i) => "<th>M" + (i + 1) + (m.mult > 1 ? " ×" + m.mult : "") + "</th>").join("") + "<th>Total</th><th>Rang</th></tr>" +
     st.teams.map((t) => "<tr><td>" + t.id + "</td><td>" + esc(t.name) + "</td>" + st.manches.map(() => "<td></td>").join("") + "<td></td><td></td></tr>").join("") + "</table></div>"));
   on("pRules", () => doPrint('<div class="sheet left">' + rulesHtml(Object.assign({}, S.pub, { name: st.name, scoring: st.scoring, extractSec: st.extractSec, answerSec: st.answerSec, teams: st.teams, manches: st.manches.map((m) => ({ title: m.title, mult: m.mult || 1, n: m.songs.length, label2: m.label2 })) }), false) + "</div>"));
@@ -1121,6 +1146,7 @@ function tabReglages(v) {
     '<label class="f">Adresse de l\'appli (pour les QR codes)</label><input id="rBase" placeholder="' + esc(location.origin) + '" value="' + esc(st.baseUrl || "") + '"><p class="muted small">Laissez vide pour utiliser l\'adresse actuelle.</p></div>' +
     '<div class="card keep"><h3>Codes d\'accès</h3><div class="row"><span class="grow">Code animateur : <b>' + esc(st.codes.anim) + '</b></span><button class="btn ghost sm" id="rCA">Changer</button></div>' +
     '<div class="row"><span class="grow">Code DJ : <b>' + (st.codes.dj ? esc(st.codes.dj) : '<span style="color:var(--ko)">non défini</span>') + '</b></span><button class="btn ghost sm" id="rCD">' + (st.codes.dj ? "Changer" : "Définir") + "</button></div></div>" +
+    '<div class="card keep"><h3>Noms d\'équipe</h3><label class="row"><input type="checkbox" id="rTN" style="width:auto"' + (st.teamNames !== false ? " checked" : "") + '> Les chefs d\'équipe choisissent leur nom sur leur téléphone (avant le début de la partie)</label><p class="muted small">Sinon, les noms tirés au sort (modifiables dans Équipes) sont gardés.</p></div>' +
     '<div class="card keep"><h3>Barème et chrono</h3><div class="row"><label class="grow">Points pour le titre<input type="number" id="rPT" min="0" max="10" value="' + st.scoring.title + '"></label><label class="grow">Points pour l\'artiste<input type="number" id="rPA" min="0" max="10" value="' + st.scoring.artist + "\"></label></div>" +
     '<div class="row"><label class="grow">Durée de l\'extrait (s)<input type="number" id="rEx" min="5" max="90" value="' + st.extractSec + '"></label><label class="grow">Silence pour écrire (s)<input type="number" id="rAn" min="3" max="90" value="' + st.answerSec + '"></label></div>' +
     '<p class="muted small">Titre et artiste trouvés = ' + (st.scoring.title + st.scoring.artist) + " points ; un seul des deux = " + st.scoring.title + " ou " + st.scoring.artist + " point(s). Les manches « ×2 » doublent les points. Les fautes de frappe sont tolérées.</p></div>" +
@@ -1137,6 +1163,7 @@ function tabReglages(v) {
   num("rPA", (x) => (st.scoring.artist = Math.max(0, Math.min(10, x || 0))));
   num("rEx", (x) => (st.extractSec = Math.max(5, Math.min(90, x || 15))));
   num("rAn", (x) => (st.answerSec = Math.max(3, Math.min(90, x || 10))));
+  $("#rTN").onchange = (e) => { st.teamNames = e.target.checked; partialSave({ teamNames: st.teamNames }); };
   const setCode = async (kind) => {
     const c = await ask(kind === "anim" ? "Nouveau code animateur" : "Code du DJ", { numeric: true, type: "tel", help: "3 à 12 caractères (4 chiffres conseillés). Notez-le bien !" });
     if (c == null) return; if (c.length < 3) return toast("3 caractères minimum");

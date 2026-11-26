@@ -15,6 +15,7 @@ const defaultSetup = () => ({
   scoring: { title: 1, artist: 1 },
   extractSec: 15,
   answerSec: 10,
+  teamNames: true,
   teams: [],
   manches: [],
 });
@@ -122,6 +123,7 @@ export class Soiree extends DurableObject {
       answerSec: setup.answerSec,
       showRanking: !!game.showRanking,
       showRules: !!game.showRules,
+      teamNames: setup.teamNames !== false,
       scoring: setup.scoring,
       manches: setup.manches.map((m, i) => ({
         title: m.title,
@@ -179,6 +181,18 @@ export class Soiree extends DurableObject {
         answers: mine,
         me: rk || null,
       });
+    }
+
+    if (path === "/team/name" && method === "POST") {
+      if (who !== "team") return json({ error: "non autorisé" }, 401);
+      if (this.setup.teamNames === false) return json({ error: "l'animateur a fixé les noms d'équipe" }, 409);
+      if (this.game.status !== "setup") return json({ error: "la partie a commencé : nom verrouillé" }, 409);
+      const name = clip(body.name, 30).replace(/\s+/g, " ").trim();
+      if (name.length < 2) return json({ error: "nom trop court" }, 400);
+      if (this.setup.teams.some((x) => x.id !== teamId && x.name.toLowerCase() === name.toLowerCase())) return json({ error: "ce nom est déjà pris" }, 409);
+      this.setup.teams.find((x) => x.id === teamId).name = name;
+      await this.save("setup");
+      return json({ ok: true });
     }
 
     if (path === "/team/answers" && method === "PUT") {
@@ -245,6 +259,7 @@ export class Soiree extends DurableObject {
           artist: Math.max(0, Math.min(10, Number(s.scoring.artist) || 0)),
         };
       }
+      if (typeof s.teamNames === "boolean") this.setup.teamNames = s.teamNames;
       if (s.extractSec) this.setup.extractSec = Math.max(5, Math.min(90, Number(s.extractSec) || 15));
       if (s.answerSec) this.setup.answerSec = Math.max(3, Math.min(90, Number(s.answerSec) || 10));
       if (!partial || this.game.status !== "running") {
