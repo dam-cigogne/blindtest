@@ -1,0 +1,34 @@
+# Fabrique l'appli Android TV « Blind test – Écran » et la dépose sur le site (public/tv.apk).
+# Le compte-rendu de fabrication est enregistré dans build-log-tv.txt (à la racine du dépôt).
+name: Appli Android TV
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android-tv.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Fabriquer l'appli
+        run: |
+          set -o pipefail
+          bash android/build.sh 2>&1 | tee build-log-tv.txt
+      - name: Déposer l'appli sur le site
+        if: always()
+        run: |
+          echo "Fabrication du $(date -u '+%d/%m/%Y %H:%M') UTC – run ${GITHUB_RUN_NUMBER} – résultat : ${{ job.status }}" | cat - build-log-tv.txt > l.txt && mv l.txt build-log-tv.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-log-tv.txt
+          [ -f public/tv.apk ] && git add -f public/tv.apk
+          git commit -m "Appli Android TV : fabrication n°${GITHUB_RUN_NUMBER}" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main

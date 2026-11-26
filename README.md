@@ -62,3 +62,9 @@ Le serveur cherche un extrait de 30 s (API iTunes d'Apple, puis Deezer en secour
 - Adresse courte de l'écran géant : `/ecran` (mode essai : `/ecran-essai`, aussi `/tv`). Affichée avec un bouton « Copier » dans Réglages et Distribuer.
 - Onglet Jeu → « 🎬 Lancer la soirée » en 3 étapes pilotées depuis le téléphone : ① afficher toutes les équipes et leurs membres sur l'écran géant (taille ajustée automatiquement pour tout faire tenir), ② les règles, ③ c'est parti (direct).
 - QR codes sur l'écran géant (étape facultative « 📲 QR codes à l'écran ») : tous à la fois (taille ajustée) ou un par un avec ◀ ▶ et choix du numéro depuis le téléphone. Les codes des équipes ne sont envoyés à l'écran que pendant cet affichage. Pour jouer chacun pour soi : tirage avec 1 personne par équipe.
+
+## Appli Android TV (écran géant sans PC)
+- Code : `android/` (une activité WebView plein écran qui ouvre `/ecran`, icône + bannière TV). Fabriquée sans Gradle par `android/build.sh` (aapt2, javac, d8, zipalign, apksigner).
+- GitHub Actions (`.github/workflows/android-tv.yml`) fabrique l'appli à chaque changement dans `android/` et la dépose dans `public/tv.apk` → téléchargeable sur `/tv.apk`. Compte-rendu : `build-log-tv.txt`.
+- Clé de signature : `android/tv.keystore` (mot de passe « blindtest »), dédiée à cette appli installée à la main.
+- Télécommande : OK = recharger, OK ×5 ou Menu = vraie soirée / mode essai, Retour ×2 = quitter.
