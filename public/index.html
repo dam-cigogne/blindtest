@@ -97,7 +97,8 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .srow2 .tx{flex:1;min-width:0;cursor:pointer}.srow2 .tt{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow2 .ta{color:var(--pri2);font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.srow2 .th{color:var(--mu);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow2 .pl{width:44px;height:44px;border-radius:50%;background:var(--pri);color:#fff;border:0;font-size:17px;flex:none;padding:0}.srow2 .pl.on{background:var(--ok)}
-.srow2 .ed{width:38px;height:38px;border-radius:10px;background:none;border:1px solid var(--line);color:var(--tx);flex:none;padding:0;font-size:15px}
+.srow2.flash{animation:rowflash 1.2s ease}@keyframes rowflash{0%{background:rgba(46,204,143,.35)}100%{background:transparent}}
+.srow2 .ed{width:36px;height:38px;border-radius:10px;background:none;border:1px solid var(--line);color:var(--tx);flex:none;padding:0;font-size:15px}
 .srow{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
 .srow .sn{flex:0 0 22px;font-weight:800;color:var(--mu);padding-top:10px}.srow .sf{flex:1;display:grid;gap:6px}
 .srow .sf input{padding:8px 10px}.srow details summary{color:var(--mu);font-size:.85rem;cursor:pointer}
@@ -1807,7 +1808,7 @@ function songCard(s, j, m) {
     '<div class="cvw">' + (it && it.img ? '<img src="' + esc(it.img) + '" alt="">' : "🎵") + badge + "</div>" +
     '<div class="tx" data-a="edit"><div class="tt">' + (esc(s.t) || '<span class="muted">(titre à saisir)</span>') + '</div><div class="ta">' + (esc(s.a) || '<span class="muted">(' + esc((m.label2 || "artiste").toLowerCase()) + " à saisir)</span>") + "</div>" +
     '<div class="th">▶ ' + esc(s.h || "Refrain") + (nV ? " · " + nV + " variante" + (nV > 1 ? "s" : "") : "") + (s.pv ? " · extrait choisi" : "") + (s.o || s.d ? " · ✂️ " + (s.o || 0) + "–" + Math.min(30, (s.o || 0) + (s.d || S.draft.extractSec)) + " s" : "") + (playedSet().has(sKey(s)) ? " · 🔁 déjà joué" : "") + "</div></div>" +
-    '<button class="pl keep" data-a="play" aria-label="Écouter">▶</button><button class="ed keep" data-a="edit" aria-label="Modifier">✏️</button></div>';
+    '<button class="pl keep" data-a="play" aria-label="Écouter">▶</button><button class="ed" data-a="rnd" aria-label="Autre morceau au hasard">🎲</button><button class="ed keep" data-a="edit" aria-label="Modifier">✏️</button></div>';
 }
 // Pochettes et ✓/⚠️/✗ chargées petit à petit après l'affichage
 async function fillCovers(v) {
@@ -1879,10 +1880,31 @@ function bindTrim(b, s) {
   draw();
   return () => ({ o: a || 0, d: e - a !== base ? e - a : 0 });
 }
+// Garder la position de la page (sur iPhone, le clavier fait bouger la page)
+function keepScroll(y) { const back = () => window.scrollTo(0, y); back(); requestAnimationFrame(back); setTimeout(back, 120); setTimeout(back, 400); }
+// Met à jour une seule ligne de morceau, sans redessiner la page
+function refreshRow(v, i, j, flash) {
+  const m = S.draft.manches[i], r = $('.mcard[data-m="' + i + '"] .srow2[data-s="' + j + '"]', v);
+  if (!r || !m || !m.songs[j]) return tabManches(v);
+  r.outerHTML = songCard(m.songs[j], j, m);
+  const n = $('.mcard[data-m="' + i + '"] .srow2[data-s="' + j + '"]', v);
+  if (n && flash) n.classList.add("flash");
+  lockInputs(v); fillCovers(v);
+}
+// 🎲 Remplacer un morceau au hasard (même style ou même playlist Deezer)
+async function replaceSong(v, i, j) {
+  const m = S.draft.manches[i];
+  if (!hasSource(m)) return toast("Manche « libre » : choisissez d'abord un style (ou tapez le morceau avec ✏️)", 3500);
+  let got; try { got = await drawSongs(m, 1, usedKeys(-1)); } catch (e) { return toast(e.message, 3500); }
+  if (!got.length) return toast("Plus de morceau de rechange dans ce style");
+  pvStop(); m.songs[j] = got[0]; saveDraft();
+  refreshRow(v, i, j, true); toast("🎲 " + got[0].t + " – " + got[0].a);
+}
 // Fenêtre de modification d'un morceau
 function editSong(i, j, v, isNew) {
   const m = S.draft.manches[i], s = m.songs[j], ro = isLocked();
   const l2 = esc((m.label2 || "Artiste").toLowerCase());
+  const y0 = window.scrollY; S.manY = y0;
   openModal('<h3>' + (isNew ? "➕ Nouveau morceau" : "✏️ Morceau " + (j + 1)) + " – Manche " + (i + 1) + "</h3>" + (ro ? '<div class="lock">🔒 Partie en cours : lecture seule.</div>' : "") +
     '<label class="f">Titre</label><input id="esT" value="' + esc(s.t) + '" placeholder="Titre">' +
     '<label class="f">' + esc(m.label2 || "Artiste") + '</label><input id="esA" value="' + esc(s.a) + '" placeholder="' + esc(m.label2 || "Artiste") + '">' +
@@ -1891,10 +1913,11 @@ function editSong(i, j, v, isNew) {
     '<label class="f">Autres réponses acceptées pour « ' + l2 + ' » (séparées par ;)</label><input id="esAA" value="' + esc((s.aa || []).join("; ")) + '">' +
     trimHtml(s) +
     '<p class="small" style="margin-top:10px">' + (s.pv ? "🔊 Extrait choisi : <b>" + esc(s.pv.t) + "</b> – " + esc(s.pv.a) : '<span class="muted">🔊 Extrait : choix automatique</span>') + '</p><button class="btn ghost" id="esPv" style="width:100%">🔊 Écouter / choisir l\'extrait</button>' +
+    (ro || isNew ? "" : '<button class="btn ghost" id="esRnd" style="width:100%;margin-top:6px">🎲 Remplacer par un autre morceau au hasard</button>') +
     '<div class="row" style="justify-content:space-between;margin-top:14px">' + (ro ? "<span></span>" : '<button class="btn ko sm" id="esDel">🗑 Supprimer</button>') + '<div class="row" style="margin:0"><button class="btn ghost" id="esNo">' + (ro ? "Fermer" : "Annuler") + "</button>" + (ro ? "" : '<button class="btn" id="esOk">✓ Enregistrer</button>') + "</div></div>", (b) => {
     if (ro) $$("input", b).forEach((x) => (x.disabled = true));
     const trim = bindTrim(b, s);
-    const cancel = () => { pvStop(); closeModal(); if (isNew && !s.t && !s.a) { m.songs.splice(j, 1); saveDraft(true); tabManches(v); } };
+    const cancel = () => { pvStop(); closeModal(); if (isNew && !s.t && !s.a) { m.songs.splice(j, 1); saveDraft(true); tabManches(v); } keepScroll(y0); };
     $("#esNo", b).onclick = cancel;
     $("#modal").onclick = (e) => { if (e.target.id === "modal") cancel(); };
     const list = (x) => x.split(";").map((y) => y.trim()).filter(Boolean);
@@ -1904,15 +1927,16 @@ function editSong(i, j, v, isNew) {
       if (t !== s.t || a !== s.a) delete s.pv;
       Object.assign(s, { t, a, h: $("#esH", b).value.trim() || "Refrain", at: list($("#esAT", b).value), aa: list($("#esAA", b).value) });
       const tv = trim(); if (tv.o) s.o = tv.o; else delete s.o; if (tv.d) s.d = tv.d; else delete s.d;
-      pvStop(); closeModal(); saveDraft(true); tabManches(v); toast("✓ Morceau enregistré");
+      pvStop(); closeModal(); saveDraft(true); if (isNew) tabManches(v); else refreshRow(v, i, j, true); keepScroll(y0); toast("✓ Morceau enregistré");
     };
-    if ($("#esDel", b)) $("#esDel", b).onclick = async () => { pvStop(); closeModal(); if (await confirmBox("Supprimer « " + esc(s.t || "ce morceau") + " » de la manche ?", "Supprimer", true)) { m.songs.splice(j, 1); saveDraft(true); } tabManches(v); };
+    if ($("#esDel", b)) $("#esDel", b).onclick = async () => { pvStop(); closeModal(); if (await confirmBox("Supprimer « " + esc(s.t || "ce morceau") + " » de la manche ?", "Supprimer", true)) { m.songs.splice(j, 1); saveDraft(true); tabManches(v); } keepScroll(y0); };
     $("#esPv", b).onclick = () => {
       const t = $("#esT", b).value.trim(), a = $("#esA", b).value.trim();
       if (!t && !a) return toast("Tapez d'abord le titre et l'artiste");
       if (!ro && (t !== s.t || a !== s.a)) { s.t = t; s.a = a; delete s.pv; }
       pvPicker(s, ro ? null : (pv) => { if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); });
     };
+    if ($("#esRnd", b)) $("#esRnd", b).onclick = async () => { pvStop(); closeModal(); await replaceSong(v, i, j); keepScroll(y0); };
     if (isNew) setTimeout(() => $("#esT", b).focus(), 80);
   });
 }
@@ -2000,6 +2024,7 @@ function tabManches(v) {
     else if (a === "pv") { const s = m.songs[Number(b.closest(".srow").dataset.s)]; if (!s.t && !s.a) return toast("Tapez d'abord le titre et l'artiste"); pvPicker(s, isLocked() ? null : (pv) => { if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); }); return; }
     else if (a === "adds") { m.songs.push({ t: "", a: "", h: "Refrain", at: [], aa: [] }); tabManches(v); return editSong(i, m.songs.length - 1, v, true); }
     else if (a === "edit") { pvStop(); return editSong(i, Number(b.closest(".srow2").dataset.s), v); }
+    else if (a === "rnd") { const y = window.scrollY; await replaceSong(v, i, Number(b.closest(".srow2").dataset.s)); keepScroll(y); return; }
     else if (a === "play") {
       const r = b.closest(".srow2"), s = m.songs[Number(r.dataset.s)];
       if (!s.t && !s.a) return toast("Tapez d'abord le titre");
@@ -2025,7 +2050,7 @@ function tabManches(v) {
   };
   lockInputs(v);
   fillCovers(v);
-  if (keepY) window.scrollTo(0, keepY);
+  if (keepY) keepScroll(keepY);
 }
 
 /* ---- Onglet Distribuer ---- */
