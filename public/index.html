@@ -636,7 +636,9 @@ const PV = { cache: {}, audio: null, timers: [], fade: null, playing: false, url
 const audioOn = () => LS.get("bt_audio", true);
 const normT = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\(.*?\)|\[.*?\]|-.*$/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 function pvKey(s) { return s.pv ? s.pv.s + ":" + s.pv.id : "q:" + normT(s.t) + "|" + normT(s.a); }
-function pvCached(s) { const c = PV.cache[pvKey(s)]; return c && c.exp > Date.now() ? c : null; }
+// Les liens d'extraits Deezer expirent (~15 min) : on les considère périmés 2 min avant
+function urlFresh(u) { const m = /exp=(\d{9,11})/.exec(u || ""); return !m || Number(m[1]) * 1000 > Date.now() + 120000; }
+function pvCached(s) { const c = PV.cache[pvKey(s)]; return c && c.exp > Date.now() && (!c.it || urlFresh(c.it.url)) ? c : null; }
 async function pvResolve(s) {
   const c = pvCached(s); if (c) return c.it;
   const k = pvKey(s);
@@ -644,7 +646,7 @@ async function pvResolve(s) {
   const qs = s.pv ? "src=" + s.pv.s + "&id=" + encodeURIComponent(s.pv.id) : "q=" + encodeURIComponent(s.t + " " + s.a);
   const pending = fetch("/api/preview?" + qs).then((x) => x.json()).then((r) => {
     const it = (r.items && r.items[0]) || null;
-    PV.cache[k] = { it, exp: Date.now() + (it ? 15 * 60e3 : 60e3) }; return it;
+    PV.cache[k] = { it, exp: Date.now() + (it ? 8 * 60e3 : 60e3) }; return it;
   }).catch(() => { delete PV.cache[k]; return null; });
   PV.cache[k] = { pending, exp: 0 };
   return pending;
@@ -663,22 +665,46 @@ function pvBox(s, id) {
   pvResolve(s).then((it) => { const e = document.getElementById(id); if (e) { e.innerHTML = inner(it); pvBind(e, s); } if (it && !PV.playing) { const a = pvAudio(); if (a.src !== it.url) { a.src = it.url; a.load(); } } });
   return '<div id="' + id + '"><div class="pv"><div class="pt muted small">🔎 Recherche de l\'extrait…</div></div></div>';
 }
-function pvBind(root, s) { $$("[data-pvt]", root).forEach((b) => (b.onclick = () => { const c = pvCached(s); if (!c || !c.it) return; if (PV.playing && PV.url === c.it.url) pvStop(); else pvPlay(c.it, 0); })); }
+function pvBind(root, s) { $$("[data-pvt]", root).forEach((b) => (b.onclick = () => { if (PV.playing) return pvStop(); pvGo(s, 20, true); })); }
 function pvAudio() { if (!PV.audio) { PV.audio = new Audio(); PV.audio.preload = "auto"; PV.audio.onended = () => { PV.playing = false; pvUI(); }; } return PV.audio; }
 function pvStop() {
   PV.timers.forEach(clearTimeout); PV.timers = []; clearInterval(PV.fade);
   if (PV.audio) { PV.audio.pause(); PV.audio.volume = 1; }
   PV.playing = false; pvUI();
 }
-function pvPlay(it, sec) {
+// iPhone : le son doit être « déverrouillé » par un toucher. On le fait au premier toucher dans l'appli,
+// avec un son muet, sur le même lecteur : ensuite l'appli peut jouer les extraits sans être bloquée.
+const SILENT = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+function pvUnlock() {
+  if (PV.unlocked || PV.playing) return;
+  PV.unlocked = true;
+  const a = pvAudio(), keep = a.src && !a.src.startsWith("data:") ? a.src : "";
+  a.src = SILENT;
+  const pr = a.play();
+  const back = () => { if (a.src.startsWith("data:")) { a.pause(); if (keep) { a.src = keep; a.load(); } else a.removeAttribute("src"); } };
+  if (pr && pr.then) pr.then(back).catch(() => { PV.unlocked = false; back(); }); else back();
+}
+["touchend", "click"].forEach((ev) => document.addEventListener(ev, pvUnlock, true));
+function pvPlay(it, sec, retry) {
   pvStop();
   const a = pvAudio();
   if (a.src !== it.url) a.src = it.url;
   try { a.currentTime = 0; } catch (e) {}
   a.volume = 1;
   PV.playing = true; PV.url = it.url;
+  const t0 = Date.now();
+  const fail = (e) => {
+    if (!PV.playing || PV.url !== it.url) return;
+    PV.playing = false; pvUI();
+    const name = (e && e.name) || "erreur";
+    if (name === "NotAllowedError") { PV.unlocked = false; toast("Le téléphone a bloqué le son : touchez à nouveau le bouton vert. Vérifiez aussi le volume.", 4500); return; }
+    // lien périmé ou illisible : on va chercher un lien neuf, une seule fois
+    if (retry) { toast("Nouvel essai de l'extrait…", 1500); retry().then((it2) => { if (it2) pvPlay(it2, sec > 0 ? Math.max(3, sec - (Date.now() - t0) / 1000) : 0); else toast("Extrait illisible : utilisez « Autres sources (secours) »", 4000); }); }
+    else toast("Extrait illisible (" + name + ") : utilisez « Autres sources (secours) »", 4000);
+  };
+  a.onerror = () => fail({ name: "MediaError" });
   const pr = a.play();
-  if (pr && pr.catch) pr.catch(() => { PV.playing = false; pvUI(); toast("Le téléphone a bloqué le son : touchez à nouveau le bouton", 3500); });
+  if (pr && pr.catch) pr.catch(fail);
   if (sec > 0) {
     const ms = sec * 1000;
     PV.timers.push(setTimeout(() => { let v = 1; PV.fade = setInterval(() => { v -= 0.1; if (v <= 0.05) pvStop(); else a.volume = v; }, 150); }, Math.max(0, ms - 1500)));
@@ -692,12 +718,13 @@ function pvUI() {
   $$("[data-pp]").forEach((b) => (b.textContent = PV.playing && b.dataset.url === PV.url ? "⏹" : "▶"));
 }
 // Joue l'extrait du morceau en cours (appelé directement dans le clic, pour que le téléphone accepte le son)
-async function pvGo(s, sec) {
-  if (!audioOn()) return;
+async function pvGo(s, sec, force) {
+  if (!audioOn() && !force) return;
+  const retry = () => { delete PV.cache[pvKey(s)]; return pvResolve(s); };
   const c = pvCached(s);
-  if (c && c.it) return pvPlay(c.it, sec);
+  if (c && c.it) return pvPlay(c.it, sec, retry);
   const it = await pvResolve(s);
-  if (it) pvPlay(it, sec); else toast("Extrait introuvable pour ce morceau : lancez-le depuis Apple Music / YouTube", 4000);
+  if (it) pvPlay(it, sec, retry); else toast("Extrait introuvable pour ce morceau : lancez-le depuis Apple Music / YouTube", 4000);
 }
 function audioToggle(id) {
   return '<label class="row small" style="margin:6px 0"><input type="checkbox" id="' + id + '" style="width:auto"' + (audioOn() ? " checked" : "") + "><span style='flex:1'>🔊 L'appli joue la musique (extrait de 30 s, sur ce téléphone)</span></label>";
@@ -728,12 +755,25 @@ function pvPicker(s, onPick) {
     run();
   });
 }
+// Teste vraiment la lecture d'un extrait (chargement du début du fichier son)
+const PROBED = {};
+function pvProbe(url) {
+  if (PROBED[url] !== undefined) return Promise.resolve(PROBED[url]);
+  return new Promise((res) => {
+    const a = new Audio(); let done = false;
+    const fin = (ok) => { if (done) return; done = true; PROBED[url] = ok; a.removeAttribute("src"); try { a.load(); } catch (e) {} res(ok); };
+    a.preload = "metadata"; a.muted = true;
+    a.onloadedmetadata = () => fin(true); a.oncanplay = () => fin(true); a.onerror = () => fin(false);
+    setTimeout(() => fin(PROBED[url] === undefined ? null : PROBED[url]), 8000);
+    a.src = url; try { a.load(); } catch (e) {}
+  }).then((ok) => ok !== false);
+}
 // Vérifier tous les extraits d'un coup
 // Vérifier tous les extraits d'un coup (onReplace : tirer un autre morceau du même style)
 function pvCheckAll(manches, onChange, onReplace) {
   const close = () => { pvStop(); closeModal(); };
   const stat = {};
-  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">✓ = trouvé · ⚠️ = titre différent, écoutez · ✗ = introuvable. ▶ pour écouter, « Changer » pour choisir une autre version' + (onReplace ? ", « 🎲 Autre morceau » pour remplacer par un autre morceau du même style" : "") + '.</p><div id="caSum" class="row" style="align-items:center"></div><div id="caL">';
+  let h = '<h3>🔊 Vérifier les extraits</h3><p class="muted small">L\'appli cherche chaque morceau et teste vraiment sa lecture. ✓ = OK · ⚠️ = titre différent, écoutez · ✗ = introuvable ou illisible. ▶ pour écouter, « Changer » pour choisir une autre version' + (onReplace ? ", « 🎲 Autre morceau » pour remplacer par un autre morceau du même style" : "") + '.</p><div id="caSum" class="row" style="align-items:center"></div><div id="caL">';
   manches.forEach((m, i) => { h += '<p style="margin:10px 0 0"><b>Manche ' + (i + 1) + " – " + esc(m.title) + "</b></p>"; m.songs.forEach((s, j) => { h += '<div class="pvrow" id="ca' + i + "_" + j + '"></div>'; }); });
   h += '</div><div class="row end"><button class="btn ghost" id="caX">Fermer</button></div>';
   const summary = (busy) => {
@@ -747,11 +787,13 @@ function pvCheckAll(manches, onChange, onReplace) {
     const r = $("#ca" + i + "_" + j); if (!r) return "gone";
     const s = manches[i].songs[j];
     r.innerHTML = '<div class="pt">' + (j + 1) + ". " + esc(s.t) + ' – <span class="muted">' + esc(s.a) + '</span><br><span class="small muted">🔎 recherche…</span></div>';
-    const it = await pvResolve(s), m = pvMatch(s, it);
+    const it = await pvResolve(s);
+    let m = pvMatch(s, it), unplay = false;
+    if (it && m !== "bad" && !(await pvProbe(it.url))) { m = "bad"; unplay = true; }
     if (!$("#ca" + i + "_" + j)) return "gone";
     stat[i + "_" + j] = m;
     r.innerHTML = '<div class="pt">' + (j + 1) + ". " + esc(s.t) + ' – <span class="muted">' + esc(s.a) + '</span><br><span class="small ' + (m === "bad" ? "" : "muted") + '"' + (m === "bad" ? ' style="color:var(--ko)"' : "") + ">" +
-      (it ? (m === "ok" ? "✓ " : "⚠️ ") + esc(it.t) + " – " + esc(it.a) + " (" + SRC[it.s] + ")" : "✗ introuvable") + "</span></div>" +
+      (unplay ? "✗ trouvé mais illisible : " + esc(it.t) : it ? (m === "ok" ? "✓ " : "⚠️ ") + esc(it.t) + " – " + esc(it.a) + " (" + SRC[it.s] + ")" : "✗ introuvable") + "</span></div>" +
       (it ? '<button class="btn ghost sm" data-pp="1" data-url="' + esc(it.url) + '">▶</button>' : "") +
       (onChange ? '<button class="btn ghost sm" data-chg="1">Changer</button>' : "") +
       (onReplace && m !== "ok" ? '<button class="btn sm" data-rep="1">🎲 Autre morceau</button>' : "");

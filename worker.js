@@ -23,13 +23,35 @@ const defaultGame = () => ({ status: "setup", runId: 0, m: 0, k: 0, started: fal
 
 // ---- Extraits musicaux (30 s) : Apple (iTunes) puis Deezer en secours
 const UA = { "user-agent": "Mozilla/5.0 (blindtest amicale)" };
-async function getJson(u) {
-  const r = await fetch(u, { headers: UA, cf: { cacheTtl: 3600, cacheEverything: true } });
+async function getJson(u, ttl) {
+  const r = await fetch(u, { headers: UA, cf: ttl === 0 ? { cacheTtl: 0, cacheEverything: false } : { cacheTtl: ttl || 3600, cacheEverything: true } });
   if (!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
 }
-const itItem = (x) => x && x.previewUrl ? { s: "it", id: String(x.trackId), t: x.trackName, a: x.artistName, img: (x.artworkUrl100 || "").replace("100x100", "200x200"), url: x.previewUrl } : null;
-const dzItem = (x) => x && x.preview ? { s: "dz", id: String(x.id), t: x.title, a: (x.artist || {}).name || "", img: (x.album || {}).cover_medium || "", url: x.preview } : null;
+// L'adresse de lecture passe par notre serveur (/api/audio) : les liens Deezer expirent vite,
+// le serveur va chercher un lien neuf à chaque lecture.
+const audioPath = (s, id) => "/api/audio?s=" + s + "&id=" + id;
+const itItem = (x) => x && x.previewUrl ? { s: "it", id: String(x.trackId), t: x.trackName, a: x.artistName, img: (x.artworkUrl100 || "").replace("100x100", "200x200"), url: audioPath("it", x.trackId) } : null;
+const dzItem = (x) => x && x.preview ? { s: "dz", id: String(x.id), t: x.title, a: (x.artist || {}).name || "", img: (x.album || {}).cover_medium || "", url: audioPath("dz", x.id) } : null;
+async function audio(request, url) {
+  const s = url.searchParams.get("s"), id = (url.searchParams.get("id") || "").replace(/[^0-9]/g, "");
+  if (!id || (s !== "dz" && s !== "it")) return new Response("introuvable", { status: 404 });
+  let src = "";
+  try {
+    if (s === "dz") src = (await getJson("https://api.deezer.com/track/" + id, 0)).preview || "";
+    else src = (((await getJson("https://itunes.apple.com/lookup?country=FR&id=" + id)).results || [])[0] || {}).previewUrl || "";
+  } catch (e) { src = ""; }
+  if (!/^https?:\/\//.test(src)) return new Response("extrait indisponible", { status: 404 });
+  const h = { "user-agent": UA["user-agent"] }; const range = request.headers.get("range"); if (range) h.range = range;
+  const up = await fetch(src, { headers: h });
+  if (!up.ok && up.status !== 206) return new Response("extrait indisponible", { status: 502 });
+  const out = new Headers();
+  ["content-type", "content-length", "content-range", "accept-ranges"].forEach((k) => { const v = up.headers.get(k); if (v) out.set(k, v); });
+  if (!out.get("content-type")) out.set("content-type", "audio/mpeg");
+  if (!out.get("accept-ranges")) out.set("accept-ranges", "bytes");
+  out.set("cache-control", "private, max-age=600");
+  return new Response(up.body, { status: up.status, headers: out });
+}
 async function itSearch(q, n) {
   const j = await getJson("https://itunes.apple.com/search?country=FR&media=music&entity=song&limit=" + n + "&term=" + encodeURIComponent(q));
   return (j.results || []).map(itItem).filter(Boolean);
@@ -104,6 +126,7 @@ export default {
       return Response.redirect(url.origin + "/?r=screen" + (essai ? "&essai=1" : ""), 302);
     }
     if (url.pathname === "/api/preview") return preview(url);
+    if (url.pathname === "/api/audio") return audio(request, url);
     if (url.pathname === "/api/dzpl") return dzPlaylists(url);
     if (url.pathname.startsWith("/api/")) {
       // Mode essai : une partie séparée, la vraie soirée n'est jamais touchée
