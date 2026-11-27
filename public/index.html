@@ -70,6 +70,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .badge{display:inline-block;min-width:28px;padding:2px 8px;border-radius:8px;font-weight:700;font-size:.85rem;border:0;cursor:pointer}
 .badge.ok{background:var(--ok);color:#06281b}.badge.ko{background:var(--ko);color:#fff}.badge.doubt{background:var(--warn);color:#2b1a00}
 .ansgrid{width:100%;border-collapse:collapse;font-size:.88rem}.ansgrid td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.tsum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}.tsum span{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.92rem}.tsum b{color:var(--pri2);font-size:1.05rem}
 .imptab{border-collapse:collapse;font-size:12px;min-width:100%}.imptab td,.imptab th{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}.imptab th{color:var(--mu);font-weight:600}.imptab tr.h td{background:var(--pri);color:#fff;font-weight:700}
 .impl{max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--card)}
 .impr{display:flex;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:14px}.impr input{width:auto;flex:none}.impr .grow{flex:1;min-width:0}.impr.junk .grow{text-decoration:line-through;opacity:.6}
@@ -1613,13 +1614,14 @@ function tabEquipes(v) {
   const di = drawInfo(), teams = S.draft.teams, ppl = S.people;
   let h = lockBanner() + '<div class="card"><h3>1. La liste des invités</h3>' +
     '<div class="row"><label class="btn alt"><input type="file" id="fImp" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt" hidden>📂 Importer un fichier Excel</label><button class="btn ghost" id="bPaste">✍️ Coller ou taper une liste</button></div>' +
-    '<div id="impMap"></div><p class="muted" id="pplInfo">' + (ppl ? "✓ " + plural(countPeople(ppl), "personne") + " en " + plural(ppl.length, "groupe") + " (les couples restent ensemble)." : "Aucune liste importée pour l'instant.") + "</p>" + (ppl ? '<button class="btn ghost sm" id="bEdit">✏️ Voir / retirer des personnes</button>' : "") + "</div>";
+    '<div id="impMap"></div><p class="muted" id="pplInfo">' + (ppl ? "✓ " + plural(countPeople(ppl), "personne") + " en " + plural(ppl.length, "groupe") + " (les couples restent ensemble)." : "Aucune liste importée pour l'instant.") + "</p>" + (ppl ? '<button class="btn ghost sm" id="bEdit">✏️ Voir / retirer des personnes</button>' : "") + '<button class="btn ghost sm" id="bAddP">➕ Ajouter une personne</button>' + "</div>";
   h += '<div class="card"><h3>2. Tirage au sort</h3><div class="row"><label class="row" style="margin:0"><input type="radio" name="dm" value="s" style="width:auto"' + (di.ds.mode !== "n" ? " checked" : "") + '> Personnes par équipe</label><label class="row" style="margin:0"><input type="radio" name="dm" value="n" style="width:auto"' + (di.ds.mode === "n" ? " checked" : "") + "> Nombre d'équipes</label></div>" +
     '<input type="number" id="dVal" min="1" max="60" inputmode="numeric" value="' + esc(di.ds.val || 10) + '"><p class="muted" id="dInfo"></p>' +
     '<button class="btn big" id="bDraw"' + (ppl ? "" : " disabled") + ">🎲 " + (teams.length ? "Refaire le tirage au sort" : "Tirer les équipes au sort") + "</button>" +
     '<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:10px"><b>Sans liste ?</b><p class="muted small">Créez directement les équipes (ou un joueur par équipe pour jouer chacun pour soi). Chaque équipe a son QR code, et choisit son nom sur son téléphone.</p>' +
     '<div class="row"><input type="number" id="nTeams" min="1" max="60" inputmode="numeric" value="' + (teams.length || 8) + '" style="width:90px;flex:none"><span class="grow">équipes ou joueurs</span><button class="btn alt" id="bEmpty">➕ Créer</button></div></div></div>';
-  h += '<div class="card"><h3>3. Les équipes (' + teams.length + ")</h3>" + (teams.length ? '<p class="muted small">Touchez une personne pour la déplacer. Vous pouvez renommer les équipes.</p>' : '<p class="muted">Pas encore d\'équipes.</p>') +
+  const tot = teams.reduce((a, t) => a + t.members.length, 0), sz = teams.map((t) => t.members.length), lo = Math.min(...sz), hi = Math.max(...sz);
+  h += '<div class="card"><h3>3. Les équipes (' + teams.length + ")</h3>" + (teams.length && tot ? '<div class="tsum"><span><b>' + teams.length + "</b> équipe" + (teams.length > 1 ? "s" : "") + "</span><span><b>" + (lo === hi ? lo : lo + " à " + hi) + "</b> pers. par équipe</span><span><b>" + tot + "</b> inscrit" + (tot > 1 ? "s" : "") + " au total</span></div>" : "") + (teams.length ? '<p class="muted small">Touchez une personne pour la déplacer. Vous pouvez renommer les équipes.</p>' : '<p class="muted">Pas encore d\'équipes.</p>') +
     teams.map((t, ti) => '<div class="tcard"><div class="hd"><b>N°' + t.id + '</b><input class="tn" data-ti="' + ti + '" value="' + esc(t.name) + '" maxlength="40"><span class="chip">' + esc(t.code) + '</span></div><div class="mems">' +
       t.members.map((m, mi) => '<button class="mem" data-ti="' + ti + '" data-mi="' + mi + '">' + esc(m) + "</button>").join("") +
       '<button class="mem" data-add="' + ti + '" style="border-style:dashed">+ ajouter</button></div><div class="muted small" style="margin-top:6px">' + plural(t.members.length, "personne") + "</div></div>").join("") + "</div>";
@@ -1645,6 +1647,7 @@ function tabEquipes(v) {
     $("#pOk", b).onclick = () => { const u = parsePaste($("#pT", b).value); if (!u.length) return toast("Liste vide"); S.people = u; LS.set("bt_people", u); closeModal(); tabEquipes(v); };
   });
   if ($("#bEdit")) $("#bEdit").onclick = () => editPeople(v);
+  $("#bAddP").onclick = () => addPerson(v);
   $("#fImp").onchange = (e) => { const file = e.target.files[0]; if (file) readFile(file, v); e.target.value = ""; };
   $$(".tn", v).forEach((i) => (i.oninput = () => { S.draft.teams[Number(i.dataset.ti)].name = i.value; saveDraft(); }));
   $$("[data-mi]", v).forEach((b) => (b.onclick = () => moveMember(Number(b.dataset.ti), Number(b.dataset.mi), v)));
@@ -1730,6 +1733,34 @@ function renderImpMap(v) {
   $("#mAll", box).onclick = () => setAll(true); $("#mNone", box).onclick = () => setAll(false);
   $("#mNo", box).onclick = () => { S.imp = null; box.innerHTML = ""; };
   $("#mOk", box).onclick = () => { const units = unitsFromImport(imp); if (!units.length) return toast("Aucune personne retenue : vérifiez la colonne Nom"); S.people = units; LS.set("bt_people", units); S.imp = null; tabEquipes(v); toast("✓ " + plural(countPeople(units), "personne") + " importées"); };
+}
+// Ajouter une personne à la main (et, si les équipes sont faites, la placer directement dans une équipe)
+function addPerson(v) {
+  const teams = S.draft.teams || [];
+  const small = teams.length ? teams.reduce((a, t) => (t.members.length < a.members.length ? t : a), teams[0]) : null;
+  openModal('<h3>➕ Ajouter une personne</h3><label class="f">Nom et prénom</label><input id="apN" placeholder="ex. DUPONT Marie" maxlength="60">' +
+    '<label class="f">Conjoint / accompagnant (facultatif)</label><input id="apC" placeholder="ex. DUPONT Paul" maxlength="60">' +
+    '<label class="f">Tranche d\'âge (facultatif)</label><select id="apA"><option value="">—</option><option value="J">Jeune</option><option value="M">Moyen</option><option value="A">Ancien</option></select>' +
+    (teams.length ? '<label class="f">Équipe</label><select id="apT"><option value="auto">La plus petite équipe (N°' + small.id + " – " + esc(small.name) + ", " + small.members.length + " pers.)</option>" + teams.map((t) => '<option value="' + t.id + '">N°' + t.id + " – " + esc(t.name) + " (" + t.members.length + ")</option>").join("") + '<option value="">Aucune pour l\'instant (seulement dans la liste)</option></select>' : "") +
+    '<div class="row end"><button class="btn ghost" id="apNo">Annuler</button><button class="btn ghost" id="apMore">✓ Ajouter et une autre</button><button class="btn" id="apOk">✓ Ajouter</button></div>', (b) => {
+    const add = () => {
+      const n = $("#apN", b).value.trim().replace(/\s+/g, " "), c = $("#apC", b).value.trim().replace(/\s+/g, " "), tr = $("#apA", b).value;
+      if (n.length < 2) { toast("Tapez le nom de la personne"); return false; }
+      const mem = [{ n, tr }]; if (c) mem.push({ n: c, tr });
+      S.people = (S.people || []).concat([{ members: mem, tr }]); LS.set("bt_people", S.people);
+      let where = "";
+      if (teams.length && $("#apT", b).value !== "") {
+        const t = $("#apT", b).value === "auto" ? teams.reduce((a, x) => (x.members.length < a.members.length ? x : a), teams[0]) : teams.find((x) => String(x.id) === $("#apT", b).value);
+        if (t) { mem.forEach((m) => t.members.push(m.n)); saveDraft(true); where = " → équipe N°" + t.id; }
+      }
+      toast("✓ " + mem.map((m) => m.n).join(" + ") + " ajouté" + (mem.length > 1 ? "s" : "") + where, 3500);
+      return true;
+    };
+    $("#apNo", b).onclick = () => { closeModal(); tabEquipes(v); };
+    $("#apOk", b).onclick = () => { if (add()) { closeModal(); tabEquipes(v); } };
+    $("#apMore", b).onclick = () => { if (add()) { $("#apN", b).value = ""; $("#apC", b).value = ""; if ($("#apT", b)) { const sm = teams.reduce((a, t) => (t.members.length < a.members.length ? t : a), teams[0]); $("#apT", b).options[0].text = "La plus petite équipe (N°" + sm.id + " – " + sm.name + ", " + sm.members.length + " pers.)"; } $("#apN", b).focus(); } };
+    setTimeout(() => $("#apN", b).focus(), 80);
+  });
 }
 // Retirer des personnes de la liste déjà importée
 function editPeople(v) {
