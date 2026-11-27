@@ -509,7 +509,7 @@ async function pickRole(r) {
 /* ================= Équipe ================= */
 function buildTeam(app) {
   S.built = "team"; S.formM = null; S.formKey = null; S.lastSig = "";
-  app.innerHTML = '<div class="top"><div class="tt"><b id="tName">Mon équipe</b><small id="tMem"></small></div><button class="btn ghost sm" id="out">Quitter</button></div>' +
+  app.innerHTML = '<div class="top"><div class="tt"><b id="tName">Mon équipe</b><small id="tMem"></small></div><div class="row" style="margin:0;flex-wrap:nowrap"><button class="btn ghost sm upd">🔄</button><button class="btn ghost sm" id="out">Quitter</button></div></div>' +
     '<div class="wrap" style="padding:0"><div id="tBan" class="banner"><b>Connexion…</b></div><div id="tForm"></div><div id="tSave" class="muted small center"></div><div id="tRes"></div></div>';
   $("#out").onclick = async () => { if (await confirmBox("Quitter l'équipe sur ce téléphone ?", "Quitter")) logout(); };
   S.tick = tickTeam;
@@ -637,7 +637,7 @@ function renderDJ(app) {
   const sig = JSON.stringify([p.status, p.m, p.k, p.started, p.phaseStart, p.manches.map((m) => m.state), S.djTab, d.all]);
   if (S.built === "dj" && S.lastSig === sig && $("#djv")) return;
   S.built = "dj"; S.lastSig = sig;
-  let h = '<div class="top"><div class="tt"><b>🎧 DJ</b><small>' + esc(p.name) + '</small></div><button class="btn ghost sm" id="out">Quitter</button></div>' +
+  let h = '<div class="top"><div class="tt"><b>🎧 DJ</b><small>' + esc(p.name) + '</small></div><div class="row" style="margin:0;flex-wrap:nowrap"><button class="btn ghost sm upd">🔄</button><button class="btn ghost sm" id="out">Quitter</button></div></div>' +
     '<nav class="tabs" style="top:58px"><button data-dt="live" class="' + (S.djTab === "live" ? "on" : "") + '">🔴 En direct</button><button data-dt="pl" class="' + (S.djTab === "pl" ? "on" : "") + '">📋 Playlist complète</button></nav><div class="wrap" id="djv">';
   if (S.djTab === "pl") {
     h += '<div class="card"><p class="muted small">L\'appli joue elle-même un extrait de 30 s de chaque morceau (🎧 pour écouter). En secours, préparez aussi cette playlist (Apple Music, Spotify, YouTube…) dans cet ordre. Le jour J, l\'onglet « En direct » vous guide morceau par morceau.</p><button class="btn alt" id="cpPl">📋 Copier la playlist</button> <button class="btn ghost" id="cpChk">🔊 Vérifier les extraits</button></div>';
@@ -854,6 +854,23 @@ function pvProbe(url) {
     a.src = url; try { a.load(); } catch (e) {}
   }).then((ok) => ok !== false);
 }
+// Mémorise le résultat de « Vérifier les extraits » (invalide si les morceaux changent ensuite)
+function songsSig(manches) {
+  const str = (manches || []).map((m) => m.songs.map((x) => x.t + "|" + x.a + "|" + (x.pv ? x.pv.id : "")).join(",")).join(";");
+  let h = 5381; for (let k = 0; k < str.length; k++) h = ((h << 5) + h + str.charCodeAt(k)) | 0;
+  return String(h);
+}
+function saveCheck(manches, ok, w, b) {
+  const n = manches.reduce((a, m) => a + m.songs.length, 0);
+  if (ok + w + b < n) return;
+  LS.set("bt_chk", { sig: songsSig(manches), ok, w, b, n, at: Date.now() });
+}
+function checkState(st) {
+  const c = LS.get("bt_chk", null), n = (st.manches || []).reduce((a, m) => a + m.songs.length, 0);
+  if (!c) return { st: "no", n };
+  if (c.sig !== songsSig(st.manches)) return { st: "old", n, c };
+  return { st: c.b ? "bad" : c.w ? "warn" : "ok", n, c };
+}
 // Vérifier tous les extraits d'un coup
 // Vérifier tous les extraits d'un coup (onReplace : tirer un autre morceau du même style)
 function pvCheckAll(manches, onChange, onReplace, lockedMsg) {
@@ -865,6 +882,7 @@ function pvCheckAll(manches, onChange, onReplace, lockedMsg) {
   const summary = (busy) => {
     const S2 = $("#caSum"); if (!S2) return;
     const v = Object.values(stat), ok = v.filter((x) => x === "ok").length, w = v.filter((x) => x === "warn").length, b = v.filter((x) => x === "bad").length;
+    if (!busy) saveCheck(manches, ok, w, b);
     S2.innerHTML = '<b style="flex:1">' + ok + " ✓ · " + w + " ⚠️ · " + b + " ✗" + (busy ? " · recherche…" : b ? "" : " 👍") + "</b>" +
       (!busy && b && onReplace ? '<button class="btn sm" id="caAuto">🎲 Remplacer tous les ✗</button>' : "");
     const a = $("#caAuto"); if (a) a.onclick = autoAll;
@@ -1146,7 +1164,7 @@ const isLocked = () => !!(S.data && S.data.game && S.data.game.status === "runni
 
 function renderAnim(app) {
   S.built = "anim"; S.lastSig = "";
-  app.innerHTML = '<div class="top"><div class="tt"><b>' + (LS.get("bt_combo", false) ? "🎤🎧 Animateur + DJ" : "🎤 Animateur") + '</b><small id="aName"></small></div><div class="row" style="margin:0;flex-wrap:nowrap"><span id="saveChip" class="chip"></span><button class="btn ghost sm" id="aOut">🚪 Quitter</button></div></div>' +
+  app.innerHTML = '<div class="top"><div class="tt"><b>' + (LS.get("bt_combo", false) ? "🎤🎧 Animateur + DJ" : "🎤 Animateur") + '</b><small id="aName"></small></div><div class="row" style="margin:0;flex-wrap:nowrap"><span id="saveChip" class="chip"></span><button class="btn ghost sm upd" title="Mettre à jour l\'appli">🔄</button><button class="btn ghost sm" id="aOut">🚪 Quitter</button></div></div>' +
     '<nav class="tabs">' + TABS.map(([k, l]) => '<button data-tab="' + k + '" class="' + (S.tab === k ? "on" : "") + '">' + l + "</button>").join("") + '</nav><div class="wrap" id="view"><p class="muted pad center">Chargement…</p></div>';
   $$(".tabs button", app).forEach((b) => (b.onclick = () => {
     S.tab = b.dataset.tab; LS.set("bt_tab", S.tab);
@@ -1244,6 +1262,9 @@ function tabJeu(v) {
     h += '<div class="card"><h3>Avant de commencer</h3>' + durHtml(S.draft || st) + '<ul class="check">' +
       '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
       '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
+      (() => { const k = checkState(st); const cls = k.st === "ok" ? "ok" : "";
+        const txt = k.st === "ok" ? "Extraits vérifiés : " + k.c.ok + " / " + k.n + " OK" : k.st === "warn" ? "Extraits vérifiés : " + k.c.ok + " ✓ · " + k.c.w + " ⚠️ à écouter" : k.st === "bad" ? "Extraits vérifiés : " + k.c.b + " ✗ illisible(s) à remplacer" : k.st === "old" ? "Extraits à revérifier (morceaux modifiés depuis)" : "Extraits pas encore vérifiés (" + k.n + " morceaux)";
+        return '<li class="' + cls + '">' + (k.st === "ok" ? "✓" : k.st === "warn" ? "⚠️" : "✗") + " " + txt + (k.st !== "ok" ? ' <button class="btn alt sm" id="gChk" style="margin-left:6px">🔊 Vérifier maintenant</button>' : ' <button class="btn ghost sm" id="gChk" style="margin-left:6px">Revérifier</button>') + "</li>"; })() +
       (okT ? (() => { const r = p.teams.filter((t) => t.joined && t.named).length; return '<li class="' + (r === p.teams.length ? "ok" : "") + '">' + (r === p.teams.length ? "✓" : "⏳") + " Équipes prêtes sur leur téléphone : " + r + " / " + p.teams.length + "</li>"; })() : "") +
       (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") + "</ul></div>" +
       '<div class="card"><h3>🎬 Lancer la soirée</h3><p class="muted small">Tout se pilote d\'ici : l\'écran géant suit chaque étape.</p><div class="steps">' +
@@ -1260,7 +1281,8 @@ function tabJeu(v) {
     $("#gChain").onclick = () => chainGo("teams", 0);
     $("#gQr").onclick = () => goQr(st.teams.length <= 12 ? "all" : "one", 0);
     $("#gTeams").onclick = async () => { S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
-    $("#gStart").onclick = async () => { if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
+    $("#gChk").onclick = () => runCheck(v);
+    $("#gStart").onclick = async () => { if (!(await checkBeforeStart(v))) return; if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
     return;
   }
   if (g.status === "finished") {
@@ -1385,6 +1407,26 @@ function readyHtml(p) {
       return '<div class="rd ' + st + '"><span class="ic">' + (st === "ok" ? "✓" : st === "on" ? "📱" : "⏳") + '</span><span class="grow"><b>Équipe ' + t.id + (st === "ok" ? " prête" : st === "on" ? " connectée" : " en attente") + "</b>" + (nm ? " – " + nm : st === "on" ? ' <span class="muted small">(nom pas encore choisi)</span>' : st === "wait" ? ' <span class="muted small">(QR pas encore scanné)</span>' : "") + "</span></div>";
     }).join("") + "</div></div>";
 }
+// Lance la vérification des extraits depuis l'onglet Jeu (avec 🎲 / Changer possibles)
+function runCheck(v) {
+  pvCheckAll(S.draft.manches, (i, j, pv) => { const s = S.draft.manches[i].songs[j]; if (pv) s.pv = pv; else delete s.pv; saveDraft(true); },
+    async (i, j, quiet) => {
+      const m = S.draft.manches[i];
+      if (!hasSource(m)) { if (!quiet) toast("Manche « libre » : changez ce morceau dans l'onglet Manches", 3500); return false; }
+      let got; try { got = await drawSongs(m, 1, usedKeys(-1)); } catch (er) { toast(er.message, 3500); return false; }
+      if (!got.length) { if (!quiet) toast("Plus de morceau de rechange dans ce style", 3500); return false; }
+      m.songs[j] = got[0]; saveDraft(); return true;
+    });
+  const w = setInterval(() => { if (!$("#caL")) { clearInterval(w); S.lastSig = ""; renderTab(); } }, 500);
+}
+// Avant de démarrer : proposer de vérifier les extraits si ce n'est pas fait (on peut passer)
+async function checkBeforeStart(v) {
+  const k = checkState(S.draft || S.data.setup);
+  if (k.st === "ok" || !audioOn()) return true;
+  const msg = k.st === "warn" ? "Il reste des extraits ⚠️ à écouter." : k.st === "bad" ? "Des extraits sont illisibles ✗ : ils ne joueront pas pendant la partie." : k.st === "old" ? "Des morceaux ont changé depuis la dernière vérification." : "Les extraits n'ont pas été vérifiés.";
+  if (await confirmBox("🔊 " + msg + "<br><br>Vérifier maintenant évite un extrait muet en pleine manche (environ 1 minute).", "🔊 Vérifier les extraits")) { runCheck(v); return false; }
+  return confirmBox("Démarrer sans vérifier les extraits ?", "Démarrer quand même");
+}
 async function goQr(mode, i) { S.teamsMode = false; S.rulesMode = false; S.qrMode = true; await gameAct("showQr", { mode, i }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); }
 function tabQrShow(v) {
   const d = S.data, p = d.pub, st = d.setup, q = p.showQr, T = st.teams.length;
@@ -1447,6 +1489,7 @@ function tabRules(v) {
   if (go) go.onclick = async () => {
     const st = d.setup;
     if (!st.teams.length || !st.manches.length) return toast("Il faut d'abord des équipes et des manches");
+    if (!(await checkBeforeStart(v))) return;
     if (!(await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer"))) return;
     S.rulesMode = false;
     if (p.showRules) await gameAct("showRules", { show: false });
@@ -2249,6 +2292,8 @@ async function loadSaves(v) {
   } catch (e) { box.textContent = "Impossible de charger la liste : " + e.message; }
 }
 
+// 🔄 Mettre à jour : recharge la dernière version (on reste connecté au même rôle)
+document.addEventListener("click", (e) => { if (e.target.closest(".upd")) { toast("🔄 Mise à jour…", 1500); setTimeout(() => location.replace(location.pathname + "?maj=" + Date.now()), 150); } });
 /* ================= Démarrage ================= */
 if (ESSAI) {
   document.body.classList.add("essai");
