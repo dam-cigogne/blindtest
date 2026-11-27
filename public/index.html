@@ -71,6 +71,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .badge.ok{background:var(--ok);color:#06281b}.badge.ko{background:var(--ko);color:#fff}.badge.doubt{background:var(--warn);color:#2b1a00}
 .ansgrid{width:100%;border-collapse:collapse;font-size:.88rem}.ansgrid td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
 .dur{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--pri);border-radius:10px;padding:8px 12px;margin:8px 0}.dur .dt{font-size:1.05rem}.dur .dt b{color:var(--pri2);font-size:1.2rem}
+.card.tiec{border-color:#ffd23f;background:linear-gradient(90deg,rgba(255,210,63,.14),transparent)}.tbw{display:flex;flex-wrap:wrap;gap:8px}.tbw .btn{flex:1 1 45%}.tbp .btn{flex:1 1 0;min-width:0;white-space:nowrap;padding-left:8px;padding-right:8px}.tbp #tbStop{flex:0 0 52px}.tbchip{font-size:.75em;opacity:.8}
 .card.lockc{border-color:var(--ok);background:linear-gradient(90deg,rgba(46,204,143,.12),transparent)}
 .tsum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}.tsum span{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.92rem}.tsum b{color:var(--pri2);font-size:1.05rem}
 .imptab{border-collapse:collapse;font-size:12px;min-width:100%}.imptab td,.imptab th{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}.imptab th{color:var(--mu);font-weight:600}.imptab tr.h td{background:var(--pri);color:#fff;font-weight:700}
@@ -263,6 +264,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const plural = (n, s, p) => n + " " + (n > 1 ? (p || s + "s") : s);
 const ord = (n) => n + (n === 1 ? "er" : "e");
+const ordF = (n) => n + (n === 1 ? "re" : "e"); // féminin : 1re place
 
 const S = {
   sess: LS.get("bt_sess", null),
@@ -1124,11 +1126,15 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow]);
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
-  if (p.showQr && p.status === "setup") {
+  if (p.tbShow && p.status === "finished") {
+    h += '<div class="big">⚖️ Égalité !</div><div class="mid">Pour la ' + ord(p.tbShow.place) + ' place' + (p.tbShow.place === 1 ? " 🏆" : "") + '</div>' +
+      '<div class="tl" style="display:flex;justify-content:center;flex-wrap:wrap">' + p.tbShow.teams.map((n) => '<div style="min-width:22vw"><b>' + esc(n) + "</b></div>").join("") + "</div>" +
+      '<div class="mid muted" style="margin-top:3vh">🎵 Morceau de départage : la première équipe qui lève la main et donne <b>le titre ET l\'artiste</b> l\'emporte !</div>';
+  } else if (p.showQr && p.status === "setup") {
     h += qrScreenHtml(p);
   } else if (p.showTeams && p.status !== "finished") {
     h += teamsScreenHtml(p);
@@ -1314,6 +1320,8 @@ function tabJeu(v) {
   }
   if (g.status === "finished") {
     const R = d.ranking || [], T = R.length, rv = Math.min(T, g.reveal || 0), nx = R[T - rv - 1];
+    const ties = tieGroups(R);
+    h += tieCard(ties, g);
     h += '<div class="card center"><h3>🥁 La révélation finale</h3><p class="muted small">Chaque appui dévoile une place sur l\'écran géant, en partant de la dernière. À vous le suspense !</p>' +
       (rv < T ? '<button class="btn big rankbtn" id="gRev">🥁 Révéler la ' + (nx ? (nx.rank === 1 ? "1re place 🏆" : nx.rank + "e place") : "suite") + "</button>" +
         (nx ? '<p class="small" style="margin-top:6px">🤫 Entre nous : <b>' + esc(nx.name) + "</b> – " + plural(nx.total, "point") + "</p>" : "")
@@ -1325,9 +1333,15 @@ function tabJeu(v) {
       '<div class="card"><button class="btn ghost" id="gExp">⬇️ Exporter les résultats (CSV)</button> <button class="btn ghost" id="gRe">🔄 Rejouer (mêmes équipes et manches)</button></div>';
     v.innerHTML = h;
     $("#shRk").onchange = (e) => gameAct("showRanking", { show: e.target.checked });
-    if ($("#gRev")) $("#gRev").onclick = () => gameAct("reveal", { n: rv + 1 });
+    bindTie(v, ties, g);
+    if ($("#gRev")) $("#gRev").onclick = async () => {
+      const grp = nx && ties.find((t) => t.ids.includes(nx.id));
+      if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); window.scrollTo(0, 0); return; }
+      if (grp && !(await confirmBox("⚖️ " + grp.names.join(" et ") + " sont à égalité pour la " + ordF(grp.place) + " place. Révéler quand même (ex æquo) ?", "Révéler quand même"))) return;
+      gameAct("reveal", { n: rv + 1 });
+    };
     if ($("#gRevBack")) $("#gRevBack").onclick = () => gameAct("reveal", { n: rv - 1 });
-    if ($("#gRevAll")) $("#gRevAll").onclick = () => gameAct("reveal", { n: T });
+    if ($("#gRevAll")) $("#gRevAll").onclick = () => { if (ties.some((t) => t.place === 1)) return toast("⚖️ Égalité pour la 1re place : faites d'abord le départage", 4000); gameAct("reveal", { n: T }); };
     if ($("#gRev0")) $("#gRev0").onclick = () => gameAct("reveal", { n: 0 });
     $("#gExp").onclick = exportCsv;
     $("#gRe").onclick = async () => { if (await confirmBox("Remettre la partie à zéro ? Les réponses et scores seront effacés.", "Remettre à zéro", true)) { await api("/reset", { method: "POST", body: { mode: "game" } }); S.lastSig = ""; pollNow(); } };
@@ -1542,10 +1556,60 @@ function miniRank(r) {
   if (!r || !r.length) return '<p class="muted">Pas encore de points.</p>';
   return '<table class="rank"><tr><th>#</th><th>Équipe</th><th class="n">Points</th></tr>' + r.map((x) => "<tr><td>" + x.rank + "</td><td>" + esc(x.name) + '</td><td class="n"><b>' + x.total + "</b></td></tr>").join("") + "</table>";
 }
+// ⚖️ Égalités sur le podium (1re, 2e, 3e place) à départager
+function tieGroups(R) {
+  const by = {};
+  (R || []).forEach((x) => { if (x.rank <= 3 && !x.hidden) (by[x.rank] = by[x.rank] || []).push(x); });
+  return Object.keys(by).map(Number).filter((k) => by[k].length > 1).sort((a, b) => a - b)
+    .map((k) => ({ place: k, ids: by[k].map((x) => x.id), names: by[k].map((x) => x.name), pts: by[k][0].total }));
+}
+function tbPickSong() {
+  const st = S.data.setup, ex = new Set();
+  st.manches.forEach((m) => m.songs.forEach((x) => ex.add(sKey(x))));
+  if (S.tb && S.tb.song) ex.add(sKey(S.tb.song));
+  const pool = LIB.themes.filter((t) => (t.label2 || "Artiste") === "Artiste" && !/enfant|disney|dessin/i.test(t.title || "")).flatMap((t) => t.songs);
+  return pickFrom(pool.length ? pool : LIB.themes.flatMap((t) => t.songs), 1, ex)[0] || null;
+}
+function tieCard(ties, g) {
+  const done = (g.tb || []).length;
+  if (!ties.length) return done ? '<div class="card center"><p class="small">⚖️ Départage fait ✓ <button class="btn ghost sm" id="tbUndo">↺ Annuler le départage</button></p></div>' : "";
+  S.tb = S.tb || {};
+  const t = ties[0], on = g.tbShow && g.tbShow.place === t.place, song = S.tb.song;
+  return '<div class="card tiec"><h3>⚖️ Égalité ! Il faut départager</h3>' +
+    ties.map((x) => '<p class="small"><b>' + ordF(x.place) + " place</b> : " + x.names.map(esc).join(" · ") + " – " + plural(x.pts, "point") + " chacune</p>").join("") +
+    '<p class="small">On commence par la <b>' + ordF(t.place) + ' place</b>. <b>Morceau de départage</b> : vous lancez un extrait, la <b>première équipe qui lève la main</b> et donne <b>le titre ET l\'artiste</b> gagne. Mauvaise réponse = la main passe à l\'autre équipe. Personne ne trouve ? « 🎲 Autre morceau ».</p>' +
+    '<button class="btn big" id="tbAnn">' + (on ? "📺 Annonce affichée ✓ (masquer)" : "📺 ① Annoncer l\'égalité sur l\'écran géant") + "</button>" +
+    '<div class="row tbp" style="margin-top:8px;flex-wrap:nowrap"><button class="btn ok" id="tbPlay">' + (song ? "▶ Réécouter" : "🎵 ② Lancer un morceau de départage") + '</button>' + (song ? '<button class="btn ghost" id="tbNew">🎲 Autre morceau</button><button class="btn ghost" id="tbStop">⏹</button>' : "") + "</div>" +
+    (song ? '<p class="small">🤫 Réponse : <b>' + esc(song.t) + "</b> – " + esc(song.a) + "</p>" : "") +
+    '<p class="small" style="margin-top:8px"><b>③ Qui a trouvé en premier ?</b></p><div class="tbw">' +
+    t.ids.map((id, i) => '<button class="btn" data-tbw="' + id + '">🏅 ' + esc(t.names[i]) + "</button>").join("") + "</div>" +
+    (done ? '<p class="small"><button class="btn ghost sm" id="tbUndo">↺ Annuler le départage</button></p>' : "") + "</div>";
+}
+function bindTie(v, ties, g) {
+  const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
+  on("tbUndo", async () => { if (await confirmBox("Annuler tous les départages ? Les équipes redeviennent ex æquo.", "Annuler le départage", true)) gameAct("tbUndo"); });
+  if (!ties.length) return;
+  const t = ties[0];
+  on("tbAnn", () => gameAct("tbShow", { show: !(g.tbShow && g.tbShow.place === t.place), ids: t.ids, place: t.place }));
+  const play = (fresh) => {
+    if (fresh || !S.tb.song) S.tb.song = tbPickSong();
+    if (!S.tb.song) return toast("Plus de morceau disponible dans la bibliothèque");
+    pvUnlock(); pvGo(S.tb.song, 30, true); renderTab();
+  };
+  on("tbPlay", () => play(false));
+  on("tbNew", () => play(true));
+  on("tbStop", () => pvStop());
+  $$("[data-tbw]", v).forEach((b) => (b.onclick = async () => {
+    const id = Number(b.dataset.tbw), name = t.names[t.ids.indexOf(id)];
+    const left = t.ids.length - 1;
+    if (!(await confirmBox("🏅 <b>" + esc(name) + "</b> remporte le départage : " + ordF(t.place) + " place" + (left > 1 ? " (les " + left + " autres restent à départager pour la place suivante)" : "") + ".", "Valider"))) return;
+    pvStop(); S.tb.song = null; gameAct("tbWin", { id });
+  }));
+}
 function podiumHtml(r) {
   if (!r || !r.length) return "";
   const m = ["🥇", "🥈", "🥉"];
-  return '<div style="font-size:1.2rem;margin:10px 0">' + r.slice(0, 3).map((x, i) => m[i] + " <b>" + esc(x.name) + "</b> – " + plural(x.total, "pt")).join("<br>") + "</div>";
+  return '<div style="font-size:1.2rem;margin:10px 0">' + r.slice(0, 3).map((x, i) => m[i] + " <b>" + esc(x.name) + "</b> – " + plural(x.total, "pt") + (x.tb ? ' <span class="tbchip">⚖️ départagée</span>' : "")).join("<br>") + "</div>";
 }
 function maxPoints(st) { return st.manches.reduce((a, m) => a + m.songs.length * (st.scoring.title + st.scoring.artist) * (m.mult || 1), 0); }
 function rankTable(r, st) {

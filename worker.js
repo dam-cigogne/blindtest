@@ -230,12 +230,16 @@ export class Soiree extends DurableObject {
     rows.forEach((r) => {
       r.total += Number(this.adjust[r.id] || 0);
     });
-    rows.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+    // départage (fin de partie) : à égalité de points, les équipes désignées gagnantes passent devant, dans l'ordre choisi
+    const tb = (skip === undefined && Array.isArray(this.game.tb)) ? this.game.tb : [];
+    const ti = (r) => { const k = tb.indexOf(r.id); return k < 0 ? 1e6 : k; };
+    rows.sort((a, b) => b.total - a.total || ti(a) - ti(b) || a.name.localeCompare(b.name));
     let rank = 0;
-    let last = null;
     rows.forEach((r, i) => {
-      if (r.total !== last) { rank = i + 1; last = r.total; }
+      const p = rows[i - 1];
+      if (!p || r.total !== p.total || ti(p) < 1e6) rank = i + 1; // ex æquo seulement si personne n'a été départagé
       r.rank = rank;
+      if (ti(r) < 1e6 && ((p && p.total === r.total) || (rows[i + 1] && rows[i + 1].total === r.total))) r.tb = true;
     });
     return rows;
   }
@@ -297,6 +301,7 @@ export class Soiree extends DurableObject {
       // fin de partie : seules les places déjà révélées (en partant de la dernière) sont envoyées
       ranking: game.showRanking ? (game.status === "finished" ? this.revealed() : this.ranking()) : null,
       reveal: game.reveal || 0,
+      tbShow: game.tbShow ? { place: game.tbShow.place, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
       // classement d'avant la dernière manche publiée, pour l'animation de l'écran géant
       rankPrev: game.showRanking && game.status === "running" ? this.ranking(game.m) : null,
       rankAt: game.rankAt || 0,
@@ -492,7 +497,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now();
@@ -542,6 +547,18 @@ export class Soiree extends DurableObject {
         // révélation finale, une place à la fois (de la dernière à la première)
         g.reveal = Math.max(0, Math.min(this.setup.teams.length, Number(body.n) || 0));
         g.showRanking = true;
+      } else if (act === "tbShow") {
+        // écran géant : annonce du morceau de départage pour les équipes à égalité
+        const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter((id) => this.setup.teams.some((t) => t.id === id)) : [];
+        g.tbShow = body.show && ids.length > 1 ? { ids, place: Math.max(1, Number(body.place) || 1) } : null;
+        if (g.tbShow) { g.showTeams = false; g.showRules = false; g.showQr = null; }
+      } else if (act === "tbWin") {
+        const id = Number(body.id);
+        if (!this.setup.teams.some((t) => t.id === id)) return json({ error: "équipe inconnue" }, 400);
+        g.tb = (g.tb || []).filter((x) => x !== id).concat([id]);
+        g.tbShow = null;
+      } else if (act === "tbUndo") {
+        g.tb = []; g.tbShow = null;
       } else if (act === "showRanking") {
         g.showRanking = !!body.show;
         if (g.showRanking) { g.rankAt = Date.now(); g.showTeams = false; g.showRules = false; g.showQr = null; } // relance l'animation
