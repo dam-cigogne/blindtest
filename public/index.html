@@ -70,6 +70,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .badge{display:inline-block;min-width:28px;padding:2px 8px;border-radius:8px;font-weight:700;font-size:.85rem;border:0;cursor:pointer}
 .badge.ok{background:var(--ok);color:#06281b}.badge.ko{background:var(--ko);color:#fff}.badge.doubt{background:var(--warn);color:#2b1a00}
 .ansgrid{width:100%;border-collapse:collapse;font-size:.88rem}.ansgrid td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.dur{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--pri);border-radius:10px;padding:8px 12px;margin:8px 0}.dur .dt{font-size:1.05rem}.dur .dt b{color:var(--pri2);font-size:1.2rem}
 .tsum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}.tsum span{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.92rem}.tsum b{color:var(--pri2);font-size:1.05rem}
 .imptab{border-collapse:collapse;font-size:12px;min-width:100%}.imptab td,.imptab th{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}.imptab th{color:var(--mu);font-weight:600}.imptab tr.h td{background:var(--pri);color:#fff;font-weight:700}
 .impl{max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--card)}
@@ -1240,7 +1241,7 @@ function tabJeu(v) {
     const nS = st.manches.reduce((a, m) => a + m.songs.length, 0);
     const okT = st.teams.length > 0, okM = st.manches.length > 0 && nS > 0;
     if (ESSAI) h += '<div class="card" style="border-color:#ff9f1a"><h3>🧪 Mode essai</h3><p class="small">Créez en un clic de faux invités, le tirage des équipes et des manches au hasard. Ensuite : imprimez les feuilles (onglet 📲 Distribuer), scannez un QR code avec un autre téléphone, testez la musique, lancez une partie.</p><button class="btn big" id="gFake" style="background:#ff9f1a;color:#2b1a00">🎲 Remplir avec des données fictives</button></div>';
-    h += '<div class="card"><h3>Avant de commencer</h3><ul class="check">' +
+    h += '<div class="card"><h3>Avant de commencer</h3>' + durHtml(S.draft || st) + '<ul class="check">' +
       '<li class="' + (okT ? "ok" : "") + '">' + (okT ? "✓" : "✗") + " Équipes : " + st.teams.length + (okT ? "" : " (onglet Équipes)") + "</li>" +
       '<li class="' + (okM ? "ok" : "") + '">' + (okM ? "✓" : "✗") + " Manches : " + st.manches.length + " (" + nS + " morceaux)</li>" +
       (okT ? (() => { const r = p.teams.filter((t) => t.joined && t.named).length; return '<li class="' + (r === p.teams.length ? "ok" : "") + '">' + (r === p.teams.length ? "✓" : "⏳") + " Équipes prêtes sur leur téléphone : " + r + " / " + p.teams.length + "</li>"; })() : "") +
@@ -1911,6 +1912,18 @@ function bindTrim(b, s) {
   draw();
   return () => ({ o: a || 0, d: e - a !== base ? e - a : 0 });
 }
+// ⏱ Durée estimée de la partie : extraits + temps de réponse + enchaînements, corrections entre manches, lancement
+function estDuration(st) {
+  const ex = Number(st.extractSec) || 15, an = Number(st.answerSec) || 15, T = (st.teams || []).length, M = (st.manches || []).length;
+  let n = 0, sec = 0; (st.manches || []).forEach((m) => m.songs.forEach((x) => { n++; sec += (x.d || ex) + an + 12; }));
+  const play = Math.round(sec / 60), corr = M * 4, start = Math.round(3 + T * 0.5);
+  return { total: play + corr + start, play, corr, start, n, M, T };
+}
+function fmtMin(m) { m = Math.max(0, Math.round(m / 5) * 5); const h = Math.floor(m / 60), r = m % 60; return h ? h + " h" + (r ? " " + String(r).padStart(2, "0") : "") : r + " min"; }
+function durHtml(st) {
+  const d = estDuration(st); if (!d.n) return "";
+  return '<div class="dur"><div class="dt">⏱ Durée estimée : <b>≈ ' + fmtMin(d.total) + "</b></div><div class=\"muted small\">🎵 musique et réponses " + fmtMin(d.play) + " · ✍️ corrections et classements entre les " + d.M + " manches " + fmtMin(d.corr) + " · 👥 lancement (équipes, QR, règles) " + fmtMin(d.start) + "</div></div>";
+}
 // Garder la position de la page (sur iPhone, le clavier fait bouger la page)
 function keepScroll(y) { const back = () => window.scrollTo(0, y); back(); requestAnimationFrame(back); setTimeout(back, 120); setTimeout(back, 400); }
 // Met à jour une seule ligne de morceau, sans redessiner la page
@@ -1979,7 +1992,7 @@ function tabManches(v) {
   const thOpts = (m) => '<option value="">Libre (je tape mes morceaux)</option>' + LIB.themes.map((t) => '<option value="' + t.id + '"' + (t.id === m.theme ? " selected" : "") + ">" + esc(t.title) + " (" + t.songs.length + ")</option>").join("") +
     (isDz(m.theme) ? '<option value="' + esc(m.theme) + '" selected>🌐 Deezer : ' + esc(m.dz || "playlist") + "</option>" : "") + '<option value="__dz">🌐 Playlist Deezer (des milliers de morceaux)…</option>';
   let h = lockBanner() + '<div class="card"><b>' + plural(M.length, "manche") + " · " + plural(nS, "morceau", "morceaux") + "</b> · durée estimée ≈ " + dur + " min" +
-    '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button><button class="btn ghost sm keep" id="mChk">🔊 Vérifier les extraits</button></div>' +
+    durHtml(st) + '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button><button class="btn ghost sm keep" id="mChk">🔊 Vérifier les extraits</button></div>' +
     '<p class="muted small">Pour chaque manche : choisissez un style puis « 🎲 Tirer au sort », ou ajoutez vos morceaux. ▶ pour écouter, ✏️ (ou touchez le titre) pour modifier.</p></div>';
   M.forEach((m, i) => {
     h += '<div class="mcard" data-m="' + i + '"><div class="mh"><b>Manche ' + (i + 1) + '</b><div class="row" style="margin:0"><button class="btn ghost sm" data-a="up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="btn ghost sm" data-a="down"' + (i === M.length - 1 ? " disabled" : "") + '>↓</button><button class="btn ghost sm" data-a="delm">🗑</button></div></div>' +
@@ -2135,7 +2148,7 @@ function tabDistrib(v) {
 function tabReglages(v) {
   const st = S.draft;
   v.innerHTML = '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
-    (st.loadedFrom ? '<p>Partie actuelle : <b>' + esc(st.loadedFrom.name) + '</b></p>' : '') +
+    (st.loadedFrom ? '<p>Partie actuelle : <b>' + esc(st.loadedFrom.name) + '</b></p>' : '') + durHtml(S.draft || st) +
     '<div class="row"><input id="svName" class="grow" style="flex:1" maxlength="60" placeholder="Nom de la partie (ex. Soirée amicale 2026)" value="' + esc(st.loadedFrom ? st.loadedFrom.name : st.name) + '"></div>' +
     '<div class="row">' + (st.loadedFrom ? '<button class="btn ok" id="svUpd">💾 Mettre à jour « ' + esc(st.loadedFrom.name) + ' »</button>' : '') + '<button class="btn ' + (st.loadedFrom ? 'ghost' : 'ok') + '" id="svNew">➕ Enregistrer comme nouvelle partie</button></div>' +
     '<div id="svList" class="muted small">Chargement…</div></div>' +
@@ -2222,7 +2235,7 @@ async function loadSaves(v) {
     const r = await api("/saves");
     if (!r.saves.length) { box.innerHTML = "Aucune partie enregistrée pour l'instant."; return; }
     const d = (t) => new Date(t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    box.innerHTML = r.saves.map((x) => '<div class="tcard"><b>' + esc(x.name) + (r.current && r.current.id === x.id ? ' <span class="chip ok">chargée</span>' : '') + '</b><div class="muted small">' + plural(x.teams, "équipe") + " · " + plural(x.manches, "manche") + " · " + plural(x.songs, "morceau", "morceaux") + " · enregistrée le " + d(x.savedAt) + '</div><div class="row"><button class="btn alt sm" data-ld="' + x.id + '">📂 Charger</button><button class="btn ghost sm" data-dl="' + x.id + '">🗑 Supprimer</button></div></div>').join("");
+    box.innerHTML = r.saves.map((x) => '<div class="tcard"><b>' + esc(x.name) + (r.current && r.current.id === x.id ? ' <span class="chip ok">chargée</span>' : '') + '</b><div class="muted small">' + plural(x.teams, "équipe") + " · " + plural(x.manches, "manche") + " · " + plural(x.songs, "morceau", "morceaux") + (x.min ? " · ⏱ ≈ " + fmtMin(x.min) : "") + " · enregistrée le " + d(x.savedAt) + '</div><div class="row"><button class="btn alt sm" data-ld="' + x.id + '">📂 Charger</button><button class="btn ghost sm" data-dl="' + x.id + '">🗑 Supprimer</button></div></div>').join("");
     $$("[data-ld]", box).forEach((b) => (b.onclick = async () => {
       const x = r.saves.find((y) => y.id === b.dataset.ld);
       if (!(await confirmBox("Charger « " + esc(x.name) + " » ? Les équipes et manches actuelles seront remplacées (pensez à enregistrer avant si besoin). Les scores sont remis à zéro.", "Charger"))) return;

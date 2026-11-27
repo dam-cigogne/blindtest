@@ -140,6 +140,13 @@ async function dzPlaylists(url) {
   } catch (e) { return json({ ok: false, items: [], error: "Deezer ne répond pas" }); }
 }
 
+// Durée estimée d'une partie, en minutes (même calcul que dans l'appli : estDuration)
+function estMinutes(st) {
+  const ex = Number(st.extractSec) || 15, an = Number(st.answerSec) || 15, T = (st.teams || []).length;
+  let songs = 0; (st.manches || []).forEach((m) => m.songs.forEach((x) => (songs += (x.d || ex) + an + 12)));
+  return Math.round(songs / 60 + (st.manches || []).length * 4 + 3 + T * 0.5);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -563,6 +570,10 @@ export class Soiree extends DurableObject {
     if (path === "/saves" && method === "GET") {
       if (who !== "anim") return json({ error: "non autorisé" }, 401);
       const idx = (await this.ctx.storage.get("savesIndex")) || [];
+      // anciennes sauvegardes : on calcule leur durée une fois
+      let changed = false;
+      for (const x of idx) if (x.min == null) { const sv = await this.ctx.storage.get("save:" + x.id); if (sv) { x.min = estMinutes(sv); changed = true; } }
+      if (changed) await this.ctx.storage.put("savesIndex", idx);
       return json({ saves: idx, current: this.setup.loadedFrom || null });
     }
     if (path === "/saves" && method === "POST") {
@@ -578,7 +589,7 @@ export class Soiree extends DurableObject {
       const snap = JSON.parse(JSON.stringify(rest));
       delete snap.loadedFrom;
       await this.ctx.storage.put("save:" + id, snap);
-      const info = { id, name, savedAt: Date.now(), teams: this.setup.teams.length, manches: this.setup.manches.length, songs: this.setup.manches.reduce((a, m) => a + m.songs.length, 0) };
+      const info = { id, name, savedAt: Date.now(), teams: this.setup.teams.length, manches: this.setup.manches.length, songs: this.setup.manches.reduce((a, m) => a + m.songs.length, 0), min: estMinutes(this.setup) };
       const i = idx.findIndex((x) => x.id === id);
       if (i >= 0) idx[i] = info; else idx.unshift(info);
       await this.ctx.storage.put("savesIndex", idx);
