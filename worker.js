@@ -443,6 +443,10 @@ export class Soiree extends DurableObject {
       if (s.extractSec) this.setup.extractSec = Math.max(5, Math.min(90, Number(s.extractSec) || 15));
       if (s.answerSec) this.setup.answerSec = Math.max(3, Math.min(90, Number(s.answerSec) || 10));
       if (!partial || this.game.status !== "running") {
+        if (typeof s.teamsLocked === "boolean") this.setup.teamsLocked = s.teamsLocked;
+        // équipes verrouillées : on refuse tout changement de numéros / codes (QR codes déjà imprimés)
+        const sameCodes = (a, b) => a.length === b.length && a.every((t, i) => String(t.code).toUpperCase() === String((b[i] || {}).code || "").toUpperCase());
+        if (Array.isArray(s.teams) && this.setup.teamsLocked && s.teamsLocked !== false && !sameCodes(s.teams, this.setup.teams)) return json({ error: "Équipes verrouillées : déverrouillez-les d'abord (onglet Équipes)" }, 409);
         if (Array.isArray(s.teams)) {
           this.setup.teams = s.teams.slice(0, 60).map((t, i) => ({
             id: Number(t.id) || i + 1,

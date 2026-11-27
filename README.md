@@ -68,3 +68,8 @@ Le serveur cherche un extrait de 30 s (API iTunes d'Apple, puis Deezer en secour
 - GitHub Actions (`.github/workflows/android-tv.yml`) fabrique l'appli à chaque changement dans `android/` et la dépose dans `public/tv.apk` → téléchargeable sur `/tv.apk`. Compte-rendu : `build-log-tv.txt`.
 - Clé de signature : `android/tv.keystore` (mot de passe « blindtest »), dédiée à cette appli installée à la main.
 - Télécommande : OK = recharger, OK ×5 ou Menu = vraie soirée / mode essai, Retour ×2 = quitter.
+
+## Impressions en PDF et verrou des équipes
+- `public/pdf.js` : mini-générateur PDF (A4, Helvetica, QR codes vectoriels) – sur iPhone, l'appli installée ne peut pas utiliser « Imprimer », le PDF passe par le menu de partage (Imprimer / Enregistrer dans Fichiers).
+- Onglet Distribuer : chaque document en PDF + « 📦 Tout en un PDF » (choix des documents).
+- 🔒 Verrou des équipes (onglet Équipes, proposé après l'impression des feuilles) : tirage, création et déplacements bloqués ; le serveur refuse aussi tout changement de codes d'équipe tant que le verrou est actif.

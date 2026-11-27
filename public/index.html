@@ -71,6 +71,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .badge.ok{background:var(--ok);color:#06281b}.badge.ko{background:var(--ko);color:#fff}.badge.doubt{background:var(--warn);color:#2b1a00}
 .ansgrid{width:100%;border-collapse:collapse;font-size:.88rem}.ansgrid td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
 .dur{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--pri);border-radius:10px;padding:8px 12px;margin:8px 0}.dur .dt{font-size:1.05rem}.dur .dt b{color:var(--pri2);font-size:1.2rem}
+.card.lockc{border-color:var(--ok);background:linear-gradient(90deg,rgba(46,204,143,.12),transparent)}
 .tsum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}.tsum span{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.92rem}.tsum b{color:var(--pri2);font-size:1.05rem}
 .imptab{border-collapse:collapse;font-size:12px;min-width:100%}.imptab td,.imptab th{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}.imptab th{color:var(--mu);font-weight:600}.imptab tr.h td{background:var(--pri);color:#fff;font-weight:700}
 .impl{max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--card)}
@@ -233,6 +234,7 @@ body.essai .top{padding-top:10px}
 <div id="printRoot"></div>
 <script src="library.js"></script>
 <script src="qrcode.js"></script>
+<script src="pdf.js"></script>
 <script src="xlsx.mini.min.js" defer></script>
 <script>
 "use strict";
@@ -430,6 +432,31 @@ function qrSvg(text) {
 function baseUrl() { return ((S.draft && S.draft.baseUrl) || location.origin).replace(/\/+$/, ""); }
 function screenUrl() { return baseUrl() + (ESSAI ? "/ecran-essai" : "/ecran"); }
 function teamUrl(t) { return baseUrl() + "/?t=" + t.id + "&c=" + encodeURIComponent(t.code) + ESSAI_Q; }
+// ---- PDF : fichier à imprimer / enregistrer / partager (marche aussi dans l'appli installée sur iPhone) ----
+function pdfCtx(st, djUrl) {
+  const p = Object.assign({}, S.pub || {}, { name: st.name, scoring: st.scoring, extractSec: st.extractSec, answerSec: st.answerSec, teams: st.teams, manches: st.manches.map((m) => ({ title: m.title, mult: m.mult || 1, n: m.songs.length, label2: m.label2 })) });
+  const box = document.createElement("div"); box.innerHTML = rulesHtml(p, false);
+  const items = $$("ol > li", box).map((li) => { $$("table", li).forEach((tb) => { const txt = $$("tr", tb).map((tr) => "\n   • " + $$("td", tr).map((x) => x.textContent.trim()).join(" : ")).join("") + "\n"; tb.replaceWith(document.createTextNode(txt)); }); $$("br", li).forEach((b) => b.replaceWith(document.createTextNode("\n"))); return li.textContent.replace(/[ \t]+/g, " ").replace(/\n\s*/g, "\n").trim(); });
+  const title = (($("h3", box) || {}).textContent || "Les règles du jeu").trim(), end = (($("p", box) || {}).textContent || "").trim();
+  return { st, teamUrl, djUrl: djUrl || null, addr: baseUrl().replace(/^https?:\/\//, ""), max: maxPoints(st), rules: { title, items, end } };
+}
+async function makePdf(kinds, name, djUrl) {
+  if (!window.BTPDF) return toast("Module PDF non chargé : rechargez l'appli (🔄)");
+  const st = S.draft; let out;
+  try { out = BTPDF.make(kinds, pdfCtx(st, djUrl)); } catch (e) { console.error(e); return toast("Erreur pendant la création du PDF"); }
+  const fname = (st.name || "Blind test").replace(/[^\w\u00C0-\u017F -]+/g, "").trim().replace(/\s+/g, "-") + "-" + name + ".pdf";
+  const blob = new Blob([out.bytes], { type: "application/pdf" });
+  const file = new File([blob], fname, { type: "application/pdf" });
+  S.lastPdf = { blob, fname, pages: out.pages };
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: fname }); return true; } catch (e) { if (e && e.name === "AbortError") return true; }
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast("📄 PDF prêt : " + out.pages + " page" + (out.pages > 1 ? "s" : ""), 3000);
+  return true;
+}
 function doPrint(html) {
   const root = $("#printRoot"); root.innerHTML = html;
   document.body.classList.add("printing");
@@ -1669,7 +1696,15 @@ function tabEquipes(v) {
     teams.map((t, ti) => '<div class="tcard"><div class="hd"><b>N°' + t.id + '</b><input class="tn" data-ti="' + ti + '" value="' + esc(t.name) + '" maxlength="40"><span class="chip">' + esc(t.code) + '</span></div><div class="mems">' +
       t.members.map((m, mi) => '<button class="mem" data-ti="' + ti + '" data-mi="' + mi + '">' + esc(m) + "</button>").join("") +
       '<button class="mem" data-add="' + ti + '" style="border-style:dashed">+ ajouter</button></div><div class="muted small" style="margin-top:6px">' + plural(t.members.length, "personne") + "</div></div>").join("") + "</div>";
+  const locked = !!S.draft.teamsLocked && teams.length > 0;
+  h = (teams.length ? '<div class="card ' + (locked ? "lockc" : "") + '"><div class="row" style="align-items:center;margin:0"><span class="grow" style="flex:1">' + (locked ? "🔒 <b>Équipes verrouillées</b><br><span class=\"muted small\">Tirage, création et déplacements bloqués : les QR codes imprimés restent justes. Vous pouvez encore ajouter une personne.</span>" : "🔓 Équipes modifiables<br><span class=\"muted small\">Verrouillez-les une fois les feuilles imprimées.</span>") + '</span><button class="btn ' + (locked ? "ghost" : "ok") + ' sm keep" id="bLock">' + (locked ? "🔓 Déverrouiller" : "🔒 Verrouiller") + "</button></div></div>" : "") + h;
   v.innerHTML = h;
+  if ($("#bLock")) $("#bLock").onclick = () => lockTeams(!locked);
+  if (locked) {
+    ["bDraw", "bEmpty", "dVal", "nTeams"].forEach((id) => { const e = $("#" + id); if (e) e.disabled = true; });
+    $$(".tcard .mem:not([data-add]), .tcard .tn", v).forEach((e) => (e.disabled = true));
+    $$('[name="dm"]', v).forEach((e) => (e.disabled = true));
+  }
   const upd = () => { const x = drawInfo(); $("#dInfo").textContent = x.N ? x.N + " personnes → " + x.T + " équipes de " + (x.lo === x.hi ? x.lo : x.lo + " à " + x.hi) + " personnes" + (S.people.some((u) => u.members.length > x.lo) ? " (environ, les couples restent ensemble)" : "") : "Importez d'abord la liste."; };
   upd();
   $$('[name="dm"]', v).forEach((r) => (r.onchange = () => { const ds = drawInfo().ds; ds.mode = r.value; LS.set("bt_draw", ds); upd(); }));
@@ -1777,6 +1812,11 @@ function renderImpMap(v) {
   $("#mAll", box).onclick = () => setAll(true); $("#mNone", box).onclick = () => setAll(false);
   $("#mNo", box).onclick = () => { S.imp = null; box.innerHTML = ""; };
   $("#mOk", box).onclick = () => { const units = unitsFromImport(imp); if (!units.length) return toast("Aucune personne retenue : vérifiez la colonne Nom"); S.people = units; LS.set("bt_people", units); S.imp = null; tabEquipes(v); toast("✓ " + plural(countPeople(units), "personne") + " importées"); };
+}
+// 🔒 Verrou des équipes : empêche un nouveau tirage / une création / des déplacements par erreur (feuilles déjà imprimées)
+async function lockTeams(on) {
+  if (!on && !(await confirmBox("🔓 Déverrouiller les équipes ?<br><br>Attention : si vous refaites le tirage, les QR codes et les feuilles déjà imprimés ne correspondront plus.", "Déverrouiller", true))) return;
+  S.draft.teamsLocked = !!on; saveDraft(true); S.lastSig = ""; renderTab(); toast(on ? "🔒 Équipes verrouillées" : "🔓 Équipes déverrouillées");
 }
 // Ajouter une personne à la main (et, si les équipes sont faites, la placer directement dans une équipe)
 function addPerson(v) {
@@ -2146,15 +2186,16 @@ function tabDistrib(v) {
   const djUrl = st.codes.dj ? base + "/?r=dj&c=" + encodeURIComponent(st.codes.dj) + ESSAI_Q : null;
   const scUrl = screenUrl();
   let h = '<div class="card"><h3>📲 Distribuer l\'appli</h3><p class="muted small">Tout le monde utilise la même partie, gérée depuis votre téléphone : même playlist, mêmes questions, mêmes réponses. Chacun scanne son QR code avec l\'appareil photo de son téléphone, sans rien installer.</p><p class="small">Adresse : <b>' + esc(base) + "</b></p></div>";
+  h += '<div class="card keep"><h3>📄 Tout imprimer</h3><p class="muted small">Un seul fichier PDF avec les documents de votre choix (feuilles d\'équipe, liste, fiche DJ, règles, corrigé, scores, plan B). Sur iPhone : touchez « Imprimer » ou « Enregistrer dans Fichiers ».</p><button class="btn big" id="pAll">📦 Tout en un PDF</button></div>';
   h += '<div class="card"><h3>👥 Équipes</h3>' + (st.teams.length
-    ? '<div class="row"><button class="btn" id="pTeams">🖨 Imprimer les feuilles d\'équipe (1 page par équipe)</button><button class="btn ghost" id="pList">🖨 Liste des équipes pour l\'annonce</button></div><div class="qrgrid">' +
+    ? '<div class="row"><button class="btn" id="pTeams">📄 Feuilles d\'équipe en PDF (1 page par équipe)</button><button class="btn ghost" id="pList">📄 Liste des équipes pour l\'annonce</button></div><div class="qrgrid">' +
       st.teams.map((t, i) => '<div class="it" data-qt="' + i + '"><div class="qrbox">' + qrSvg(teamUrl(t)) + "</div><b>N°" + t.id + "</b><br>" + esc(t.name) + '<br><span class="muted">Code ' + esc(t.code) + "</span></div>").join("") + "</div>"
     : '<p class="muted">Faites d\'abord le tirage des équipes.</p>') + "</div>";
   h += '<div class="card"><h3>📝 Plan B papier (si le réseau lâche)</h3><p class="muted small">À imprimer à l\'avance et à garder sous le coude. Si les téléphones ne marchent plus, chaque équipe continue sur papier et vous comptez les points à la main.</p>' +
-    '<div class="row"><button class="btn ghost" id="pAns"' + (st.teams.length ? "" : " disabled") + '>🖨 Feuilles de réponses (1 par équipe)</button><button class="btn ghost" id="pBlank">🖨 Feuille de réponses vierge</button></div>' +
-    '<div class="row"><button class="btn ghost" id="pKey">🖨 Corrigé pour l\'animateur</button><button class="btn ghost" id="pScore"' + (st.teams.length ? "" : " disabled") + '>🖨 Tableau des scores</button><button class="btn ghost" id="pRules">🖨 Règles du jeu</button></div></div>';
+    '<div class="row"><button class="btn ghost" id="pAns"' + (st.teams.length ? "" : " disabled") + '>📄 Feuilles de réponses (1 par équipe)</button><button class="btn ghost" id="pBlank">📄 Feuille de réponses vierge</button></div>' +
+    '<div class="row"><button class="btn ghost" id="pKey">📄 Corrigé pour l\'animateur</button><button class="btn ghost" id="pScore"' + (st.teams.length ? "" : " disabled") + '>📄 Tableau des scores</button><button class="btn ghost" id="pRules">📄 Règles du jeu</button></div></div>';
   h += '<div class="card"><h3>🎧 DJ</h3>' + (djUrl
-    ? '<div class="qrbox" data-big="dj">' + qrSvg(djUrl) + '</div><p class="center">Code DJ : <b>' + esc(st.codes.dj) + '</b></p><div class="row" style="justify-content:center"><button class="btn ghost" id="pDj">🖨 Fiche DJ (QR + playlist)</button><button class="btn ghost" id="cpDj">📋 Copier la playlist</button></div>'
+    ? '<div class="qrbox" data-big="dj">' + qrSvg(djUrl) + '</div><p class="center">Code DJ : <b>' + esc(st.codes.dj) + '</b></p><div class="row" style="justify-content:center"><button class="btn ghost" id="pDj">📄 Fiche DJ (QR + playlist)</button><button class="btn ghost" id="cpDj">📋 Copier la playlist</button></div>'
     : '<p class="muted">Définissez d\'abord le code DJ dans Réglages.</p>') + "</div>";
   h += '<div class="card"><h3>📺 Écran géant</h3><p class="small">Adresse à taper sur l\'ordinateur du vidéoprojecteur :</p><div class="url">' + esc(scUrl.replace(/^https?:\/\//, "")) + '</div><div class="row"><button class="btn ghost sm" id="cpSc">📋 Copier l\'adresse</button></div><div class="qrbox" data-big="sc">' + qrSvg(scUrl) + '</div><p class="muted small center">À ouvrir sur l\'ordinateur relié au vidéoprojecteur (double-clic = plein écran). Il n\'affiche jamais les points, seulement le podium final si vous le décidez.</p></div>';
   h += '<div class="card"><h3>🎤 Secours animateur</h3><p class="muted small">Pour reprendre la main sur un autre téléphone si le vôtre tombe en panne. Ne le montrez à personne.</p><button class="btn ghost" id="shAnim">Afficher le QR animateur</button><div id="animQr"></div></div>';
@@ -2166,9 +2207,9 @@ function tabDistrib(v) {
   $("#cpSc").onclick = () => copyText(scUrl);
   $("#shAnim").onclick = () => { $("#animQr").innerHTML = '<div class="qrbox">' + qrSvg(base + "/?r=anim&c=" + encodeURIComponent(st.codes.anim) + ESSAI_Q) + '</div><p class="center small">Code animateur : <b>' + esc(st.codes.anim) + "</b></p>"; };
   const on = (id, fn) => { const e = $("#" + id); if (e) e.onclick = fn; };
-  on("pTeams", () => doPrint(st.teams.map((t) => '<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">ÉQUIPE ' + t.id + '</div><div class="tname">' + (st.teamNames !== false ? "Nom de l\'équipe : à choisir sur votre téléphone 📱" : esc(t.name)) + '</div><div class="q">' + qrSvg(teamUrl(t)) + '</div><div class="how">📱 Scannez ce QR code avec l\'appareil photo de votre téléphone.</div><div class="code">Code de secours : <b>' + esc(t.code) + '</b></div><div class="left"><b>Membres de l\'équipe</b><ul>' + t.members.map((m) => "<li>• " + esc(m) + "</li>").join("") + "</ul></div></div>").join("")));
-  on("pList", () => doPrint('<div class="sheet left"><h2>' + esc(st.name) + " – Les équipes</h2><table><tr><th>N°</th><th>Équipe</th><th>Code</th><th>Membres</th></tr>" + st.teams.map((t) => "<tr><td>" + t.id + "</td><td><b>" + esc(t.name) + "</b></td><td>" + esc(t.code) + "</td><td>" + t.members.map(esc).join(", ") + "</td></tr>").join("") + "</table></div>"));
-  on("pDj", () => doPrint('<div class="sheet"><div class="ev">' + esc(st.name) + '</div><div class="tn">DJ</div><div class="q" style="width:60mm">' + qrSvg(djUrl) + '</div><div class="code">Code DJ : <b>' + esc(st.codes.dj) + '</b></div></div><div class="sheet left"><h2>Playlist dans l\'ordre</h2><p>Extraits de ' + st.extractSec + " s, puis " + st.answerSec + " s de silence.</p>" + st.manches.map((m, i) => "<h3>Manche " + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "</h3><table>" + m.songs.map((s, j) => "<tr><td>" + (j + 1) + "</td><td><b>" + esc(s.t) + "</b></td><td>" + esc(s.a) + "</td><td>" + esc(s.h) + "</td></tr>").join("") + "</table>").join("") + "</div>"));
+  on("pTeams", async () => { await makePdf(["teams"], "feuilles-equipes"); if (!S.draft.teamsLocked && (await confirmBox("🔒 Verrouiller les équipes maintenant ?<br><br>Les feuilles sont imprimées : le verrou empêche un nouveau tirage par erreur (les QR codes resteraient faux).", "🔒 Verrouiller"))) lockTeams(true); });
+  on("pList", () => makePdf(["list"], "liste-equipes"));
+  on("pDj", () => makePdf(["dj"], "fiche-DJ-playlist", djUrl));
   on("cpDj", () => copyText(playlistText(st.manches)));
   const sc = st.scoring, both = sc.title + sc.artist;
   const ansSheet = (t) => {
@@ -2177,14 +2218,19 @@ function tabDistrib(v) {
       st.manches.map((m, i) => '<div class="pb"><div class="ph2"><span>Manche ' + (i + 1) + " – " + esc(m.title) + (m.mult > 1 ? " (points ×" + m.mult + ")" : "") + "</span><span>" + (t ? "Éq. " + t.id : "") + '</span></div><table class="ans"><tr><th class="no"></th><th style="width:55%">Titre</th><th>' + esc(m.label2 === "Artiste" || !m.label2 ? "Artiste" : "Film / dessin animé") + '</th><th class="ck">Pts</th></tr>' +
         m.songs.map((_, j) => '<tr><td class="no">' + (j + 1) + '</td><td></td><td></td><td class="ck"></td></tr>').join("") + '<tr class="tot"><td colspan="3" style="text-align:right;font-weight:700">Total manche ' + (i + 1) + '</td><td class="ck"></td></tr></table></div>').join("") + '</div><table class="ans" style="margin-top:3mm"><tr class="tot"><td style="text-align:right;font-weight:800;font-size:11pt">TOTAL DE L\'ÉQUIPE</td><td class="ck" style="width:20mm"></td></tr></table></div>';
   };
-  on("pAns", () => doPrint(st.teams.map(ansSheet).join("")));
-  on("pBlank", () => doPrint(ansSheet(null)));
-  on("pKey", () => doPrint('<div class="sheet left"><h2>Corrigé – ' + esc(st.name) + '</h2><p class="hint">Titre = ' + pts(sc.title) + ", artiste = " + pts(sc.artist) + ", les deux = " + pts(both) + ". Fautes de frappe tolérées.</p><div class=\"pgrid\">" +
-    st.manches.map((m, i) => '<div class="pb"><div class="ph2"><span>Manche ' + (i + 1) + " – " + esc(m.title) + "</span><span>" + (m.mult > 1 ? "×" + m.mult + " · " + pts(both * m.mult) + "/morceau" : pts(both) + "/morceau") + '</span></div><table class="ans key"><tr><th class="no"></th><th style="width:55%">Titre</th><th>' + esc(m.label2 || "Artiste") + "</th></tr>" +
-      m.songs.map((x, j) => '<tr><td class="no">' + (j + 1) + "</td><td><b>" + esc(x.t) + "</b></td><td>" + esc(x.a) + "</td></tr>").join("") + "</table></div>").join("") + "</div></div>"));
-  on("pScore", () => doPrint('<div class="sheet left"><h2>Tableau des scores – ' + esc(st.name) + '</h2><p class="hint">Reportez le total de chaque manche. Maximum possible : ' + pts(maxPoints(st)) + '.</p><table class="sc"><tr><th>N°</th><th>Équipe</th>' + st.manches.map((m, i) => "<th>M" + (i + 1) + (m.mult > 1 ? " ×" + m.mult : "") + "</th>").join("") + "<th>Total</th><th>Rang</th></tr>" +
-    st.teams.map((t) => "<tr><td>" + t.id + "</td><td>" + esc(t.name) + "</td>" + st.manches.map(() => "<td></td>").join("") + "<td></td><td></td></tr>").join("") + "</table></div>"));
-  on("pRules", () => doPrint('<div class="sheet left">' + rulesHtml(Object.assign({}, S.pub, { name: st.name, scoring: st.scoring, extractSec: st.extractSec, answerSec: st.answerSec, teams: st.teams, manches: st.manches.map((m) => ({ title: m.title, mult: m.mult || 1, n: m.songs.length, label2: m.label2 })) }), false) + "</div>"));
+  on("pAns", () => makePdf(["ans"], "feuilles-reponses"));
+  on("pBlank", () => makePdf(["blank"], "feuille-reponses-vierge"));
+  on("pKey", () => makePdf(["key"], "corrige"));
+  on("pScore", () => makePdf(["score"], "tableau-scores"));
+  on("pRules", () => makePdf(["rules"], "regles"));
+  on("pAll", () => {
+    const D = [["teams", "Feuilles d'équipe (1 page par équipe, QR code)", true], ["list", "Liste des équipes pour l'annonce", true], ["dj", "Fiche DJ + playlist", !!djUrl], ["rules", "Règles du jeu", true], ["key", "Corrigé pour l'animateur", true], ["score", "Tableau des scores", true], ["ans", "Plan B : feuilles de réponses (1 par équipe)", false], ["blank", "Plan B : feuille de réponses vierge", false]];
+    openModal('<h3>📦 Tout en un PDF</h3><p class="muted small">Cochez les documents : vous obtenez un seul fichier PDF, prêt à imprimer, enregistrer ou envoyer.</p>' + D.map(([k, l, on]) => '<label class="row" style="margin:6px 0"><input type="checkbox" data-pk="' + k + '" style="width:auto"' + (on ? " checked" : "") + (k === "dj" && !djUrl ? " disabled" : "") + '><span style="flex:1">' + l + "</span></label>").join("") +
+      '<div class="row end"><button class="btn ghost" id="paNo">Annuler</button><button class="btn" id="paOk">📄 Créer le PDF</button></div>', (b) => {
+      $("#paNo", b).onclick = closeModal;
+      $("#paOk", b).onclick = async () => { const k = $$("[data-pk]", b).filter((x) => x.checked).map((x) => x.dataset.pk); if (!k.length) return toast("Cochez au moins un document"); closeModal(); await makePdf(k, "complet", djUrl); };
+    });
+  });
 }
 
 /* ---- Onglet Réglages ---- */
