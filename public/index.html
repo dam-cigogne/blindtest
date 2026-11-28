@@ -70,6 +70,21 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .scr .pod2{display:flex;align-items:flex-end;justify-content:center;gap:2.5vw;flex:1;min-height:0}
 .scr .pod2>div{display:flex;flex-direction:column;align-items:center;width:26vw;animation:up .9s ease both}
 .scr .pod2 .av{width:min(14vw,20vh);height:min(14vw,20vh);font-size:min(6vw,8vh);border-width:.5vw;margin-bottom:-2vh;z-index:1;box-shadow:0 1vw 3vw rgba(0,0,0,.5)}.scr .pod2 .q1 .av{width:min(19vw,27vh);height:min(19vw,27vh);font-size:min(8vw,11vh);border-color:#ffcf4a}
+.scr .stage{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(ellipse at 50% 110%,#5a1a6e 0%,#2a0d3d 45%,#0d0618 100%)}
+.scr .stage~*{position:relative;z-index:1}
+.scr .stage .curt{position:absolute;top:0;bottom:0;width:13vw;background:repeating-linear-gradient(90deg,#7a0f1f 0,#b3152e 1.6vw,#e0263f 2.4vw,#b3152e 3.2vw,#7a0f1f 4.6vw);box-shadow:inset 0 0 4vw rgba(0,0,0,.6)}
+.scr .stage .curt.l{left:0;border-bottom-right-radius:60% 12%;transform-origin:left;animation:curtL 1.2s ease-out both}.scr .stage .curt.r{right:0;border-bottom-left-radius:60% 12%;animation:curtR 1.2s ease-out both}
+@keyframes curtL{from{width:50vw}to{width:13vw}}@keyframes curtR{from{width:50vw}to{width:13vw}}
+.scr .stage .valance{position:absolute;left:0;right:0;top:0;height:9vh;background:linear-gradient(#7a0f1f,#b3152e);border-bottom:.6vh solid #ffcf4a;-webkit-mask:radial-gradient(circle at 50% 100%,transparent 3.2vh,#000 3.3vh) 0 0/7vh 100%;mask:radial-gradient(circle at 50% 100%,transparent 3.2vh,#000 3.3vh) 0 0/7vh 100%;box-shadow:0 1vh 3vh rgba(0,0,0,.5)}
+.scr .stage .floor{position:absolute;left:0;right:0;bottom:0;height:16vh;background:linear-gradient(180deg,rgba(255,207,74,.0),rgba(255,207,74,.18)),repeating-linear-gradient(90deg,#3a1a10 0,#4b2416 6vw,#3a1a10 12vw);box-shadow:0 -1vh 4vh rgba(255,207,74,.15) inset}
+.scr .stage .beam{position:absolute;top:-10vh;width:22vw;height:120vh;background:linear-gradient(180deg,rgba(255,240,180,.55),rgba(255,240,180,0) 85%);clip-path:polygon(45% 0,55% 0,100% 100%,0 100%);mix-blend-mode:screen;filter:blur(.6vw);transform-origin:50% 0}
+.scr .stage .b1{left:12vw;animation:sway 6s ease-in-out infinite alternate}.scr .stage .b2{left:39vw;background:linear-gradient(180deg,rgba(255,120,220,.45),rgba(255,120,220,0) 85%);animation:sway 7s ease-in-out infinite alternate-reverse}.scr .stage .b3{left:66vw;background:linear-gradient(180deg,rgba(120,200,255,.45),rgba(120,200,255,0) 85%);animation:sway 5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.scr .stage .stars i{position:absolute;width:.5vw;height:.5vw;background:#fff;border-radius:50%;box-shadow:0 0 1vw #fff;animation:twinkle 2.6s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:1}}
+.scr .podTitle{margin-top:9vh;font-size:min(4.6vw,8vh);font-weight:900;letter-spacing:.12em;background:linear-gradient(180deg,#fff3b0,#ffcf4a 55%,#c98a00);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 3vw rgba(255,207,74,.35);filter:drop-shadow(0 .5vh 0 rgba(0,0,0,.4))}
+.scr .pod2 .blk{position:relative;box-shadow:inset 0 .8vh 0 rgba(255,255,255,.35),inset 0 -1.5vh 2vh rgba(0,0,0,.25),0 2vh 4vh rgba(0,0,0,.5)}
+.scr .pod2 .blk::after{content:attr(data-n);position:absolute;left:0;right:0;bottom:1vh;font-size:min(7vw,12vh);font-weight:900;opacity:.25;line-height:1}
 .scr .pod2 .blk{width:100%;border-radius:1.5vw 1.5vw 0 0;padding:2.6vh 1vw 1vh;font-size:min(2vw,3.3vh);line-height:1.25;font-weight:800;text-align:center;box-sizing:border-box}
 .scr .pod2 .wait .blk{opacity:.55}.scr .pod2 .qm{background:rgba(255,255,255,.12)!important;border-style:dashed}.scr .pod2>div.land .blk{animation:pop .6s ease}
 .scr .pod2 .q1 .blk{min-height:24vh;background:linear-gradient(#ffcf4a,#b8860b);color:#2b1a00}.scr .pod2 .q2 .blk{min-height:19vh;background:linear-gradient(#e6e6f0,#8d8da8);color:#1b1b2b}.scr .pod2 .q3 .blk{min-height:15vh;background:linear-gradient(#e8a56b,#8b4a1c)}
@@ -490,7 +505,7 @@ function pageVersion() {
   fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
 }
 // l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
-const APP_V = "2026-11-28-17h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
+const APP_V = "2026-11-28-18h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
 function appVersionCheck(p) {
   if (!p || !p.app || p.app === APP_V || S.appWarned) return;
   const r = S.sess && S.sess.role;
@@ -1475,13 +1490,48 @@ async function bgSet(on, vol) {
   }
 }
 async function sfxUrl(k) { if (!SFX.cache[k]) SFX.cache[k] = SFXDEF[k](); return SFX.cache[k]; }
+// 🎙 VRAIS BRUITAGES : de vrais enregistrements (catalogue Deezer « sound effects »), découpés et préparés à l'avance.
+// L'animateur peut en choisir d'autres à l'oreille (Réglages → Bruitages). Sans internet : sons fabriqués par l'appli.
+const SFXREAL = {
+  roul: { s: "dz", id: "62204589", t: "Short Snare Drum Roll with Cymbal Crash", d: 8 },
+  tada: { s: "dz", id: "65652035", t: "Trumpet Fanfare 2", d: 8 },
+  applau: { s: "dz", id: "72694764", t: "Crowd Cheering (Applause)", d: 7 },
+  ding: { s: "dz", id: "75952231", t: "Correct Answer Double", d: 4 },
+  buzz: { s: "dz", id: "67901763", t: "Wrong Answer Buzzer", d: 3 },
+  triste: { s: "dz", id: "2822546172", t: "Sad trombone", d: 5 },
+  tictac: { s: "dz", id: "67323072", t: "Clock Ticking", d: 8 },
+  corne: { s: "dz", id: "101060968", t: "Air Horn Short", d: 4 },
+  whoosh: { s: "dz", id: "82805546", t: "Cinematic Whoosh", d: 3 },
+};
+const SFXQ = { roul: "drum roll cymbal crash", tada: "fanfare trumpet sound effect", applau: "applause crowd cheering sound effect", ding: "correct answer game show sound effect", buzz: "wrong answer buzzer sound effect", triste: "sad trombone sound effect", tictac: "clock ticking sound effect", corne: "air horn sound effect", whoosh: "whoosh sound effect" };
+const sfxDef = (k) => { const own = ((S.pub && S.pub.sfxSet) || {})[k]; return own || SFXREAL[k] || null; };
+const sfxKey = (x) => x.s + ":" + x.id + ":" + (x.o || 0) + ":" + (x.d || 6);
+// télécharge l'enregistrement, garde le passage voulu (début o, durée d), petit fondu à la fin
+async function sfxReal(x) {
+  const key = sfxKey(x); SFX.real = SFX.real || {};
+  if (SFX.real[key]) return SFX.real[key];
+  return (SFX.real[key] = (async () => {
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, SR = 44100;
+    const ab = await (await fetch("/api/audio?s=" + x.s + "&id=" + x.id)).arrayBuffer();
+    const dec = await new Promise((ok, ko) => { const r = new OAC(2, 1, SR).decodeAudioData(ab, ok, ko); if (r && r.then) r.then(ok, ko); });
+    const o = Math.min(x.o || 0, Math.max(0, dec.duration - 1)), d = Math.min(x.d || 6, dec.duration - o);
+    const c = new OAC(2, Math.ceil(d * SR), SR), src = c.createBufferSource(), g = c.createGain();
+    src.buffer = dec; src.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(1, 0); g.gain.setValueAtTime(1, Math.max(0, d - 0.4)); g.gain.linearRampToValueAtTime(0, d);
+    src.start(0, o, d);
+    return wav2(await c.startRendering());
+  })().catch((e) => { delete SFX.real[key]; throw e; }));
+}
 async function sfxPlay(k) {
   if (!SFXDEF[k] || k === "bg") return;
-  try { const u = await sfxUrl(k), e = sfxEl(SFXP[sfxI++ % SFXP.length]); e.loop = false; e.volume = 1; e.src = u; await e.play(); }
+  let u = null; const x = sfxDef(k);
+  if (x) { try { u = await sfxReal(x); } catch (er) { console.warn("vrai bruitage indisponible", k, er); } }
+  try { if (!u) u = await sfxUrl(k); const e = sfxEl(SFXP[sfxI++ % SFXP.length]); e.loop = false; e.volume = 1; e.src = u; await e.play(); }
   catch (er) { console.warn(er); toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
 }
 // Le téléphone de la sono suit les ordres de l'animateur (bruitages + musique d'ambiance)
-function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF).filter((k) => !["fete", "electro", "latino", "bg"].includes(k)); /* les musiques : seulement quand on les choisit */ const nx = () => { if (i >= ks.length) return; if (PV.playing || SFX.bgOn) return setTimeout(nx, 3000); /* jamais pendant qu'une musique joue : évite les accrocs */ sfxUrl(ks[i++]).then(() => setTimeout(nx, 400)); }; setTimeout(nx, 1500); }
+function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0;
+  { let j = 0; const ks2 = Object.keys(SFXREAL); const nx2 = () => { if (j >= ks2.length) return; if (PV.playing || SFX.bgOn) return setTimeout(nx2, 3000); const x = sfxDef(ks2[j++]); (x ? sfxReal(x) : Promise.resolve()).catch(() => {}).then(() => setTimeout(nx2, 300)); }; setTimeout(nx2, 800); } const ks = Object.keys(SFXDEF).filter((k) => !["fete", "electro", "latino", "bg"].includes(k)); /* les musiques : seulement quand on les choisit */ const nx = () => { if (i >= ks.length) return; if (PV.playing || SFX.bgOn) return setTimeout(nx, 3000); /* jamais pendant qu'une musique joue : évite les accrocs */ sfxUrl(ks[i++]).then(() => setTimeout(nx, 400)); }; setTimeout(nx, 1500); }
 function sfxSync(p) {
   sfxWarm(); // la sono prépare les sons à l'avance
   const n = (p.sfx && p.sfx.n) || 0;
@@ -1719,9 +1769,12 @@ function finViewHtml(p) {
   const col = (k) => {
     const r = RA.find((x) => x.rank === k); if (!r) return "";
     const shown = !r.hidden && order.indexOf(k) > -1 && order.indexOf(k) < step;
-    return '<div class="q' + k + (shown ? "" : " wait") + '" data-pk="' + k + '">' + (shown ? avHtml(p, r.id) : '<span class="av ini qm">?</span>') + '<div class="blk">' + ["", "🥇", "🥈", "🥉"][k] + "<br>" + (shown ? esc(r.name) + '<br><span style="font-weight:600">' + plural(r.total, "pt") + "</span>" : "&nbsp;<br>&nbsp;") + "</div></div>";
+    return '<div class="q' + k + (shown ? "" : " wait") + '" data-pk="' + k + '">' + (shown ? avHtml(p, r.id) : '<span class="av ini qm">?</span>') + '<div class="blk" data-n="' + k + '">' + ["", "🥇", "🥈", "🥉"][k] + "<br>" + (shown ? esc(r.name) + '<br><span style="font-weight:600">' + plural(r.total, "pt") + "</span>" : "&nbsp;<br>&nbsp;") + "</div></div>";
   };
-  return '<div class="big" style="font-size:min(4vw,7vh);margin:0">🏆 Le podium</div><div class="pod2">' + col(2) + col(1) + col(3) + '</div><canvas id="confetti"></canvas>';
+  // 🎭 décor de scène : rideaux rouges, lambrequin doré, projecteurs qui balayent, étoiles, sol brillant
+  const stars = Array.from({ length: 26 }, (_, i) => '<i style="left:' + ((i * 37) % 100) + "%;top:" + ((i * 53) % 55) + "%;animation-delay:" + ((i % 7) * 0.4) + "s;transform:scale(" + (0.6 + (i % 4) * 0.25) + ')"></i>').join("");
+  return '<div class="stage"><div class="stars">' + stars + '</div><div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div><div class="curt l"></div><div class="curt r"></div><div class="valance"></div><div class="floor"></div></div>' +
+    '<div class="podTitle">🏆 LE PODIUM 🏆</div><div class="pod2">' + col(2) + col(1) + col(3) + '</div><canvas id="confetti"></canvas>';
 }
 const podOrder = (R) => [3, 2, 1].filter((k) => (R || []).some((r) => r.rank === k)); // marches du podium (même encore cachées)
 // après l'affichage du podium : lance la photo de la place qui vient d'être annoncée
@@ -3224,7 +3277,9 @@ function tabDistrib(v) {
 /* ---- Onglet Réglages ---- */
 function tabReglages(v) {
   const st = S.draft;
-  v.innerHTML = '<div class="card keep"><h3>🏆 Palmarès</h3><p class="muted small">Les vainqueurs de chaque partie, gardés même après une remise à zéro. « 🖨 Affiche » refait l\'affiche A4 quand vous voulez.</p><div id="hofL"><p class="muted small">Chargement…</p></div></div>' + '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
+  v.innerHTML = '<div class="card keep"><h3>🏆 Palmarès</h3><p class="muted small">Les vainqueurs de chaque partie, gardés même après une remise à zéro. « 🖨 Affiche » refait l\'affiche A4 quand vous voulez.</p><div id="hofL"><p class="muted small">Chargement…</p></div></div>' +
+    '<div class="card keep"><h3>🔊 Bruitages</h3><p class="muted small">De vrais enregistrements. ▶ pour écouter ici, 🔎 pour en choisir un autre à l\'oreille, ✂️ pour régler le passage.</p><div id="sfxL"></div></div>' +
+    '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
     (st.loadedFrom ? '<p>Partie actuelle : <b>' + esc(st.loadedFrom.name) + '</b></p>' : '') + durHtml(S.draft || st) +
     '<div class="row"><input id="svName" class="grow" style="flex:1" maxlength="60" placeholder="Nom de la partie (ex. Soirée amicale 2026)" value="' + esc(st.loadedFrom ? st.loadedFrom.name : st.name) + '"></div>' +
     '<div class="row">' + (st.loadedFrom ? '<button class="btn ok" id="svUpd">💾 Mettre à jour « ' + esc(st.loadedFrom.name) + ' »</button>' : '') + '<button class="btn ' + (st.loadedFrom ? 'ghost' : 'ok') + '" id="svNew">➕ Enregistrer comme nouvelle partie</button></div>' +
@@ -3306,6 +3361,45 @@ function tabReglages(v) {
   $("#rOut").onclick = async () => { if (await confirmBox("Se déconnecter de ce téléphone ? (Gardez votre code animateur !)", "Se déconnecter")) logout(); };
   lockInputs(v);
   hofCard(v);
+  sfxCard(v);
+}
+// 🔊 Réglages → choisir ses bruitages à l'oreille
+function sfxCard(v) {
+  const L = $("#sfxL", v); if (!L) return;
+  const st = S.draft; st.sfxSet = st.sfxSet || {};
+  const save = async () => { try { await api("/setup", { method: "POST", body: { setup: { sfxSet: st.sfxSet }, partial: true } }); toast("🔊 Bruitage enregistré", 1800); pollNow(); } catch (e) { toast(e.message, 3500); } };
+  const cur = (k) => st.sfxSet[k] || SFXREAL[k];
+  const hear = async (x, btn) => { const old = btn.textContent; btn.textContent = "…"; try { const u = await sfxReal(x), e = sfxEl("a3"); e.src = u; e.volume = 1; await e.play(); } catch (er) { toast("Son indisponible (internet ?)", 3000); } btn.textContent = old; };
+  L.innerHTML = SFXL.map(([k, e, l]) => { const x = cur(k); return '<div class="rg"><span style="font-size:26px">' + e + '</span><div class="rgt"><b>' + l + (st.sfxSet[k] ? " ✏️" : "") + '</b><span class="small muted">' + esc((x && x.t) || "son fabriqué") + " · " + ((x && x.o) || 0) + "→" + (((x && x.o) || 0) + ((x && x.d) || 6)) + ' s</span></div><button class="btn ghost sm" data-sh="' + k + '">▶</button><button class="btn ghost sm" data-sc="' + k + '">🔎</button><button class="btn ghost sm" data-st="' + k + '">✂️</button>' + (st.sfxSet[k] ? '<button class="btn ghost sm" data-sr="' + k + '" title="Revenir au son d\'origine">↺</button>' : "") + "</div>"; }).join("");
+  $$("[data-sh]", L).forEach((b) => (b.onclick = () => hear(cur(b.dataset.sh), b)));
+  $$("[data-sr]", L).forEach((b) => (b.onclick = () => { delete st.sfxSet[b.dataset.sr]; save(); sfxCard(v); }));
+  $$("[data-st]", L).forEach((b) => (b.onclick = () => {
+    const k = b.dataset.st, x = Object.assign({}, cur(k)); x.o = x.o || 0; x.d = x.d || 6;
+    const lab = () => "Début : <b>" + x.o + " s</b> · Durée : <b>" + x.d + " s</b>";
+    openModal("<h3>✂️ " + SFXL.find((y) => y[0] === k)[2] + '</h3><p class="small">' + esc(x.t || "") + '</p><p id="stL">' + lab() + '</p><div class="row"><button class="btn ghost sm" data-o="-0.5">Début −</button><button class="btn ghost sm" data-o="0.5">Début +</button><button class="btn ghost sm" data-d="-0.5">Durée −</button><button class="btn ghost sm" data-d="0.5">Durée +</button></div><div class="row end"><button class="btn ghost" id="stX">Fermer</button><button class="btn ghost" id="stP">▶ Écouter</button><button class="btn ok" id="stOk">✓ Garder</button></div>', (box) => {
+      $$("[data-o]", box).forEach((y) => (y.onclick = () => { x.o = Math.max(0, Math.min(25, x.o + Number(y.dataset.o))); $("#stL", box).innerHTML = lab(); }));
+      $$("[data-d]", box).forEach((y) => (y.onclick = () => { x.d = Math.max(1, Math.min(15, x.d + Number(y.dataset.d))); $("#stL", box).innerHTML = lab(); }));
+      $("#stP", box).onclick = () => hear(x, $("#stP", box));
+      $("#stX", box).onclick = closeModal;
+      $("#stOk", box).onclick = () => { st.sfxSet[k] = { s: x.s, id: x.id, t: x.t, o: x.o, d: x.d }; save(); closeModal(); sfxCard(v); };
+    });
+  }));
+  $$("[data-sc]", L).forEach((b) => (b.onclick = () => {
+    const k = b.dataset.sc;
+    openModal("<h3>🔎 " + SFXL.find((y) => y[0] === k)[2] + '</h3><p class="small muted">Écoutez (▶) puis « Choisir ». Cherchez en anglais pour plus de choix (ex. « drum roll », « applause »).</p><div class="row"><input id="scQ" class="grow" style="flex:1" value="' + esc(SFXQ[k]) + '"><button class="btn sm" id="scGo">🔎</button></div><div id="scL" class="muted small">Recherche…</div><div class="row end"><button class="btn ghost" id="scX">Fermer</button></div>', (box) => {
+      const go = async () => {
+        const R2 = $("#scL", box); R2.textContent = "Recherche…";
+        try {
+          const r = await fetch("/api/preview?all=1&q=" + encodeURIComponent($("#scQ", box).value) + "&t=x&a=x").then((y) => y.json());
+          if (!r.items || !r.items.length) { R2.textContent = "Rien trouvé : essayez d'autres mots (en anglais)."; return; }
+          R2.innerHTML = r.items.map((it, i) => '<div class="pvrow"><div class="pt"><b>' + esc(it.t) + '</b><br><span class="muted">' + esc(it.a) + '</span></div><button class="btn ghost sm" data-pp="' + i + '">▶</button><button class="btn ok sm" data-ch="' + i + '">Choisir</button></div>').join("");
+          $$("[data-pp]", R2).forEach((y) => (y.onclick = () => { const it = r.items[Number(y.dataset.pp)]; hear({ s: it.s, id: it.id, o: 0, d: 8 }, y); }));
+          $$("[data-ch]", R2).forEach((y) => (y.onclick = () => { const it = r.items[Number(y.dataset.ch)]; st.sfxSet[k] = { s: it.s, id: String(it.id), t: it.t, o: 0, d: (SFXREAL[k] || {}).d || 6 }; save(); closeModal(); sfxCard(v); }));
+        } catch (e) { R2.textContent = "Pas de connexion."; }
+      };
+      $("#scGo", box).onclick = go; $("#scX", box).onclick = closeModal; go();
+    });
+  }));
 }
 
 async function loadSaves(v) {

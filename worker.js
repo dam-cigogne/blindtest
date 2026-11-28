@@ -8,7 +8,7 @@ const json = (o, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
-const APP_V = "2026-11-28-17h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
+const APP_V = "2026-11-28-18h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
 const defaultSetup = () => ({
   name: "Blind test",
   codes: { anim: null, dj: null },
@@ -322,6 +322,7 @@ export class Soiree extends DurableObject {
         teams: setup.teams.map((t) => ({ id: t.id, name: t.name, code: t.code, url: (setup.baseUrl || this.origin || "") + "/?t=" + t.id + "&c=" + encodeURIComponent(t.code) + (this.essai ? "&essai=1" : "") })),
       } : null,
       teamNames: setup.teamNames !== false,
+      sfxSet: setup.sfxSet || {},
       service: setup.service || "",
       scoring: (game.status !== "setup" && game.scoring) || setup.scoring,
       scoringLocked: !!(game.status !== "setup" && game.scoring),
@@ -512,6 +513,11 @@ export class Soiree extends DurableObject {
         };
       }
       if (typeof s.teamNames === "boolean") this.setup.teamNames = s.teamNames;
+      if (s.sfxSet && typeof s.sfxSet === "object") { // vrais bruitages choisis par l'animateur
+        const o = {};
+        Object.keys(s.sfxSet).slice(0, 12).forEach((k) => { const x = s.sfxSet[k]; if (/^[a-z]{2,10}$/.test(k) && x && /^(dz|it)$/.test(x.s) && /^\d+$/.test(String(x.id))) o[k] = { s: x.s, id: String(x.id), t: clip(x.t, 120), o: Math.max(0, Math.min(25, Number(x.o) || 0)), d: Math.max(1, Math.min(15, Number(x.d) || 6)) }; });
+        this.setup.sfxSet = o;
+      }
       if (typeof s.service === "string" && ["", "am", "sp", "dz", "yt"].includes(s.service)) this.setup.service = s.service;
       if (s.extractSec) this.setup.extractSec = Math.max(5, Math.min(90, Number(s.extractSec) || 15));
       if (s.answerSec) this.setup.answerSec = Math.max(3, Math.min(90, Number(s.answerSec) || 10));
