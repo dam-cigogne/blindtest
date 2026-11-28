@@ -8,7 +8,7 @@ const json = (o, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
-const APP_V = "2026-11-28-19h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
+const APP_V = "2026-11-28-20h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
 const defaultSetup = () => ({
   name: "Blind test",
   codes: { anim: null, dj: null },

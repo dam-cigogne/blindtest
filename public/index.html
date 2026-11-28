@@ -517,7 +517,7 @@ function pageVersion() {
   fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
 }
 // l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
-const APP_V = "2026-11-28-19h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
+const APP_V = "2026-11-28-20h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
 function appVersionCheck(p) {
   if (!p || !p.app || p.app === APP_V || S.appWarned) return;
   const r = S.sess && S.sess.role;
@@ -3380,6 +3380,48 @@ function tabReglages(v) {
   sfxCard(v);
   podbgCard(v);
 }
+// ✂️ Recadrer l'image du podium : glisser pour déplacer, − / + pour zoomer, ou « image entière » (bandes floutées sur les côtés)
+function podbgCrop(img) {
+  return new Promise((done) => {
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const st = { mode: iw / ih < 1.3 ? "fit" : "fill", z: 1, cx: iw / 2, cy: ih / 2 };
+    const draw = (c, W, H) => {
+      const g = c.getContext("2d"); g.clearRect(0, 0, W, H);
+      const cover = Math.max(W / iw, H / ih);
+      if (st.mode === "fit") { // fond : la même image, très floue (réduite puis agrandie)
+        const t = document.createElement("canvas"); t.width = 32; t.height = 18; const tg = t.getContext("2d"); tg.drawImage(img, (32 - iw * cover * 32 / W) / 2, (18 - ih * cover * 18 / H) / 2, iw * cover * 32 / W, ih * cover * 18 / H);
+        g.imageSmoothingEnabled = true; g.drawImage(t, 0, 0, W, H); g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(0, 0, W, H);
+      }
+      const sc = (st.mode === "fit" ? Math.min(W / iw, H / ih) : cover) * st.z;
+      if (st.mode === "fill") { // l'image doit couvrir tout le cadre
+        const hw = W / sc / 2, hh = H / sc / 2; st.cx = Math.max(hw, Math.min(iw - hw, st.cx)); st.cy = Math.max(hh, Math.min(ih - hh, st.cy));
+      }
+      g.drawImage(img, W / 2 - st.cx * sc, H / 2 - st.cy * sc, iw * sc, ih * sc);
+      return sc;
+    };
+    openModal('<h3>✂️ Recadrer l\'image</h3><p class="small muted">Le cadre = l\'écran géant. Glissez l\'image avec le doigt pour la déplacer.</p>' +
+      '<canvas id="cpC" width="640" height="360" style="width:100%;border-radius:10px;touch-action:none;background:#000;cursor:grab"></canvas>' +
+      '<div class="row" style="margin-top:8px"><button class="btn ghost sm" id="cpM">🔍 −</button><button class="btn ghost sm" id="cpP">🔍 +</button><button class="btn ghost sm" id="cpMode"></button></div>' +
+      '<div class="row end"><button class="btn ghost" id="cpX">Annuler</button><button class="btn ok" id="cpOk">✓ Valider</button></div>', (box) => {
+      const c = $("#cpC", box); let sc = 1;
+      const red = () => { sc = draw(c, 640, 360); $("#cpMode", box).textContent = st.mode === "fit" ? "⬛ Remplir tout l\'écran" : "🖼 Image entière"; };
+      let drag = null;
+      c.onpointerdown = (e) => { drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy }; c.setPointerCapture(e.pointerId); };
+      c.onpointermove = (e) => { if (!drag) return; const k = 640 / c.getBoundingClientRect().width / sc; st.cx = drag.cx - (e.clientX - drag.x) * k; st.cy = drag.cy - (e.clientY - drag.y) * k; red(); };
+      c.onpointerup = c.onpointercancel = () => (drag = null);
+      $("#cpM", box).onclick = () => { st.z = Math.max(st.mode === "fit" ? 0.5 : 1, st.z / 1.15); red(); };
+      $("#cpP", box).onclick = () => { st.z = Math.min(4, st.z * 1.15); red(); };
+      $("#cpMode", box).onclick = () => { st.mode = st.mode === "fit" ? "fill" : "fit"; st.z = 1; st.cx = iw / 2; st.cy = ih / 2; red(); };
+      $("#cpX", box).onclick = () => { closeModal(); done(null); };
+      $("#cpOk", box).onclick = () => {
+        const out = document.createElement("canvas"); out.width = 1600; out.height = 900; draw(out, 1600, 900);
+        let q = 0.82, d = out.toDataURL("image/jpeg", q); while (d.length > 850000 && q > 0.35) { q -= 0.08; d = out.toDataURL("image/jpeg", q); }
+        closeModal(); done(d);
+      };
+      red();
+    });
+  });
+}
 // 🎨 Image de fond du podium choisie par l'animateur
 function podbgCard(v) {
   const L = $("#pbgL", v); if (!L) return;
@@ -3387,14 +3429,14 @@ function podbgCard(v) {
   L.innerHTML = (pb ? '<img src="/api/podbg?v=' + pb + (ESSAI ? "&essai=1" : "") + '" style="width:100%;border-radius:12px;aspect-ratio:16/9;object-fit:cover;margin-bottom:8px">' : '<p class="small">Actuellement : <b>🎭 décor de scène</b> (rideaux, projecteurs).</p>') +
     '<div class="row"><button class="btn" id="pbgPick">📷 ' + (pb ? "Changer d\'image" : "Mettre mon image") + "</button>" + (pb ? '<button class="btn ghost" id="pbgOff">↺ Décor de scène</button>' : "") + "</div>";
   $("#pbgPick", v).onclick = async () => {
-    const d = await new Promise((res) => {
+    const img = await new Promise((res) => {
       const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.style.cssText = "position:fixed;left:-2000px;opacity:0"; document.body.appendChild(inp);
-      inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return res(null); const img = new Image(), u = URL.createObjectURL(f);
-        img.onload = () => { const W = 1600, H = 900, c = document.createElement("canvas"); c.width = W; c.height = H; const sc = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * sc, h = img.naturalHeight * sc;
-          c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h); URL.revokeObjectURL(u); let q = 0.82, out = c.toDataURL("image/jpeg", q); while (out.length > 850000 && q > 0.35) { q -= 0.08; out = c.toDataURL("image/jpeg", q); } inp.remove(); res(out); };
-        img.onerror = () => { inp.remove(); toast("Image illisible", 3000); res(null); }; img.src = u; };
+      inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return res(null); const im = new Image(), u = URL.createObjectURL(f);
+        im.onload = () => { inp.remove(); res(im); }; im.onerror = () => { inp.remove(); toast("Image illisible", 3000); res(null); }; im.src = u; };
       inp.click();
     });
+    if (!img) return;
+    const d = await podbgCrop(img);
     if (!d) return;
     toast("Envoi de l'image…", 2000);
     try { await api("/podbg", { method: "POST", body: { data: d } }); toast("🎨 Décor du podium enregistré", 2500); S.lastSig = ""; await pollNow(); setTimeout(() => podbgCard(v), 800); } catch (e) { toast(e.message, 3500); }
