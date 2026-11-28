@@ -1221,7 +1221,7 @@ const SFXDEF = {
   }),
 };
 // styles d'ambiance : « tubes » = vrais morceaux festifs enchaînés (extraits de 30 s, jamais deux fois le même)
-const BGS = [["tubes", "🎉 Vrais tubes"], ["fete", "🪩 Disco"], ["electro", "⚡ Électro"], ["latino", "🌴 Latino"], ["doux", "🍸 Douce"]];
+const BGS = [["tubes", "🎉 Vrais tubes"], ["fete", "🪩 Disco"], ["electro", "⚡ Électro"], ["latino", "🌴 Latino"]]; // que du festif
 const BGU = { fete: "fete", electro: "electro", latino: "latino", doux: "bg" };
 // tous les morceaux dansants possibles (pour la liste de choix), triés par titre
 function tubesAll() { const was = S.data; return tubesPool(true).sort((a, b) => a.t.localeCompare(b.t)); }
@@ -1249,7 +1249,8 @@ function tubesPool(all) {
   if (S.data) { add(S.data.all); add(S.data.setup && S.data.setup.manches); }
   // uniquement des morceaux qui bougent : tous les « Tubes de fête » + une sélection dansante des années 80 à aujourd'hui
   const DANSE = /^(Billie Jean|Take On Me|Girls Just Want to Have Fun|Les Démons de minuit|Footloose|Wake Me Up Before You Go-Go|Pump Up the Jam|Nuit de folie|Il tape sur des bambous|Femme libérée|Beat It|Hips Don't Lie|Alors on danse|Dragostea Din Tei|I Gotta Feeling|Hey Ya!|Poker Face|Single Ladies.*|Moi\.\.\. Lolita|Crazy in Love|Relax, Take It Easy|Yeah!|Happy|Uptown Funk|Get Lucky|Despacito|Moves Like Jagger|Djadja|Levitating|Dance Monkey|Can't Stop the Feeling!|Andalouse|Rather Be|Wake Me Up)$/;
-  const pool = LIB.themes.flatMap((t) => t.songs.filter((x) => t.id === "fete" || (["s80", "s00", "s10"].includes(t.id) && DANSE.test(x.t)))).filter((x) => !ex.has(sKey(x)));
+  const CALME = /^(Sweet Caroline|Pata Pata|Le Petit Bonhomme en mousse|La Bamba)$/; // trop tranquilles pour l'ambiance
+  const pool = LIB.themes.flatMap((t) => t.songs.filter((x) => (t.id === "fete" && !CALME.test(x.t)) || (["s80", "s00", "s10"].includes(t.id) && DANSE.test(x.t)))).filter((x) => !ex.has(sKey(x)));
   if (all) return pool;
   return shuffle(pool);
 }
@@ -1338,7 +1339,7 @@ function sfxFire(k) {
   return api("/game", { method: "POST", body: { action: "sfx", k } }).catch(() => {});
 }
 function sfxPanel(mode) {
-  const p = S.pub || {}, bg = p.bgm || { on: false, vol: 0.35 };
+  const p = S.pub || {}, bg = Object.assign({ on: false, vol: 0.35 }, p.bgm || {}); if (bg.k === "doux") bg.k = "tubes";
   return '<div class="card sfxc"><h3>🔊 Bruitages & ambiance</h3>' +
     '<label class="row sfxhere"><input type="checkbox" id="sfxHere" style="width:auto"' + (sonoOn() ? " checked" : "") + '><span style="flex:1">📻 <b>Les sons sortent de CE téléphone</b>' + (sonoOn() ? " ✓ (branchez-le à la sono)" : (mode === "dj" ? "" : " – sinon ils partent vers le téléphone du DJ")) + "</span></label>" +
     '<div class="sfxg">' + SFXL.map(([k, e, l]) => '<button data-sfx="' + k + '"><span>' + e + "</span>" + l + "</button>").join("") + "</div>" +

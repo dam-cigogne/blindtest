@@ -621,7 +621,7 @@ export class Soiree extends DurableObject {
         g.sfx = { k, n, q: (((g.sfx && g.sfx.q) || []).concat([{ k, n }])).slice(-6) }; // les derniers, pour ne rien rater entre deux rafraîchissements
       } else if (act === "bgm") {
         const sg = body.song && body.song.t ? { t: String(body.song.t).slice(0, 100), a: String(body.song.a || "").slice(0, 100) } : null;
-        g.bgm = { song: sg, on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: ["tubes", "fete", "electro", "latino", "doux"].includes(body.k) ? body.k : "tubes" };
+        g.bgm = { song: sg, on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: ["tubes", "fete", "electro", "latino"].includes(body.k) ? body.k : "tubes" };
       } else if (act === "showPhoto") {
         // une photo d'équipe en plein écran sur l'écran géant (à tout moment)
         const t = this.setup.teams.find((x) => x.id === Number(body.id));
