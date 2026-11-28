@@ -87,6 +87,7 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .posterF .k{font-size:min(2.6vw,4.5vh);color:#ffcf4a;font-weight:900;letter-spacing:.08em}.posterF .n{font-size:min(8vw,13vh);font-weight:900;line-height:1.05;text-shadow:0 .4vw 2vw rgba(0,0,0,.6)}.posterF .s{font-size:min(3.4vw,6vh);font-weight:800;color:#ffcf4a}
 .scr .fph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;min-height:0}.scr .fph img{height:min(64vh,80vw);width:min(64vh,80vw);object-fit:cover;border-radius:2vw;border:.6vw solid #fff;box-shadow:0 2vw 6vw rgba(0,0,0,.6);animation:pop .8s ease both}.scr .fph .fn{font-size:min(4.5vw,7vh);font-weight:900}
 .phs{display:flex;flex-wrap:wrap;gap:8px}.phs button{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg2);border:2px solid var(--line);border-radius:12px;padding:8px;color:var(--tx);width:88px;font-size:12px}.phs button span{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phs button.on{border-color:var(--pri);background:rgba(255,92,168,.18)}.phs .av{width:52px;height:52px;font-size:20px}
+.sfxg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sfxg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--tx);font-size:12px;font-weight:700;touch-action:manipulation}.sfxg button span{font-size:26px}.sfxg button:active,.sfxg button.hit{transform:scale(.94);background:rgba(255,92,168,.25);border-color:var(--pri)}.bgrow{margin-top:10px}.bgrow>.btn{width:100%}
 .pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
 .dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
 .links a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--tx);text-decoration:none;font-weight:600;min-width:120px}
@@ -441,6 +442,7 @@ let pollT = null, polling = false, again = false;
 function interval() {
   const r = S.sess && S.sess.role, p = S.pub;
   if (document.hidden && r !== "screen") return 15000;
+  if (sonoOn()) return 700; // la sono doit réagir vite (extraits, bruitages)
   if (!p || p.status !== "running") return r === "anim" ? 2500 : 4000;
   if (sonoOn()) return 700; // la sono doit réagir vite quand l'animateur lance l'extrait
   return r === "team" ? 2500 : 1500;
@@ -801,8 +803,10 @@ function renderDJ(app) {
         (p.k >= man.n - 1 ? '<p class="muted small">Dernier morceau : l\'animateur clôturera la manche.</p>' : "") + "</div>";
     }
   }
+  if (S.djTab !== "pl") h += sfxPanel("dj");
   h += "</div>";
   app.innerHTML = h;
+  bindSfx(app);
   $("#out").onclick = async () => { if (await confirmBox("Quitter l'écran DJ sur ce téléphone ?", "Quitter")) logout(); };
   $$("[data-dt]", app).forEach((b) => (b.onclick = () => { S.djTab = b.dataset.dt; S.lastSig = ""; renderDJ(app); }));
   const cp = $("#cpPl"); if (cp) cp.onclick = () => copyText(playlistText(d.all));
@@ -936,6 +940,7 @@ function pvUI() {
 }
 // Joue l'extrait du morceau en cours (appelé directement dans le clic, pour que le téléphone accepte le son)
 async function pvGo(s, sec, force) {
+  if (SFX.bgOn) bgSet(false);
   if (!audioOn() && !force) return;
   const off = Number(s.o) || 0; if (s.d && sec > 0) sec = s.d;
   const retry = () => { delete PV.cache[pvKey(s)]; return pvResolve(s); };
@@ -1071,6 +1076,7 @@ function pvCheckAll(manches, onChange, onReplace, lockedMsg) {
 const sonoOn = () => { const r = S.sess && S.sess.role; return audioOn() && (r === "dj" || (r === "anim" && LS.get("bt_combo", false))) && LS.get("bt_sono", r === "dj"); };
 function sonoSync() {
   const p = S.pub; if (!p || !sonoOn()) return;
+  sfxSync(p);
   const songs = (S.data && (S.data.songs || (S.data.setup && S.data.setup.manches[p.m] && S.data.setup.manches[p.m].songs))) || [];
   const s = songs[p.k];
   const key = p.runId + ":" + p.m + ":" + p.k + ":" + (p.started ? p.phaseStart : 0);
@@ -1094,6 +1100,118 @@ function sonoToggle(id) {
   return '<label class="row small" style="margin:6px 0"><input type="checkbox" id="' + id + '" style="width:auto"' + (LS.get("bt_sono", S.sess && S.sess.role === "dj") ? " checked" : "") + "><span style='flex:1'>📻 Ce téléphone est branché à la sono : il joue l'extrait dès que l'animateur lance le chrono</span></label>" +
     (!PV.unlocked ? '<p class="small" style="color:#ff9f1a">👆 Touchez l\'écran une fois pour autoriser le son, puis laissez l\'appli ouverte.</p>' : "");
 }
+
+/* ================= 🔊 Bruitages & musique d'ambiance ================= */
+// Les sons sont fabriqués par l'appli (aucun fichier à télécharger), puis joués par un lecteur audio
+// classique : sur iPhone ils passent même si le bouton silencieux est activé, comme les extraits.
+const SFXL = [
+  ["roul", "🥁", "Roulement"], ["tada", "🎺", "Fanfare"], ["applau", "👏", "Applaudissements"], ["ding", "✅", "Bonne réponse"],
+  ["buzz", "❌", "Mauvaise réponse"], ["triste", "🎷", "Trombone triste"], ["tictac", "⏰", "Suspense"], ["corne", "📯", "Corne"], ["whoosh", "💨", "Whoosh"],
+];
+const SFX = { cache: {}, a: null, b: null, bgOn: false, bgVol: 0.35, seenN: undefined, localAt: {} };
+function sfxEl(k) { if (!SFX[k]) { SFX[k] = new Audio(); SFX[k].preload = "auto"; } return SFX[k]; }
+const SFXP = ["a", "a2", "a3"]; let sfxI = 0;
+function sfxUnlock() { ["a", "a2", "a3", "b"].forEach((k) => { const e = sfxEl(k); if (e._ok) return; e._ok = true; if (!e.src) { e.src = SILENT; const p = e.play(); if (p && p.catch) p.then(() => e.pause()).catch(() => (e._ok = false)); } }); }
+["touchend", "click"].forEach((ev) => document.addEventListener(ev, sfxUnlock, true));
+function wav(buf) {
+  const d = buf.getChannelData(0), n = d.length, sr = buf.sampleRate, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+  let peak = 0, sum = 0; for (let i = 0; i < n; i++) { peak = Math.max(peak, Math.abs(d[i])); sum += d[i] * d[i]; }
+  const rms = Math.sqrt(sum / n) || 1, g = Math.min(0.95 / (peak || 1), 0.17 / rms); // tous les sons à peu près au même volume
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, d[i] * g)) * 32767, true);
+  return URL.createObjectURL(new Blob([ab], { type: "audio/wav" }));
+}
+async function synth(dur, build) {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sr = 22050;
+  const c = new OAC(1, Math.ceil(sr * dur), sr), out = c.createGain(); out.connect(c.destination);
+  let nb = null; const noise = () => { if (!nb) { nb = c.createBuffer(1, sr * 2, sr); const x = nb.getChannelData(0); for (let i = 0; i < x.length; i++) x[i] = Math.random() * 2 - 1; } const s = c.createBufferSource(); s.buffer = nb; s.loop = true; return s; };
+  const env = (t, a, h, r, peak) => { const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.setValueAtTime(peak, t + a + h); g.gain.exponentialRampToValueAtTime(0.0005, t + a + h + r); return g; };
+  const tone = (type, f, t, a, h, r, peak, dest, f2) => { const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + a + h + r); const g = env(t, a, h, r, peak); o.connect(g); g.connect(dest || out); o.start(t); o.stop(t + a + h + r + 0.05); return o; };
+  const hit = (t, len, peak, type, freq, q, dest) => { const s = noise(), f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q || 1; const g = env(t, 0.002, 0, len, peak); s.connect(f); f.connect(g); g.connect(dest || out); s.start(t, Math.random()); s.stop(t + len + 0.05); };
+  build({ c, out, noise, env, tone, hit });
+  return wav(await c.startRendering());
+}
+const SFXDEF = {
+  roul: () => synth(4.2, ({ hit, tone }) => { let t = 0; for (let i = 0; t < 2.9; i++) { const k = t / 2.9; hit(t, 0.07, 0.25 + k * 0.55, "bandpass", 1800, 0.8); t += 0.075 - k * 0.035; } hit(3.0, 1.2, 1, "highpass", 5000, 0.5); hit(3.0, 0.35, 0.9, "lowpass", 400, 1); tone("sine", 70, 3.0, 0.005, 0.05, 0.5, 0.9); }),
+  tada: () => synth(3.2, ({ c, out, tone }) => { const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600; lp.connect(out); [[392, 0], [523, 0.16], [659, 0.32], [784, 0.48]].forEach(([f, t]) => tone("sawtooth", f, t, 0.02, 0.1, 0.12, 0.35, lp)); [523, 659, 784, 1047].forEach((f) => { tone("sawtooth", f, 0.7, 0.04, 1.2, 1.1, 0.22, lp); tone("square", f * 1.003, 0.7, 0.04, 1.2, 1.1, 0.07, lp); }); }),
+  applau: () => synth(5, ({ hit }) => { for (let i = 0; i < 900; i++) { const t = Math.random() * 4.6, k = t < 0.6 ? t / 0.6 : t > 3.4 ? Math.max(0, (4.6 - t) / 1.2) : 1; hit(t, 0.03 + Math.random() * 0.03, (0.12 + Math.random() * 0.2) * k, "bandpass", 1200 + Math.random() * 2200, 1.2); } }),
+  ding: () => synth(1.8, ({ tone }) => { tone("sine", 1319, 0, 0.005, 0.02, 1.2, 0.6); tone("sine", 1760, 0.12, 0.005, 0.02, 1.4, 0.55); tone("sine", 2637, 0.12, 0.005, 0.02, 0.6, 0.15); }),
+  buzz: () => synth(1.1, ({ c, out, tone }) => { const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400; lp.connect(out); tone("square", 110, 0, 0.01, 0.8, 0.15, 0.5, lp); tone("sawtooth", 116, 0, 0.01, 0.8, 0.15, 0.4, lp); }),
+  triste: () => synth(3.4, ({ c, out }) => { const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1500; lp.connect(out); [[294, 0, 0.42], [277, 0.5, 0.42], [262, 1.0, 0.42], [247, 1.5, 1.6]].forEach(([f, t, d]) => { const o = c.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; const lfo = c.createOscillator(); lfo.frequency.value = d > 1 ? 6 : 0.1; const lg = c.createGain(); lg.gain.value = d > 1 ? 7 : 0; lfo.connect(lg); lg.connect(o.frequency); const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.05); g.gain.setValueAtTime(0.4, t + d - 0.1); g.gain.linearRampToValueAtTime(0, t + d); o.connect(g); g.connect(lp); o.start(t); lfo.start(t); o.stop(t + d + 0.05); lfo.stop(t + d + 0.05); }); }),
+  tictac: () => synth(6.2, ({ hit, tone }) => { for (let i = 0; i < 12; i++) { const t = i * 0.5; hit(t, 0.04, 0.7, "bandpass", i % 2 ? 2200 : 3000, 6); } tone("sine", 55, 0, 0.5, 5.2, 0.4, 0.25); }),
+  corne: () => synth(2.4, ({ c, out, tone }) => { const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3000; lp.connect(out); [[0, 0.25], [0.35, 0.25], [0.7, 1.4]].forEach(([t, d]) => [440, 554, 659].forEach((f) => tone("sawtooth", f, t, 0.02, d, 0.1, 0.22, lp))); }),
+  whoosh: () => synth(1.4, ({ c, out, noise, env }) => { const s = noise(), f = c.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2; f.frequency.setValueAtTime(300, 0); f.frequency.exponentialRampToValueAtTime(5000, 0.7); f.frequency.exponentialRampToValueAtTime(800, 1.3); const g = env(0, 0.6, 0.1, 0.6, 0.9); s.connect(f); f.connect(g); g.connect(out); s.start(0); s.stop(1.4); }),
+  // musique d'ambiance : petit groove doux (Am7 – Dm7 – G7 – Cmaj7), 16 secondes qui tournent en boucle
+  bg: () => synth(16, ({ c, out, tone, hit }) => {
+    const b = 0.5, lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1800; lp.connect(out);
+    const ch = [[220, 262, 330, 392], [147, 175, 220, 262], [196, 247, 294, 349], [131, 165, 196, 247]], ba = [110, 73.4, 98, 65.4];
+    for (let bar = 0; bar < 8; bar++) {
+      const t0 = bar * 4 * b, k = bar % 4;
+      ch[k].forEach((f) => { tone("triangle", f * 2, t0, 0.08, 4 * b - 0.3, 0.25, 0.07, lp); tone("sine", f * 2.003, t0, 0.08, 4 * b - 0.3, 0.25, 0.05, lp); });
+      [0, 1.5, 2, 3, 3.5].forEach((s, i) => tone("sine", ba[k] * (i === 4 ? 1.5 : 1), t0 + s * b, 0.01, 0.12, 0.25, 0.32));
+      for (let s = 0; s < 4; s++) { tone("sine", 60, t0 + s * b, 0.002, 0.02, 0.18, s % 2 ? 0.15 : 0.45, null, 40); hit(t0 + s * b + b / 2, 0.05, 0.08, "highpass", 7000, 0.7); if (s % 2) hit(t0 + s * b, 0.12, 0.12, "bandpass", 1500, 0.9); }
+    }
+  }),
+};
+async function sfxUrl(k) { if (!SFX.cache[k]) SFX.cache[k] = SFXDEF[k](); return SFX.cache[k]; }
+async function sfxPlay(k) {
+  if (!SFXDEF[k] || k === "bg") return;
+  try { const u = await sfxUrl(k), e = sfxEl(SFXP[sfxI++ % SFXP.length]); e.loop = false; e.volume = 1; e.src = u; await e.play(); }
+  catch (er) { console.warn(er); toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
+}
+async function bgSet(on, vol) {
+  const e = sfxEl("b"); if (vol != null) SFX.bgVol = vol;
+  clearInterval(SFX.bgFade);
+  if (on) {
+    try { const u = await sfxUrl("bg"); if (e.src !== u) e.src = u; e.loop = true; if (!SFX.bgOn) e.volume = 0; SFX.bgOn = true; await e.play();
+      SFX.bgFade = setInterval(() => { const d = SFX.bgVol - e.volume; if (Math.abs(d) < 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, Math.min(1, e.volume + Math.sign(d) * 0.03)); }, 60);
+    } catch (er) { SFX.bgOn = false; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
+  } else if (SFX.bgOn) {
+    SFX.bgOn = false;
+    SFX.bgFade = setInterval(() => { if (e.volume <= 0.04) { e.pause(); e.volume = 0; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, e.volume - 0.04); }, 60);
+  }
+}
+// Le téléphone de la sono suit les ordres de l'animateur (bruitages + musique d'ambiance)
+function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF); const nx = () => { if (i < ks.length) sfxUrl(ks[i++]).then(() => setTimeout(nx, 50)); }; setTimeout(nx, 1500); }
+function sfxSync(p) {
+  sfxWarm(); // la sono prépare les sons à l'avance
+  const n = (p.sfx && p.sfx.n) || 0;
+  if (SFX.seenN === undefined) SFX.seenN = n;
+  else if (n !== SFX.seenN) {
+    const todo = ((p.sfx && p.sfx.q) || [p.sfx]).filter((x) => x && x.n > SFX.seenN); SFX.seenN = n;
+    todo.forEach((x) => { if (!(SFX.localAt[x.k] && Date.now() - SFX.localAt[x.k] < 4000)) sfxPlay(x.k); });
+  }
+  const bg = p.bgm || { on: false, vol: 0.35 };
+  if (bg.on !== SFX.bgOn || (bg.on && Math.abs(bg.vol - SFX.bgVol) > 0.01)) bgSet(bg.on, bg.vol);
+}
+// Envoyer un bruitage (depuis n'importe quel téléphone animateur) : il sort de la sono
+function sfxFire(k) {
+  if (sonoOn()) { SFX.localAt[k] = Date.now(); sfxPlay(k); }
+  return api("/game", { method: "POST", body: { action: "sfx", k } }).catch(() => {});
+}
+function sfxPanel(mode) {
+  const p = S.pub || {}, bg = p.bgm || { on: false, vol: 0.35 };
+  return '<div class="card sfxc"><h3>🔊 Bruitages & ambiance</h3>' +
+    (mode === "dj" ? '<p class="small muted">Les sons sortent de ce téléphone (branchez-le à la sono). L\'animateur peut aussi les déclencher depuis son téléphone.</p>'
+      : '<p class="small muted">Les sons sortent du téléphone branché à la sono' + (sonoOn() ? " (celui-ci)" : " (case 📻 « branché à la sono » cochée chez le DJ)") + ".</p>") +
+    '<div class="sfxg">' + SFXL.map(([k, e, l]) => '<button data-sfx="' + k + '"><span>' + e + "</span>" + l + "</button>").join("") + "</div>" +
+    '<div class="bgrow"><button class="btn ' + (bg.on ? "ok" : "") + '" id="bgOn">' + (bg.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)") + "</button>" +
+    '<div class="row" style="margin-top:6px;flex-wrap:nowrap;align-items:center"><span class="small">Volume</span><button class="btn ghost sm" id="bgM">−</button><b id="bgV" style="min-width:3ch;text-align:center">' + Math.round(bg.vol * 100) + '%</b><button class="btn ghost sm" id="bgP">+</button></div>' +
+    '<p class="small muted">L\'ambiance s\'arrête toute seule quand un extrait est lancé.</p></div>' +
+    (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ Bruitages automatiques : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage</span></label>' : "") + "</div>";
+}
+function bindSfx(v) {
+  $$("[data-sfx]", v).forEach((b) => (b.onclick = () => { b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 300); sfxFire(b.dataset.sfx); }));
+  const bg = () => (S.pub && S.pub.bgm) || { on: false, vol: 0.35 };
+  const send = (on, vol) => { S.pub.bgm = { on, vol }; if (sonoOn()) bgSet(on, vol); api("/game", { method: "POST", body: { action: "bgm", on, vol } }).then(() => pollNow()).catch((e) => toast(e.message)); };
+  if ($("#bgOn", v)) $("#bgOn", v).onclick = () => { const b = bg(); send(!b.on, b.vol); const x = $("#bgOn", v); x.classList.toggle("ok", !b.on); x.textContent = !b.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)"; };
+  const step = (d) => { const b = bg(), vol = Math.round(Math.max(0.05, Math.min(1, b.vol + d)) * 100) / 100; send(b.on, vol); $("#bgV", v).textContent = Math.round(vol * 100) + "%"; };
+  if ($("#bgM", v)) { $("#bgM", v).onclick = () => step(-0.1); $("#bgP", v).onclick = () => step(0.1); }
+  if ($("#sfxAuto", v)) $("#sfxAuto", v).onchange = (e) => LS.set("bt_sfxauto", e.target.checked);
+}
+const sfxAuto = () => LS.get("bt_sfxauto", true);
 
 /* ================= Écran géant ================= */
 // QR codes des équipes sur l'écran géant : tous à la fois, ou un par un (piloté depuis le téléphone)
@@ -1473,6 +1591,7 @@ function renderTab() {
     if ($("#gRankAny2")) $("#gRankAny2").onclick = () => gameAct("showRanking", { show: true });
   }
   if (S.tab === "jeu" && S.pub && S.pub.teams.some((t) => t.ph)) { v.insertAdjacentHTML("beforeend", photoStrip()); bindPhotoStrip(v); }
+  if (S.tab === "jeu" && S.pub) { v.insertAdjacentHTML("beforeend", sfxPanel("anim")); bindSfx(v); }
 }
 const lockBanner = () => isLocked() ? '<div class="lock">🔒 Partie en cours : les équipes et les manches sont verrouillées. Pour les modifier, remettez la partie à zéro (Réglages).</div>' : "";
 function lockInputs(v) { if (isLocked()) $$("input,select,textarea,button", v).forEach((e) => { if (!e.closest(".keep")) e.disabled = true; }); }
@@ -1564,14 +1683,20 @@ function tabJeu(v) {
     v.innerHTML = h;
     $("#shRk").onchange = (e) => gameAct("showRanking", { show: e.target.checked });
     bindTie(v, ties, g);
-    if ($("#fvPod")) $("#fvPod").onclick = () => gameAct("finView", { v: "podium" });
-    if ($("#fvPost")) $("#fvPost").onclick = () => gameAct("finView", { v: "poster" });
+    const fan = () => { if (sfxAuto()) { sfxFire("tada"); setTimeout(() => sfxFire("applau"), 1400); } };
+    if ($("#fvPod")) $("#fvPod").onclick = () => { gameAct("finView", { v: "podium" }); fan(); };
+    if ($("#fvPost")) $("#fvPost").onclick = () => { gameAct("finView", { v: "poster" }); fan(); };
     if ($("#fvOff")) $("#fvOff").onclick = () => gameAct("finView", { v: null });
     if ($("#fvA4")) $("#fvA4").onclick = () => posterBox(g.runId || 1);
     if ($("#gRev")) $("#gRev").onclick = async () => {
       const grp = nx && ties.find((t) => t.ids.includes(nx.id));
       if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); pgTo(0); return; }
       if (grp && !(await confirmBox("⚖️ " + grp.names.join(" et ") + " sont à égalité pour la " + ordF(grp.place) + " place. Révéler quand même (ex æquo) ?", "Révéler quand même"))) return;
+      if (sfxAuto()) { // 🥁 roulement de tambour, puis la place apparaît
+        const b = $("#gRev"); if (b) { b.disabled = true; b.textContent = "🥁 Roulement de tambour…"; }
+        sfxFire("roul"); await new Promise((r) => setTimeout(r, 2900));
+        if (nx && nx.rank === 1) setTimeout(() => { sfxFire("tada"); setTimeout(() => sfxFire("applau"), 1400); }, 3800);
+      }
       gameAct("reveal", { n: rv + 1 });
     };
     if ($("#gRevBack")) $("#gRevBack").onclick = () => gameAct("reveal", { n: rv - 1 });
@@ -1840,9 +1965,11 @@ function bindTie(v, ties, g) {
     if (g.tbShow) gameAct("tbShow", { show: true, ids: t.ids, place: t.place, hand: id });
     const ok = await confirmBox("✋ <b>" + esc(name) + "</b> a la main !" + (song ? "<br><br>Réponse attendue :<br><b>" + esc(song.t) + "</b> – " + esc(song.a) : "") + "<br><br>A-t-elle donné le titre ET l'artiste ?", "✓ Bonne réponse", false, "✗ Raté");
     if (ok) {
+      if (sfxAuto()) { sfxFire("ding"); setTimeout(() => sfxFire("applau"), 900); }
       S.tb.song = null; S.tb.out = []; gameAct("tbWin", { id });
       toast("🏅 " + name + " remporte la " + ordF(t.place) + " place" + (left > 1 ? " – on continue pour la suivante" : ""), 3500);
     } else {
+      if (sfxAuto()) sfxFire("buzz");
       if (!S.tb.out.includes(id)) S.tb.out.push(id);
       if (g.tbShow) gameAct("tbShow", { show: true, ids: t.ids, place: t.place, hand: null });
       toast("✗ Raté : la main passe aux autres. « ▶ Relancer » pour continuer", 3500); renderTab();
