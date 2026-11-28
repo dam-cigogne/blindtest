@@ -12,8 +12,9 @@ const defaultSetup = () => ({
   name: "Blind test",
   codes: { anim: null, dj: null },
   baseUrl: "",
-  scoring: { title: 1, artist: 1 },
-  extractSec: 15,
+  scoring: { title: 1, artist: 2 },
+  extractSec: 10,
+  defs2: true,
   answerSec: 10,
   teamNames: true,
   teams: [],
@@ -184,6 +185,12 @@ export class Soiree extends DurableObject {
       this.seen = d.get("seen") || {}; // équipes qui ont déjà ouvert leur QR code (clé = code d'équipe)
       this.played = d.get("played") || [];
       this.setup = d.get("setup") || defaultSetup();
+      // nouveaux réglages par défaut (nov. 2026) : extrait 10 s, titre 1 pt / artiste 2 pts – appliqués une seule fois aux réglages encore « d'origine »
+      if (!this.setup.defs2) {
+        if (Number(this.setup.extractSec) === 15) this.setup.extractSec = 10;
+        if (this.setup.scoring && this.setup.scoring.title === 1 && this.setup.scoring.artist === 1) this.setup.scoring = { title: 1, artist: 2 };
+        this.setup.defs2 = true;
+      }
       this.game = d.get("game") || defaultGame();
       this.answers = d.get("answers") || {};
       this.results = d.get("results") || {};
@@ -325,7 +332,7 @@ export class Soiree extends DurableObject {
       reveal: game.reveal || 0,
       finView: game.status === "finished" ? game.finView || null : null,
       showPhoto: game.showPhoto || null,
-      tbShow: game.tbShow ? { place: game.tbShow.place, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
+      tbShow: game.tbShow ? { place: game.tbShow.place, hand: game.tbShow.hand ?? null, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
       // classement d'avant la dernière manche publiée, pour l'animation de l'écran géant
       rankPrev: game.showRanking && game.status === "running" ? this.ranking(game.m) : null,
       rankAt: game.rankAt || 0,
@@ -406,7 +413,7 @@ export class Soiree extends DurableObject {
         delete this.photos[t.code]; await this.ctx.storage.delete("photo:" + t.code);
       } else {
         const data = String(body.data || "");
-        if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 120000) return json({ error: "photo invalide ou trop lourde" }, 400);
+        if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 122000) return json({ error: "photo invalide ou trop lourde" }, 400);
         await this.ctx.storage.put("photo:" + t.code, data);
         this.photos[t.code] = Date.now();
       }
@@ -608,7 +615,7 @@ export class Soiree extends DurableObject {
       } else if (act === "tbShow") {
         // écran géant : annonce du morceau de départage pour les équipes à égalité
         const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter((id) => this.setup.teams.some((t) => t.id === id)) : [];
-        g.tbShow = body.show && ids.length > 1 ? { ids, place: Math.max(1, Number(body.place) || 1) } : null;
+        g.tbShow = body.show && ids.length > 1 ? { ids, place: Math.max(1, Number(body.place) || 1), hand: ids.indexOf(Number(body.hand)) >= 0 ? ids.indexOf(Number(body.hand)) : null } : null;
         if (g.tbShow) { g.showTeams = false; g.showRules = false; g.showQr = null; }
       } else if (act === "tbWin") {
         const id = Number(body.id);
@@ -706,6 +713,10 @@ export class Soiree extends DurableObject {
       const snap = info && (await this.ctx.storage.get("save:" + body.id));
       if (!snap) return json({ error: "partie introuvable" }, 404);
       this.setup = Object.assign(defaultSetup(), snap, { codes: this.setup.codes, baseUrl: this.setup.baseUrl, loadedFrom: { id: info.id, name: info.name } });
+      if (!snap.defs2) { // partie enregistrée avant les nouveaux réglages par défaut
+        if (Number(this.setup.extractSec) === 15) this.setup.extractSec = 10;
+        if (this.setup.scoring && this.setup.scoring.title === 1 && this.setup.scoring.artist === 1) this.setup.scoring = { title: 1, artist: 2 };
+      }
       this.game = defaultGame();
       this.answers = {}; this.results = {}; this.adjust = {};
       await this.save("setup", "game", "answers", "results", "adjust");
