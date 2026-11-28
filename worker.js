@@ -220,7 +220,8 @@ export class Soiree extends DurableObject {
 
   // skip = numéro d'une manche à ne pas compter (pour le classement « avant cette manche »)
   ranking(skip) {
-    const sc = this.setup.scoring;
+    const sc = this.game.scoring || this.setup.scoring; // barème figé de la partie (sinon réglages)
+    const mults = this.game.mults || [];
     const rows = this.setup.teams.map((t) => ({ id: t.id, name: t.name, total: 0, perManche: [] }));
     this.setup.manches.forEach((m, i) => {
       if (this.game.states[i] !== "published" || i === skip) return;
@@ -230,7 +231,7 @@ export class Soiree extends DurableObject {
         items.forEach((it) => {
           pts += (it.t === "ok" ? sc.title : 0) + (it.a === "ok" ? sc.artist : 0);
         });
-        pts *= m.mult || 1;
+        pts *= mults[i] || m.mult || 1;
         r.perManche[i] = pts;
         r.total += pts;
       });
@@ -318,7 +319,8 @@ export class Soiree extends DurableObject {
       } : null,
       teamNames: setup.teamNames !== false,
       service: setup.service || "",
-      scoring: setup.scoring,
+      scoring: (game.status !== "setup" && game.scoring) || setup.scoring,
+      scoringLocked: !!(game.status !== "setup" && game.scoring),
       manches: setup.manches.map((m, i) => ({
         title: m.title,
         mult: m.mult || 1,
@@ -555,7 +557,9 @@ export class Soiree extends DurableObject {
       const cur = mans[g.m];
       if (act === "start") {
         if (!this.setup.teams.length || !mans.length) return json({ error: "il faut des équipes et des manches" }, 400);
-        this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
+        this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false,
+          // barème et coefficients FIGÉS au lancement : changer les réglages ensuite ne modifie jamais les points d'une partie
+          scoring: { title: Number(this.setup.scoring.title) || 0, artist: Number(this.setup.scoring.artist) || 0 }, mults: mans.map((m) => Number(m.mult) || 1) };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
       } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto" && act !== "sfx" && act !== "bgm" && act !== "podStep" && act !== "podLand") {
