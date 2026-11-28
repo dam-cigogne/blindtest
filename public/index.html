@@ -1254,90 +1254,89 @@ function tubesPool(all) {
   if (all) return pool;
   return shuffle(pool);
 }
-/* ---- Lecteur d'ambiance : deux lecteurs qui se relaient, fondus enchaînés en douceur ----
-   Sur iPhone, Apple bloque le volume des lecteurs : on passe donc par la table de mixage du navigateur
-   (Web Audio), où le volume se règle partout, avec des fondus fluides. */
+/* ---- Lecteur d'ambiance ----
+   Tous les sons de l'appli passent par des lecteurs audio classiques (une seule « sortie » pour le téléphone :
+   plus stable en Bluetooth, volume homogène). Comme l'iPhone interdit de changer le volume d'un lecteur, les fondus
+   et le volume de l'ambiance sont FABRIQUÉS DANS LE SON lui-même : chaque morceau est téléchargé entier, puis
+   recalculé avec son fondu d'entrée, son fondu de sortie et son volume. Deux lecteurs se relaient et se chevauchent :
+   le fondu enchaîné est donc parfait, sans saccade, même sur iPhone. */
 const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const BG = { ac: null, g: {}, cur: "b", gen: 0, t: null };
-function bgAc() {
-  if (BG.ac || !(window.AudioContext || window.webkitAudioContext)) return BG.ac;
-  try {
-    if (navigator.audioSession) navigator.audioSession.type = "playback"; // iPhone : le son passe même en mode silencieux
-    BG.ac = new (window.AudioContext || window.webkitAudioContext)();
-    ["b", "b2"].forEach((k) => { const e = sfxEl(k), src = BG.ac.createMediaElementSource(e), g = BG.ac.createGain(); g.gain.value = 0; src.connect(g); g.connect(BG.ac.destination); BG.g[k] = g; });
-  } catch (er) { console.warn(er); BG.ac = null; BG.g = {}; }
-  return BG.ac;
+const BG = { cur: "b", gen: 0, t: null, next: null, urls: [] };
+const XF = 3; // durée du fondu enchaîné (s)
+function wav2(buf) { // stéréo 16 bits
+  const ch = Math.min(2, buf.numberOfChannels), n = buf.length, sr = buf.sampleRate, ab = new ArrayBuffer(44 + n * 2 * ch), v = new DataView(ab);
+  const w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 2 * ch, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2 * ch, true); v.setUint16(32, 2 * ch, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2 * ch, true);
+  const d = [...Array(ch)].map((_, c) => buf.getChannelData(c)); let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) { v.setInt16(o, Math.max(-1, Math.min(1, d[c][i])) * 32767, true); o += 2; }
+  return URL.createObjectURL(new Blob([ab], { type: "audio/wav" }));
 }
-["touchend", "click"].forEach((ev) => document.addEventListener(ev, () => { const ac = bgAc(); if (ac && ac.state !== "running") ac.resume().catch(() => {}); }, true));
-// volume d'un lecteur, en douceur (sec = durée du fondu)
-function bgGain(k, v, sec) {
-  const e = sfxEl(k), g = BG.g[k];
-  if (g && BG.ac) { const t = BG.ac.currentTime, p = g.gain; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(Math.max(0, v), t + Math.max(0.02, sec || 0)); }
-  else { // sans table de mixage : petite rampe à la minuterie (sans effet sur iPhone)
-    clearInterval(e._fd); const from = e.volume, n = Math.max(1, Math.round((sec || 0) * 1000 / 50)); let i = 0;
-    e._fd = setInterval(() => { i++; try { e.volume = Math.max(0, Math.min(1, from + (v - from) * i / n)); } catch (x) {} if (i >= n) clearInterval(e._fd); }, 50);
-  }
+// télécharge + recalcule un morceau avec volume et fondus intégrés
+async function bgBake(src, vol, fadeIn, fadeOut) {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, SR = 32000;
+  const ab = await (await fetch(src)).arrayBuffer();
+  const dec = await new Promise((ok, ko) => { const r = new OAC(2, 1, SR).decodeAudioData(ab, ok, ko); if (r && r.then) r.then(ok, ko); });
+  const c = new OAC(2, Math.ceil(dec.duration * SR), SR), s2 = c.createBufferSource(), g = c.createGain();
+  s2.buffer = dec; s2.connect(g); g.connect(c.destination);
+  const D = dec.duration; g.gain.setValueAtTime(fadeIn ? 0 : vol, 0);
+  if (fadeIn) g.gain.linearRampToValueAtTime(vol, fadeIn);
+  if (fadeOut) { g.gain.setValueAtTime(vol, Math.max(fadeIn || 0, D - fadeOut)); g.gain.linearRampToValueAtTime(0, D); }
+  s2.start(0);
+  const url = wav2(await c.startRendering());
+  BG.urls.push(url); while (BG.urls.length > 4) URL.revokeObjectURL(BG.urls.shift()); // on libère la mémoire
+  return { url, dur: D };
 }
-const bgOther = () => (BG.cur === "b" ? "b2" : "b");
-async function bgEnsure() {
-  const ac = bgAc(); if (ac && ac.state !== "running") { try { await ac.resume(); } catch (x) {} }
-  if (ac && ac.state !== "running") toast("🔇 Touchez l'écran de ce téléphone une fois pour lancer la musique", 4000);
-}
-// prépare le prochain vrai tube sur le lecteur libre (pour qu'il démarre sans attendre)
-async function bgPrep(gen) {
+async function bgPrep(gen) { // prochain vrai tube, prêt à jouer
   if (!SFX.tubes || !SFX.tubes.length) SFX.tubes = tubesPool();
   for (let tries = 0; tries < 6; tries++) {
-    let s2 = SFX.bgWant || SFX.tubes.shift(); SFX.bgWant = null; if (!s2) return null;
-    const it = await pvResolve(s2); if (gen !== BG.gen) return null;
-    if (it && it.url) { const k = bgOther(), e = sfxEl(k); e.loop = false; if (e.src !== it.url) { e.src = it.url; e.load(); } return { k, s2 }; }
+    const s2 = SFX.bgWant || SFX.tubes.shift(); SFX.bgWant = null; if (!s2) return null;
+    try {
+      const it = await pvResolve(s2); if (gen !== BG.gen) return null;
+      if (it && it.url) { const b = await bgBake(it.url, SFX.bgVol, XF, XF + 0.5); if (gen !== BG.gen) return null; if (b.dur > 8) return Object.assign(b, { s2 }); }
+    } catch (er) { console.warn(er); }
     if (!SFX.tubes.length) SFX.tubes = tubesPool();
   }
   return null;
 }
-// lance le tube préparé avec un fondu enchaîné (3 s) puis programme le suivant
-async function bgTube(gen, first) {
+async function bgPlayOn(url, loop) { // joue sur le lecteur libre ; l'ancien finit son propre fondu
+  const k = BG.cur === "b" ? "b2" : "b", e = sfxEl(k), old = sfxEl(BG.cur);
+  e.onended = null; e.loop = !!loop; e.src = url; e.volume = 1; await e.play();
+  BG.cur = k; return { e, old };
+}
+async function bgTube(gen) {
   if (gen !== BG.gen || !SFX.bgOn) return;
   const nx = BG.next || (await bgPrep(gen)); BG.next = null;
   if (gen !== BG.gen || !SFX.bgOn) return;
   if (!nx) { toast("🎶 Vrais tubes indisponibles (pas d'internet ?) : ambiance Disco à la place", 3500); SFX.bgK = "fete"; SFX.bgPlaying = null; return bgSet(true); }
-  const old = BG.cur, e = sfxEl(nx.k); BG.cur = nx.k; SFX.bgNow = nx.s2;
-  bgGain(nx.k, 0, 0);
-  try { e.currentTime = 0; } catch (x) {}
-  try { await e.play(); } catch (er) { if (gen === BG.gen) setTimeout(() => bgTube(gen), 300); return; }
-  const X = first ? 1.5 : 3; // durée du fondu enchaîné
-  bgGain(nx.k, SFX.bgVol, X);
-  if (!first) { bgGain(old, 0, X); setTimeout(() => { if (BG.cur !== old) sfxEl(old).pause(); }, X * 1000 + 200); }
-  BG.next = await bgPrep(gen); // le suivant se charge pendant que celui-ci joue
-  // on enchaîne 3,5 s avant la fin de l'extrait (≈ 30 s)
-  const arm = () => {
-    clearTimeout(BG.t); if (gen !== BG.gen) return;
-    const d = isFinite(e.duration) && e.duration > 8 ? e.duration : 30, left = d - (e.currentTime || 0) - 3.5;
-    BG.t = setTimeout(() => bgTube(gen), Math.max(500, left * 1000));
-  };
-  if (isFinite(e.duration) && e.duration > 0) arm(); else { e.addEventListener("loadedmetadata", arm, { once: true }); BG.t = setTimeout(() => bgTube(gen), 26000); }
-  e.onended = () => { if (gen === BG.gen && SFX.bgOn && BG.cur === nx.k) { clearTimeout(BG.t); bgTube(gen); } };
+  try { const { old } = await bgPlayOn(nx.url, false); SFX.bgNow = nx.s2; setTimeout(() => { if (sfxEl(BG.cur) !== old) old.pause(); }, (XF + 1) * 1000); }
+  catch (er) { if (gen === BG.gen) setTimeout(() => bgTube(gen), 500); return; }
+  clearTimeout(BG.t);
+  BG.t = setTimeout(() => bgTube(gen), Math.max(2000, (nx.dur - XF - 0.5) * 1000)); // le suivant démarre pendant le fondu de sortie
+  BG.next = await bgPrep(gen); // et se prépare pendant que celui-ci joue
 }
 async function bgSet(on, vol) {
-  if (vol != null) SFX.bgVol = vol;
+  const volChanged = vol != null && Math.abs(vol - SFX.bgVol) > 0.01; if (vol != null) SFX.bgVol = vol;
   const kind = SFX.bgK || (S.pub && S.pub.bgm && S.pub.bgm.k) || "tubes";
   if (on) {
-    await bgEnsure();
-    if (SFX.bgOn && SFX.bgPlaying === kind) { bgGain(BG.cur, SFX.bgVol, 0.6); return; } // même style : volume seulement
+    if (SFX.bgOn && SFX.bgPlaying === kind) { // même style : nouveau volume
+      if (!volChanged) return;
+      if (kind === "tubes") { BG.next = null; toast("🔊 Nouveau volume : appliqué au prochain morceau", 2500); return; }
+    }
     const gen = ++BG.gen; clearTimeout(BG.t); BG.next = null;
-    const wasOn = SFX.bgOn; SFX.bgOn = true; SFX.bgPlaying = kind;
-    if (kind === "tubes") return bgTube(gen, !wasOn);
+    SFX.bgOn = true; SFX.bgPlaying = kind;
     try {
+      if (kind === "tubes") return bgTube(gen);
       if (!SFX.cache[BGU[kind] || "fete"]) toast("🎶 Préparation de la musique…", 2500);
-      const u = await sfxUrl(BGU[kind] || "fete"); if (gen !== BG.gen) return;
-      const old = BG.cur, k = bgOther(), e = sfxEl(k); BG.cur = k;
-      e.onended = null; e.src = u; e.loop = true; bgGain(k, 0, 0); await e.play();
-      bgGain(k, SFX.bgVol, wasOn ? 3 : 1.5);
-      if (wasOn) { bgGain(old, 0, 3); setTimeout(() => { if (BG.cur !== old) sfxEl(old).pause(); }, 3200); }
-    } catch (er) { SFX.bgOn = false; SFX.bgPlaying = null; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
+      const raw = await sfxUrl(BGU[kind] || "fete"), b = await bgBake(raw, SFX.bgVol, 0, 0); if (gen !== BG.gen) return;
+      const pos = sfxEl(BG.cur).currentTime || 0, same = volChanged && SFX.bgLoopK === kind;
+      const { e, old } = await bgPlayOn(b.url, true); SFX.bgLoopK = kind;
+      if (same) { try { e.currentTime = pos % b.dur; } catch (x) {} }
+      old.pause();
+    } catch (er) { console.warn(er); SFX.bgOn = false; SFX.bgPlaying = null; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
   } else if (SFX.bgOn) {
-    SFX.bgOn = false; SFX.bgPlaying = null; BG.gen++; clearTimeout(BG.t); BG.next = null;
-    const X = 1.2; ["b", "b2"].forEach((k) => bgGain(k, 0, X));
-    setTimeout(() => { if (!SFX.bgOn) ["b", "b2"].forEach((k) => { const e = sfxEl(k); e.pause(); e.onended = null; }); }, X * 1000 + 150); // arrêt garanti
+    SFX.bgOn = false; SFX.bgPlaying = null; SFX.bgLoopK = null; BG.gen++; clearTimeout(BG.t); BG.next = null;
+    ["b", "b2"].forEach((k) => { const e = sfxEl(k); let v = 1; const t = setInterval(() => { v -= 0.1; try { e.volume = Math.max(0, v); } catch (x) {} if (v <= 0) { clearInterval(t); e.pause(); } }, 60); }); // arrêt garanti (fondu là où c'est possible)
   }
 }
 async function sfxUrl(k) { if (!SFX.cache[k]) SFX.cache[k] = SFXDEF[k](); return SFX.cache[k]; }
