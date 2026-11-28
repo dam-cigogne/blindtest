@@ -81,7 +81,9 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .phIntro img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;animation:pop .7s ease both}
 .phIntro .cap{position:absolute;left:0;right:0;bottom:0;padding:14vh 4vw 4vh;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center;transition:opacity .4s}
 .phIntro .k{font-size:min(3vw,5vh);color:#ffcf4a;font-weight:900}.phIntro .n{font-size:min(7vw,12vh);font-weight:900;line-height:1.05}
-.phIntro.fly{background:transparent}.phIntro.fly .bg,.phIntro.fly .cap{opacity:0}
+.phIntro.fly{background:transparent}.phIntro.fly .bg,.phIntro.fly .cap{opacity:0}.phIntro.fly .rib{animation:none;opacity:0}
+.phIntro .rib{position:absolute;z-index:2;top:calc(50% - 50vh + 15vh);left:calc(50% - min(50vh,50vw) - 3vw);transform:rotate(-11deg);transform-origin:left top;background:linear-gradient(90deg,#ffcf4a,#ff9f1a);color:#1a1033;font-weight:900;font-size:min(6vw,10vh);padding:1.2vh 4vw 1.2vh 3vw;border-radius:1vh;box-shadow:0 1.5vh 4vh rgba(0,0,0,.55);letter-spacing:.02em;transition:opacity .4s;animation:ribIn .6s .3s ease both}
+@keyframes ribIn{from{opacity:0;transform:rotate(-11deg) translateX(-30vw)}to{opacity:1;transform:rotate(-11deg)}}
 .av.land{animation:pop .5s ease}@keyframes fadein{from{opacity:0}to{opacity:1}}
 .posterF{position:fixed;inset:0;z-index:5;background:#000;overflow:hidden}.posterF .bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(30px) brightness(.55)}
 .posterF img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;animation:pop 1s ease both}
@@ -1465,7 +1467,7 @@ function rankRace(p) {
   });
   const run = (S.raceRun = (S.raceRun || 0) + 1);
   const later = (ms, f) => setTimeout(() => { if (run === S.raceRun && document.body.contains(box)) f(); }, ms);
-  later(3600, () => { const lead = rows.find((x) => x.k === 0); if (lead && lead.r.total > 0) photoIntro(p, lead.r.id, "👑 En tête du classement · " + plural(lead.r.total, "point"), lead.el.querySelector(".av"), 2600); });
+  later(3600, () => { const lead = rows.find((x) => x.k === 0); if (lead && lead.r.total > 0) { const c = photoIntro(p, lead.r.id, "👑 1re place", lead.el.querySelector(".av"), 0, plural(lead.r.total, "point") + " · en tête du classement"); if (c) { S.intro = { ctl: c, key: "rk" + p.rankAt }; if (p.landed === "rk" + p.rankAt) c.land(); } } });
   later(1300, () => {
     rows.forEach(({ r, el, k }) => { el.classList.add("go"); el.style.top = k * rowH + "px"; el.querySelector(".rb i").style.width = (r.total / max * 100) + "%"; });
     const t0 = performance.now(), D = 1700;
@@ -1509,17 +1511,18 @@ function finalReveal(p) {
   });
   let intro = false;
   if (newOnes) { const k = T - p.reveal, r = R[k], el = box.children[k];
-    if (r && !r.hidden && el) intro = photoIntro(p, r.id, (r.rank === 1 ? "🏆 1re place" : ordF(r.rank) + " place") + " · " + plural(r.total, "point"), el.querySelector(".av"), r.rank === 1 ? 3500 : 2600); }
+    if (r && !r.hidden && el) { intro = photoIntro(p, r.id, r.rank === 1 ? "🏆 1re place" : ordF(r.rank) + " place", el.querySelector(".av"), 0, plural(r.total, "point")); if (intro) { S.intro = { ctl: intro, key: "rv" + p.reveal }; if (p.landed && p.landed === "rv" + p.reveal) intro.land(); if (r.rank === 1) intro.onLand = () => confetti($("#confetti")); } } }
   const winner = R[0] && !R[0].hidden;
-  if (winner && newOnes) setTimeout(() => confetti($("#confetti")), intro ? 4600 : 600);
+  if (winner && newOnes && !intro) setTimeout(() => confetti($("#confetti")), 600);
   S.finSeen = p.reveal || 0;
 }
 // 📸 La photo de l'équipe en très grand, puis elle « rentre » dans sa bulle du classement
-function photoIntro(p, id, label, target, hold) {
+// label = « 2e place » (ruban penché en haut de la photo) ; sub = points (sous le nom)
+function photoIntro(p, id, label, target, hold, sub) {
   const t = phTeam(p, id); if (!t || !t.ph || !target) return false;
   document.querySelectorAll(".phIntro").forEach((x) => { if (x._t) x._t.style.opacity = ""; x.remove(); }); // clic rapide : on termine la précédente
   const url = phUrl(t), ov = document.createElement("div"); ov.className = "phIntro";
-  ov.innerHTML = '<div class="bg" style="background-image:url(\'' + url + '\')"></div><img src="' + url + '" alt=""><div class="cap"><div class="k">' + label + '</div><div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div></div>";
+  ov.innerHTML = '<div class="bg" style="background-image:url(\'' + url + '\')"></div><img src="' + url + '" alt=""><div class="rib">' + label + '</div><div class="cap"><div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div>" + (sub ? '<div class="k">' + sub + "</div>" : "") + "</div>";
   document.body.appendChild(ov); target.style.opacity = "0"; ov._t = target;
   const img = ov.querySelector("img");
   let done = false;
@@ -1591,7 +1594,7 @@ function podAnim(p) {
   if (!r || !el) return;
   const last = step === order.length;
   const boom = () => { el.classList.add("land"); if (k === 1) confetti($("#confetti")); };
-  const ctl = photoIntro(p, r.id, (k === 1 ? "🏆 1re place" : ordF(k) + " place") + " · " + plural(r.total, "point"), el.querySelector(".av"), 0);
+  const ctl = photoIntro(p, r.id, k === 1 ? "🏆 1re place" : ordF(k) + " place", el.querySelector(".av"), 0, plural(r.total, "point"));
   if (ctl) { ctl.onLand = boom; S.podCtl = { ctl, step }; if (p.podLand === step) ctl.land(); }
   else boom();
 }
@@ -1609,7 +1612,8 @@ function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
   const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.podStep, p.showPhoto, p.teams.map((t) => t.ph)]);
-  if (S.podCtl && p.podLand && p.podLand === S.podCtl.step) { S.podCtl.ctl.land(); S.podCtl = null; } // « Sur le podium ! » touché par l'animateur
+  if (S.podCtl && p.podLand && p.podLand === S.podCtl.step) { S.podCtl.ctl.land(); S.podCtl = null; }
+  if (S.intro && p.landed && p.landed === S.intro.key) { S.intro.ctl.land(); S.intro = null; } // « Dans le classement ! » touché par l'animateur // « Sur le podium ! » touché par l'animateur
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
@@ -1808,8 +1812,9 @@ function renderTab() {
   // 🏆 Classement à tout moment (dès qu'une manche est publiée), même en pleine manche
   const G = S.data && S.data.game;
   if (S.tab === "jeu" && G && G.status === "running" && G.states.some((x) => x === "published") && !(G.states[G.m] === "published")) {
-    v.insertAdjacentHTML("beforeend", '<div class="card"><h3>🏆 Classement à tout moment</h3><p class="small muted">Le classement des manches déjà publiées, sur l\'écran géant et les téléphones, quand vous voulez.</p><button class="btn big rankbtn" id="gRankAny">' + (G.showRanking ? "🙈 Masquer le classement de l\'écran" : "🏆 Montrer le classement sur l\'écran géant") + "</button>" + (G.showRanking ? '<button class="btn ghost" id="gRankAny2" style="width:100%;margin-top:6px">🔁 Rejouer l\'animation</button>' : "") + "</div>");
+    v.insertAdjacentHTML("beforeend", '<div class="card"><h3>🏆 Classement à tout moment</h3>' + rkLandBtn(G, S.data) + '<p class="small muted">Le classement des manches déjà publiées, sur l\'écran géant et les téléphones, quand vous voulez.</p><button class="btn big rankbtn" id="gRankAny">' + (G.showRanking ? "🙈 Masquer le classement de l\'écran" : "🏆 Montrer le classement sur l\'écran géant") + "</button>" + (G.showRanking ? '<button class="btn ghost" id="gRankAny2" style="width:100%;margin-top:6px">🔁 Rejouer l\'animation</button>' : "") + "</div>");
     $("#gRankAny").onclick = () => gameAct("showRanking", { show: !G.showRanking });
+    bindRkLand(G);
     if ($("#gRankAny2")) $("#gRankAny2").onclick = () => gameAct("showRanking", { show: true });
   }
   if (S.tab === "jeu" && S.pub && S.pub.teams.some((t) => t.ph)) { v.insertAdjacentHTML("beforeend", photoStrip()); bindPhotoStrip(v); }
@@ -1888,7 +1893,9 @@ function tabJeu(v) {
     const R = d.ranking || [], T = R.length, rv = Math.min(T, g.reveal || 0), nx = R[T - rv - 1];
     const ties = tieGroups(R);
     h += tieCard(ties, g);
-    h += '<div class="card center"><h3>🥁 La révélation finale</h3><p class="muted small">Chaque appui dévoile une place sur l\'écran géant, en partant de la dernière. À vous le suspense !</p>' +
+    const justR = rv > 0 && R[T - rv], waitLand = justR && !justR.hidden && (phTeam(S.pub, justR.id) || {}).ph && g.landed !== "rv" + rv;
+    h += '<div class="card center"><h3>🥁 La révélation finale</h3><p class="muted small">Chaque appui dévoile une place sur l\'écran géant, en partant de la dernière. La photo de l\'équipe s\'affiche en grand avec sa place ; touchez « ⬇️ Dans le classement » pour l\'y envoyer.</p>' +
+      (waitLand ? '<button class="btn big ok" id="gLand">⬇️ ' + esc(justR.name) + " dans le classement !</button>" : "") +
       (rv < T ? '<button class="btn big rankbtn" id="gRev">🥁 Révéler la ' + (nx ? (nx.rank === 1 ? "1re place 🏆" : nx.rank + "e place") : "suite") + "</button>" +
         (nx ? '<p class="small" style="margin-top:6px">🤫 Entre nous : <b>' + esc(nx.name) + "</b> – " + plural(nx.total, "point") + "</p>" : "")
         : '<p style="font-size:1.2rem;font-weight:800;margin:6px 0">🎉 Tout le classement est dévoilé !</p>') +
@@ -1910,6 +1917,7 @@ function tabJeu(v) {
     if ($("#fvPost")) $("#fvPost").onclick = () => { gameAct("finView", { v: "poster" }); fan(); };
     if ($("#fvOff")) $("#fvOff").onclick = () => gameAct("finView", { v: null });
     if ($("#fvA4")) $("#fvA4").onclick = () => posterBox(g.runId || 1);
+    if ($("#gLand")) $("#gLand").onclick = () => gameAct("land", { key: "rv" + rv });
     if ($("#gRev")) $("#gRev").onclick = async () => {
       const grp = nx && ties.find((t) => t.ids.includes(nx.id));
       if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); pgTo(0); return; }
@@ -1955,7 +1963,7 @@ function tabJeu(v) {
     h += '<details style="margin:10px 0"><summary class="muted">Voir et corriger toutes les réponses (touchez une pastille pour changer)</summary>' + answersGrid(d, g.m) + "</details>";
     if (state === "closed") h += '<button class="btn big" id="gPub">📣 Publier : afficher les bonnes réponses</button><p class="muted small">Les points ne sont jamais montrés aux équipes : seul votre téléphone voit le classement.' + (doubts.length ? " Une réponse douteuse non validée compte 0 point." : "") + "</p>";
     else h += g.m < st.manches.length - 1
-      ? '<button class="btn big rankbtn" id="gRank">' + (g.showRanking ? "🙈 Masquer le classement de l\'écran" : "🏆 Révéler le classement sur l\'écran géant") + "</button>" + (g.showRanking ? '<button class="btn ghost" id="gRank2" style="width:100%;margin-top:6px">🔁 Rejouer l\'animation</button>' : "") +
+      ? rkLandBtn(g, d) + '<button class="btn big rankbtn" id="gRank">' + (g.showRanking ? "🙈 Masquer le classement de l\'écran" : "🏆 Révéler le classement sur l\'écran géant") + "</button>" + (g.showRanking ? '<button class="btn ghost" id="gRank2" style="width:100%;margin-top:6px">🔁 Rejouer l\'animation</button>' : "") +
         '<button class="btn big alt" id="gNextM" style="margin-top:8px">Manche suivante ▶ (' + esc(st.manches[g.m + 1].title) + ")</button>"
       : '<button class="btn big" id="gFin">🏁 Terminer la partie</button>';
   }
@@ -1982,6 +1990,7 @@ function tabJeu(v) {
   on("gPub", () => gameAct("publish"));
   on("gNextM", () => gameAct("nextManche"));
   on("gRank", () => gameAct("showRanking", { show: !g.showRanking }));
+  bindRkLand(g);
   on("gRank2", () => gameAct("showRanking", { show: true }));
   on("gFin", async () => { if (await confirmBox("Terminer la partie ? Le podium restera caché tant que vous ne l'affichez pas.", "Terminer")) gameAct("nextManche"); });
   $$("[data-rv]", v).forEach((b) => (b.onclick = () => review(g.m, Number(b.dataset.tid), Number(b.dataset.i), b.dataset.f, b.dataset.rv)));
@@ -2350,6 +2359,13 @@ function teamPhotoBox(id) {
     $("#phTake", box).onclick = async () => { const d = await photoPick(); if (d && (await photoSend(d, id))) closeModal(); };
   });
 }
+// classement de manche : la photo de l'équipe en tête reste en grand jusqu'au toucher
+function rkLandBtn(g, d) {
+  const lead = g.showRanking && d && d.ranking && d.ranking[0];
+  if (!lead || !lead.total || !(phTeam(S.pub, lead.id) || {}).ph || g.landed === "rk" + g.rankAt) return "";
+  return '<button class="btn big ok rkland" style="margin-bottom:8px">⬇️ ' + esc(lead.name) + " dans le classement !</button>";
+}
+function bindRkLand(g) { $$(".rkland").forEach((b) => (b.onclick = () => gameAct("land", { key: "rk" + g.rankAt }))); }
 // 🏅 Podium place par place, piloté depuis le téléphone
 function podBtns(R, g) {
   const order = podOrder(R), st = g.finView === "podium" ? g.podStep || 0 : -1;

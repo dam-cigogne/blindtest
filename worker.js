@@ -336,6 +336,7 @@ export class Soiree extends DurableObject {
       showPhoto: game.showPhoto || null,
       podStep: game.podStep || 0,
       podLand: game.podLand || 0,
+      landed: game.landed || "",
       sfx: game.sfx || null,
       bgm: game.bgm || { on: false, vol: 0.35 },
       tbShow: game.tbShow ? { place: game.tbShow.place, hand: game.tbShow.hand ?? null, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
@@ -563,7 +564,7 @@ export class Soiree extends DurableObject {
           scoring: { title: Number(this.setup.scoring.title) || 0, artist: Number(this.setup.scoring.artist) || 0 }, mults: mans.map((m) => Number(m.mult) || 1) };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto" && act !== "sfx" && act !== "bgm" && act !== "podStep" && act !== "podLand") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto" && act !== "sfx" && act !== "bgm" && act !== "podStep" && act !== "podLand" && act !== "land") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now(); g.showRanking = false; g.showPhoto = null; if (g.bgm) g.bgm.on = false; // la musique reprend : l'écran revient au jeu
@@ -633,6 +634,9 @@ export class Soiree extends DurableObject {
         if (g.finView === "podium") { g.podStep = 0; g.podLand = 0; }
       } else if (act === "podStep") {
         g.podStep = Math.max(0, Math.min(3, Number(body.n) || 0)); g.podLand = 0;
+      } else if (act === "land") {
+        // la photo en plein écran descend dans le classement (révélation finale « rv<n> » ou classement de manche « rk<horodatage> »)
+        g.landed = String(body.key || "").slice(0, 30);
       } else if (act === "podLand") {
         g.podLand = g.podStep || 0;
       } else if (act === "tbShow") {
