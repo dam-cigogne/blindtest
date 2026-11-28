@@ -1223,13 +1223,34 @@ const SFXDEF = {
 // styles d'ambiance : « tubes » = vrais morceaux festifs enchaînés (extraits de 30 s, jamais deux fois le même)
 const BGS = [["tubes", "🎉 Vrais tubes"], ["fete", "🪩 Disco"], ["electro", "⚡ Électro"], ["latino", "🌴 Latino"], ["doux", "🍸 Douce"]];
 const BGU = { fete: "fete", electro: "electro", latino: "latino", doux: "bg" };
-function tubesPool() {
+// tous les morceaux dansants possibles (pour la liste de choix), triés par titre
+function tubesAll() { const was = S.data; return tubesPool(true).sort((a, b) => a.t.localeCompare(b.t)); }
+function tubeOpts(cur) {
+  const k = cur && cur.t ? sKey(cur) : "", L = tubesAll(), has = L.some((x) => sKey(x) === k);
+  return '<option value="">🎲 Au hasard (vrais tubes)</option>' + (k && !has ? '<option value="' + esc(k) + '" selected>🎶 ' + esc(cur.t + " – " + cur.a) + "</option>" : "") +
+    L.map((x) => '<option value="' + esc(sKey(x)) + '"' + (sKey(x) === k ? " selected" : "") + ">" + esc(x.t + " – " + x.a) + "</option>").join("") + '<option value="__autre">🔎 Un autre morceau (je tape le titre)…</option>';
+}
+async function tubePick(sel, cur) { // renvoie {t,a} ou null (au hasard) ou undefined (annulé)
+  const v = sel.value;
+  if (!v) return null;
+  if (v === "__autre") {
+    const t = prompt("Titre du morceau d'ambiance :", ""); if (!t) { sel.value = cur && cur.t ? sKey(cur) : ""; return undefined; }
+    const a = prompt("Artiste :", "") || "";
+    const it = await pvResolve({ t: t.trim(), a: a.trim() });
+    if (!it) { toast("Morceau introuvable : vérifiez le titre et l'artiste", 3500); sel.value = cur && cur.t ? sKey(cur) : ""; return undefined; }
+    toast("🎶 Trouvé : " + it.t + " – " + it.a, 2500);
+    return { t: t.trim(), a: a.trim() };
+  }
+  return tubesAll().find((x) => sKey(x) === v) || null;
+}
+function tubesPool(all) {
   const ex = new Set();
   const add = (m) => (m || []).forEach((x) => (x.songs || []).forEach((y) => ex.add(sKey(y))));
   if (S.data) { add(S.data.all); add(S.data.setup && S.data.setup.manches); }
   // uniquement des morceaux qui bougent : tous les « Tubes de fête » + une sélection dansante des années 80 à aujourd'hui
   const DANSE = /^(Billie Jean|Take On Me|Girls Just Want to Have Fun|Les Démons de minuit|Footloose|Wake Me Up Before You Go-Go|Pump Up the Jam|Nuit de folie|Il tape sur des bambous|Femme libérée|Beat It|Hips Don't Lie|Alors on danse|Dragostea Din Tei|I Gotta Feeling|Hey Ya!|Poker Face|Single Ladies.*|Moi\.\.\. Lolita|Crazy in Love|Relax, Take It Easy|Yeah!|Happy|Uptown Funk|Get Lucky|Despacito|Moves Like Jagger|Djadja|Levitating|Dance Monkey|Can't Stop the Feeling!|Andalouse|Rather Be|Wake Me Up)$/;
   const pool = LIB.themes.flatMap((t) => t.songs.filter((x) => t.id === "fete" || (["s80", "s00", "s10"].includes(t.id) && DANSE.test(x.t)))).filter((x) => !ex.has(sKey(x)));
+  if (all) return pool;
   return shuffle(pool);
 }
 // Fondu du volume par minuterie. Sur iPhone, le volume d'un lecteur ne peut pas être changé par l'appli
@@ -1244,7 +1265,9 @@ async function bgTubeNext(e, gen) {
   if (gen !== SFX.bgGen || !SFX.bgOn) return;
   if (!SFX.tubes || !SFX.tubes.length) SFX.tubes = tubesPool();
   for (let tries = 0; tries < 6 && SFX.tubes.length; tries++) {
-    const s2 = SFX.tubes.shift(), it = await pvResolve(s2);
+    let s2 = SFX.tubes.shift();
+    if (SFX.bgWant) { s2 = SFX.bgWant; SFX.bgWant = null; } // morceau choisi par l'animateur : il passe en premier
+    const it = await pvResolve(s2);
     if (gen !== SFX.bgGen || !SFX.bgOn) return;
     if (!it || !it.url) continue;
     e.loop = false; e.src = it.url; SFX.bgNow = s2;
@@ -1302,6 +1325,10 @@ function sfxSync(p) {
     todo.forEach((x) => { if (!(SFX.localAt[x.k] && Date.now() - SFX.localAt[x.k] < 4000)) sfxPlay(x.k); });
   }
   const bg = p.bgm || { on: false, vol: 0.35 };
+  const songK = bg.song && bg.song.t ? sKey(bg.song) : "";
+  if (bg.on && songK !== (SFX.bgSongK || "")) { // nouveau morceau demandé : on le joue tout de suite
+    SFX.bgSongK = songK; if (songK) { SFX.bgWant = bg.song; SFX.bgK = "tubes"; if (SFX.bgOn) { SFX.bgPlaying = null; } }
+  } else if (!bg.on) SFX.bgSongK = "";
   if (bg.on !== SFX.bgOn || (bg.on && (Math.abs(bg.vol - SFX.bgVol) > 0.01 || (bg.k || "tubes") !== SFX.bgPlaying))) { SFX.bgK = bg.k || "tubes"; bgSet(bg.on, bg.vol); }
 }
 // Envoyer un bruitage (depuis n'importe quel téléphone animateur) : il sort de la sono
@@ -1317,6 +1344,7 @@ function sfxPanel(mode) {
     '<div class="sfxg">' + SFXL.map(([k, e, l]) => '<button data-sfx="' + k + '"><span>' + e + "</span>" + l + "</button>").join("") + "</div>" +
     '<div class="bgrow"><button class="btn ' + (bg.on ? "ok" : "") + '" id="bgOn">' + (bg.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)") + "</button>" +
     '<div class="bgks">' + BGS.map(([k, l]) => '<button class="btn sm ' + ((bg.k || "tubes") === k ? "" : "ghost") + '" data-bgk="' + k + '">' + l + "</button>").join("") + "</div>" +
+    ((bg.k || "tubes") === "tubes" ? '<label class="small" style="display:block;margin-top:6px">Morceau</label><select id="bgSong">' + tubeOpts(bg.song) + "</select>" : "") +
     '<p class="small muted" style="margin:4px 0 0">🎉 Vrais tubes : des extraits de vrais morceaux de fête qui s\'enchaînent (jamais deux fois le même, jamais un morceau de vos manches). Les autres styles sont fabriqués par l\'appli.</p>' +
     '<div class="row" style="margin-top:6px;flex-wrap:nowrap;align-items:center"><span class="small">Volume</span><button class="btn ghost sm" id="bgM">−</button><b id="bgV" style="min-width:3ch;text-align:center">' + Math.round(bg.vol * 100) + '%</b><button class="btn ghost sm" id="bgP">+</button></div>' +
     (IOS ? '<p class="small muted">📱 Sur iPhone, le volume de l\'ambiance se règle avec les boutons du téléphone ou de la sono (Apple ne laisse pas l\'appli le baisser).</p>' : "") +
@@ -1327,8 +1355,13 @@ function bindSfx(v) {
   if ($("#sfxHere", v)) $("#sfxHere", v).onchange = (e) => { LS.set("bt_sono", e.target.checked); if (e.target.checked) { LS.set("bt_audio", true); sfxUnlock(); sfxWarm(); toast("📻 Les sons sortiront de ce téléphone"); } else if (SFX.bgOn) bgSet(false); S.lastSig = ""; if (S.sess.role === "dj") renderDJ($("#app")); else renderTab(); };
   $$("[data-sfx]", v).forEach((b) => (b.onclick = () => { b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 300); sfxFire(b.dataset.sfx); }));
   const bg = () => (S.pub && S.pub.bgm) || { on: false, vol: 0.35 };
-  const send = (on, vol, k) => { k = k || bg().k || "tubes"; S.pub.bgm = { on, vol, k }; if (sonoOn()) { SFX.bgK = k; bgSet(on, vol); } api("/game", { method: "POST", body: { action: "bgm", on, vol, k } }).then(() => pollNow()).catch((e) => toast(e.message)); };
+  const send = (on, vol, k, song) => { k = k || bg().k || "tubes"; song = song === undefined ? bg().song || null : song; S.pub.bgm = { on, vol, k, song }; if (sonoOn()) { SFX.bgK = k; const sk = song && song.t ? sKey(song) : ""; if (on && sk && sk !== SFX.bgSongK) { SFX.bgWant = song; SFX.bgPlaying = null; } SFX.bgSongK = on ? sk : ""; bgSet(on, vol); } api("/game", { method: "POST", body: { action: "bgm", on, vol, k, song } }).then(() => pollNow()).catch((e) => toast(e.message)); };
   $$("[data-bgk]", v).forEach((b) => (b.onclick = () => { const x = bg(); send(x.on, x.vol, b.dataset.bgk); $$("[data-bgk]", v).forEach((y) => y.classList.toggle("ghost", y !== b)); if (!x.on && b.dataset.bgk !== "tubes") sfxPreview(b.dataset.bgk); }));
+  if ($("#bgSong", v)) $("#bgSong", v).onchange = async (e) => {
+    const x = bg(), song = await tubePick(e.target, x.song); if (song === undefined) return;
+    send(true, x.vol, "tubes", song); toast(song ? "🎶 " + song.t + " – " + song.a : "🎲 Vrais tubes au hasard", 2500);
+    const b = $("#bgOn", v); if (b) { b.classList.add("ok"); b.textContent = "🎶 Ambiance en cours – couper"; }
+  };
   if ($("#bgOn", v)) $("#bgOn", v).onclick = () => { const b = bg(); send(!b.on, b.vol); const x = $("#bgOn", v); x.classList.toggle("ok", !b.on); x.textContent = !b.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)"; };
   const step = (d) => { const b = bg(), vol = Math.round(Math.max(0.05, Math.min(1, b.vol + d)) * 100) / 100; send(b.on, vol); $("#bgV", v).textContent = Math.round(vol * 100) + "%"; };
   if ($("#bgM", v)) { $("#bgM", v).onclick = () => step(-0.1); $("#bgP", v).onclick = () => step(0.1); }
@@ -1342,8 +1375,8 @@ function bgAuto(action) {
   if (!sfxAuto()) return;
   const g = S.data && S.data.game, last = g && S.data.setup && g.m >= S.data.setup.manches.length - 1;
   if (action === "close" || action === "finish" || (action === "nextManche" && last)) {
-    const b = (S.pub && S.pub.bgm) || { vol: 0.35 };
-    api("/game", { method: "POST", body: { action: "bgm", on: true, vol: b.vol || 0.35, k: b.k || "tubes" } }).catch(() => {});
+    const b = (S.pub && S.pub.bgm) || { vol: 0.35 }, man = action === "close" && S.data.setup.manches[g.m], amb = man && man.amb && man.amb.t ? man.amb : null;
+    api("/game", { method: "POST", body: { action: "bgm", on: true, vol: b.vol || 0.35, k: amb ? "tubes" : b.k || "tubes", song: amb } }).catch(() => {});
   }
 }
 
@@ -2811,6 +2844,7 @@ function tabManches(v) {
     h += '<div class="mcard" data-m="' + i + '"><div class="mh"><b>Manche ' + (i + 1) + '</b><div class="row" style="margin:0"><button class="btn ghost sm" data-a="up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="btn ghost sm" data-a="down"' + (i === M.length - 1 ? " disabled" : "") + '>↓</button><button class="btn ghost sm" data-a="delm">🗑</button></div></div>' +
       '<input class="mt" value="' + esc(m.title) + '" placeholder="Titre de la manche" maxlength="60" style="margin-top:6px">' +
       '<div class="row"><select class="msty grow" style="flex:2">' + thOpts(m) + '</select><select class="mmul" style="flex:1">' + [1, 2, 3].map((x) => '<option value="' + x + '"' + (Number(m.mult) === x ? " selected" : "") + ">Points ×" + x + "</option>").join("") + "</select></div>" +
+      '<div class="row"><span class="muted small">🎶 Ambiance correction :</span><select class="mamb" style="flex:1">' + tubeOpts(m.amb) + "</select></div>" +
       '<div class="row"><span class="muted small">2e réponse :</span><select class="ml2" style="flex:1"><option' + (m.label2 !== "Film ou dessin animé" ? " selected" : "") + ">Artiste</option><option" + (m.label2 === "Film ou dessin animé" ? " selected" : "") + ">Film ou dessin animé</option></select></div>" +
       (m.songs.length ? m.songs.map((s, j) => songCard(s, j, m)).join("") : '<p class="muted small" style="padding:8px 0">Aucun morceau : « 🎲 Tirer au sort » ou « + Morceau vide ».</p>') +
       '<div class="row"><button class="btn ghost sm" data-a="draw">🎲 Tirer au sort</button><button class="btn ghost sm" data-a="addlib">+ Morceau du style</button><button class="btn ghost sm" data-a="adds">+ Morceau vide</button></div></div>';
@@ -2871,6 +2905,7 @@ function tabManches(v) {
     if (cl.contains("msty")) { const od = m.dz; m.theme = e.target.value; delete m.dz; const th = themeById(m.theme); if (th) { m.label2 = th.label2; if (!m.title || LIB.themes.some((t) => t.title === m.title) || /^Nouvelle manche/.test(m.title) || (od && m.title === od.slice(0, 60))) m.title = th.title; } saveDraft(); tabManches(v); }
     else if (cl.contains("mmul")) { m.mult = Number(e.target.value); saveDraft(); }
     else if (cl.contains("ml2")) { m.label2 = e.target.value; saveDraft(); tabManches(v); }
+    else if (cl.contains("mamb")) { tubePick(e.target, m.amb).then((song) => { if (song === undefined) return; m.amb = song ? { t: song.t, a: song.a } : null; saveDraft(true); toast(song ? "🎶 Ambiance de la manche : " + song.t : "🎲 Ambiance au hasard pour cette manche", 2500); }); }
   };
   v.onclick = async (e) => {
     const b = e.target.closest("[data-a]"); if (!b || (b.disabled && b.dataset.a !== "edit")) return;

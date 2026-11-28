@@ -530,6 +530,7 @@ export class Soiree extends DurableObject {
             label2: clip(m.label2, 40) || "Artiste",
             theme: clip(m.theme, 24),
             dz: clip(m.dz, 80),
+            amb: m.amb && m.amb.t ? { t: clip(m.amb.t, 100), a: clip(m.amb.a, 100) } : null, // morceau d'ambiance choisi pour la correction
             songs: (m.songs || []).slice(0, 20).map((x) => ({
               t: clip(x.t, 100),
               a: clip(x.a, 100),
@@ -619,7 +620,8 @@ export class Soiree extends DurableObject {
         const n = ((g.sfx && g.sfx.n) || 0) + 1;
         g.sfx = { k, n, q: (((g.sfx && g.sfx.q) || []).concat([{ k, n }])).slice(-6) }; // les derniers, pour ne rien rater entre deux rafraîchissements
       } else if (act === "bgm") {
-        g.bgm = { on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: ["tubes", "fete", "electro", "latino", "doux"].includes(body.k) ? body.k : "tubes" };
+        const sg = body.song && body.song.t ? { t: String(body.song.t).slice(0, 100), a: String(body.song.a || "").slice(0, 100) } : null;
+        g.bgm = { song: sg, on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: ["tubes", "fete", "electro", "latino", "doux"].includes(body.k) ? body.k : "tubes" };
       } else if (act === "showPhoto") {
         // une photo d'équipe en plein écran sur l'écran géant (à tout moment)
         const t = this.setup.teams.find((x) => x.id === Number(body.id));
