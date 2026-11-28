@@ -303,23 +303,40 @@ function avHtml(p, id, cls) {
 }
 // Photo → carré de 480 px en JPEG (≈ 40 Ko), pour l'envoyer au serveur
 function photoPick() {
+  // iPhone / iPad : le champ « fichier » doit être DANS la page, sinon Safari perd la photo prise (aucun événement)
   return new Promise((res) => {
-    const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
-    inp.onchange = () => {
-      const f = inp.files && inp.files[0]; if (!f) return res(null);
-      const url = URL.createObjectURL(f), img = new Image();
+    const old = document.getElementById("phInp"); if (old) old.remove();
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.id = "phInp";
+    inp.style.cssText = "position:fixed;left:-2000px;top:0;width:1px;height:1px;opacity:0";
+    document.body.appendChild(inp);
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; setTimeout(() => inp.remove(), 1000); res(v); };
+    const draw = (src, revoke) => {
+      const img = new Image();
       img.onload = () => {
-        const S2 = 480, c = document.createElement("canvas"); c.width = c.height = S2;
-        const m = Math.min(img.naturalWidth, img.naturalHeight), sx = (img.naturalWidth - m) / 2, sy = (img.naturalHeight - m) / 2.6;
-        c.getContext("2d").drawImage(img, sx, Math.max(0, sy), m, m, 0, 0, S2, S2);
-        URL.revokeObjectURL(url);
-        let q = 0.8, d = c.toDataURL("image/jpeg", q);
-        while (d.length > 110000 && q > 0.3) { q -= 0.15; d = c.toDataURL("image/jpeg", q); }
-        res(d);
+        try {
+          const S2 = 480, c = document.createElement("canvas"); c.width = c.height = S2;
+          const m = Math.min(img.naturalWidth, img.naturalHeight), sx = (img.naturalWidth - m) / 2, sy = (img.naturalHeight - m) / 2.6;
+          c.getContext("2d").drawImage(img, sx, Math.max(0, sy), m, m, 0, 0, S2, S2);
+          if (revoke) URL.revokeObjectURL(src);
+          let q = 0.8, d = c.toDataURL("image/jpeg", q);
+          while (d.length > 110000 && q > 0.3) { q -= 0.15; d = c.toDataURL("image/jpeg", q); }
+          if (!/^data:image\/jpeg/.test(d)) throw new Error("jpeg");
+          finish(d);
+        } catch (e) { toast("Photo illisible : réessayez", 3500); finish(null); }
       };
-      img.onerror = () => { URL.revokeObjectURL(url); toast("Photo illisible : réessayez"); res(null); };
-      img.src = url;
+      img.onerror = () => {
+        if (revoke) { URL.revokeObjectURL(src); const fr = new FileReader(); fr.onload = () => draw(fr.result, false); fr.onerror = () => { toast("Photo illisible : réessayez", 3500); finish(null); }; fr.readAsDataURL(inp.files[0]); }
+        else { toast("Format de photo non pris en charge : réessayez en JPEG", 4000); finish(null); }
+      };
+      img.src = src;
     };
+    const onPick = () => {
+      const f = inp.files && inp.files[0]; if (!f) return finish(null);
+      toast("📸 Préparation de la photo…", 1500);
+      draw(URL.createObjectURL(f), true);
+    };
+    inp.addEventListener("change", onPick); inp.addEventListener("input", onPick);
     inp.click();
   });
 }
@@ -616,7 +633,12 @@ function updTeam() {
   if (S.phSig !== phSig) {
     S.phSig = phSig;
     $("#tPhoto").innerHTML = p.status === "setup" ? '<div class="card" style="margin:12px"><h3>📸 Votre photo</h3><div class="phc">' + avHtml(p, d.team.id) + '<div style="flex:1"><p class="small muted" style="margin-top:0">' + (me.ph ? "Elle s'affichera sur l'écran géant, dans le classement et sur le podium !" : "Prenez une photo de toute l'équipe (ou de vous si vous jouez seul) : elle s'affichera sur l'écran géant et sur le podium !") + '</p><button class="btn ' + (me.ph ? "ghost" : "") + '" id="tPh">' + (me.ph ? "🔄 Changer la photo" : "📸 Prendre la photo") + "</button></div></div></div>" : "";
-    if ($("#tPh")) $("#tPh").onclick = async () => { const dt = await photoPick(); if (dt) { $("#tPh").disabled = true; $("#tPh").textContent = "Envoi…"; await photoSend(dt); S.phSig = ""; } };
+    if ($("#tPh")) $("#tPh").onclick = async () => {
+      const dt = await photoPick(); if (!dt) return;
+      const av = $("#tPhoto .av"); if (av) av.outerHTML = '<img class="av" src="' + dt + '" alt="">';
+      $("#tPh").disabled = true; $("#tPh").textContent = "Envoi…";
+      const ok = await photoSend(dt); S.phSig = ""; if (!ok && $("#tPh")) { $("#tPh").disabled = false; $("#tPh").textContent = "📸 Réessayer"; }
+    };
   }
   const man = p.manches[p.m];
   if (p.status === "running" && man) {
