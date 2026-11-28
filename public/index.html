@@ -490,7 +490,7 @@ function pageVersion() {
   fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
 }
 // l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
-const APP_V = "2026-11-28-15h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
+const APP_V = "2026-11-28-16h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
 function appVersionCheck(p) {
   if (!p || !p.app || p.app === APP_V || S.appWarned) return;
   const r = S.sess && S.sess.role;
