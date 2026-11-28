@@ -1115,7 +1115,7 @@ const SFXL = [
 const SFX = { cache: {}, a: null, b: null, bgOn: false, bgVol: 0.35, seenN: undefined, localAt: {} };
 function sfxEl(k) { if (!SFX[k]) { SFX[k] = new Audio(); SFX[k].preload = "auto"; } return SFX[k]; }
 const SFXP = ["a", "a2", "a3"]; let sfxI = 0;
-function sfxUnlock() { ["a", "a2", "a3", "b"].forEach((k) => { const e = sfxEl(k); if (e._ok) return; e._ok = true; if (!e.src) { e.src = SILENT; const p = e.play(); if (p && p.catch) p.then(() => e.pause()).catch(() => (e._ok = false)); } }); }
+function sfxUnlock() { ["a", "a2", "a3", "b", "b2"].forEach((k) => { const e = sfxEl(k); if (e._ok) return; e._ok = true; if (!e.src) { e.src = SILENT; const p = e.play(); if (p && p.catch) p.then(() => e.pause()).catch(() => (e._ok = false)); } }); }
 ["touchend", "click"].forEach((ev) => document.addEventListener(ev, sfxUnlock, true));
 function wav(buf) {
   const d = buf.getChannelData(0), n = d.length, sr = buf.sampleRate, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
@@ -1254,66 +1254,97 @@ function tubesPool(all) {
   if (all) return pool;
   return shuffle(pool);
 }
-// Fondu du volume par minuterie. Sur iPhone, le volume d'un lecteur ne peut pas être changé par l'appli
-// (il reste à 100 %) : on ne relit donc jamais e.volume, sinon le fondu ne se terminerait jamais.
+/* ---- Lecteur d'ambiance : deux lecteurs qui se relaient, fondus enchaînés en douceur ----
+   Sur iPhone, Apple bloque le volume des lecteurs : on passe donc par la table de mixage du navigateur
+   (Web Audio), où le volume se règle partout, avec des fondus fluides. */
 const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-function fadeEl(e, from, to, ms, done) {
-  clearInterval(SFX.bgFade); let i = 0; const n = Math.max(1, Math.round(ms / 60));
-  try { e.volume = from; } catch (x) {}
-  SFX.bgFade = setInterval(() => { i++; try { e.volume = Math.max(0, Math.min(1, from + (to - from) * i / n)); } catch (x) {} if (i >= n) { clearInterval(SFX.bgFade); if (done) done(); } }, 60);
+const BG = { ac: null, g: {}, cur: "b", gen: 0, t: null };
+function bgAc() {
+  if (BG.ac || !(window.AudioContext || window.webkitAudioContext)) return BG.ac;
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = "playback"; // iPhone : le son passe même en mode silencieux
+    BG.ac = new (window.AudioContext || window.webkitAudioContext)();
+    ["b", "b2"].forEach((k) => { const e = sfxEl(k), src = BG.ac.createMediaElementSource(e), g = BG.ac.createGain(); g.gain.value = 0; src.connect(g); g.connect(BG.ac.destination); BG.g[k] = g; });
+  } catch (er) { console.warn(er); BG.ac = null; BG.g = {}; }
+  return BG.ac;
 }
-async function bgTubeNext(e, gen) {
-  if (gen !== SFX.bgGen || !SFX.bgOn) return;
-  if (!SFX.tubes || !SFX.tubes.length) SFX.tubes = tubesPool();
-  for (let tries = 0; tries < 6 && SFX.tubes.length; tries++) {
-    let s2 = SFX.tubes.shift();
-    if (SFX.bgWant) { s2 = SFX.bgWant; SFX.bgWant = null; } // morceau choisi par l'animateur : il passe en premier
-    const it = await pvResolve(s2);
-    if (gen !== SFX.bgGen || !SFX.bgOn) return;
-    if (!it || !it.url) continue;
-    e.loop = false; e.src = it.url; SFX.bgNow = s2;
-    try { e.volume = 0; } catch (x) {}
-    try { await e.play(); } catch (er) { continue; }
-    fadeEl(e, 0, SFX.bgVol, 1200);
-    clearTimeout(SFX.bgT);
-    const next = () => { if (gen === SFX.bgGen && SFX.bgOn) fadeEl(e, SFX.bgVol, 0, 1200, () => bgTubeNext(e, gen)); };
-    SFX.bgT = setTimeout(next, 26500); // fondu de sortie puis morceau suivant
-    e.onended = () => { if (gen === SFX.bgGen && SFX.bgOn) { clearTimeout(SFX.bgT); bgTubeNext(e, gen); } }; // extrait plus court : on enchaîne
-    e.onerror = () => { if (gen === SFX.bgGen && SFX.bgOn) { clearTimeout(SFX.bgT); bgTubeNext(e, gen); } };
-    const nx = SFX.tubes[0]; if (nx) pvResolve(nx); // prépare le suivant
-    return;
+["touchend", "click"].forEach((ev) => document.addEventListener(ev, () => { const ac = bgAc(); if (ac && ac.state !== "running") ac.resume().catch(() => {}); }, true));
+// volume d'un lecteur, en douceur (sec = durée du fondu)
+function bgGain(k, v, sec) {
+  const e = sfxEl(k), g = BG.g[k];
+  if (g && BG.ac) { const t = BG.ac.currentTime, p = g.gain; p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(Math.max(0, v), t + Math.max(0.02, sec || 0)); }
+  else { // sans table de mixage : petite rampe à la minuterie (sans effet sur iPhone)
+    clearInterval(e._fd); const from = e.volume, n = Math.max(1, Math.round((sec || 0) * 1000 / 50)); let i = 0;
+    e._fd = setInterval(() => { i++; try { e.volume = Math.max(0, Math.min(1, from + (v - from) * i / n)); } catch (x) {} if (i >= n) clearInterval(e._fd); }, 50);
   }
-  toast("🎶 Vrais tubes indisponibles (pas d'internet ?) : ambiance Disco à la place", 3500); SFX.bgK = "fete"; bgSet(true);
+}
+const bgOther = () => (BG.cur === "b" ? "b2" : "b");
+async function bgEnsure() {
+  const ac = bgAc(); if (ac && ac.state !== "running") { try { await ac.resume(); } catch (x) {} }
+  if (ac && ac.state !== "running") toast("🔇 Touchez l'écran de ce téléphone une fois pour lancer la musique", 4000);
+}
+// prépare le prochain vrai tube sur le lecteur libre (pour qu'il démarre sans attendre)
+async function bgPrep(gen) {
+  if (!SFX.tubes || !SFX.tubes.length) SFX.tubes = tubesPool();
+  for (let tries = 0; tries < 6; tries++) {
+    let s2 = SFX.bgWant || SFX.tubes.shift(); SFX.bgWant = null; if (!s2) return null;
+    const it = await pvResolve(s2); if (gen !== BG.gen) return null;
+    if (it && it.url) { const k = bgOther(), e = sfxEl(k); e.loop = false; if (e.src !== it.url) { e.src = it.url; e.load(); } return { k, s2 }; }
+    if (!SFX.tubes.length) SFX.tubes = tubesPool();
+  }
+  return null;
+}
+// lance le tube préparé avec un fondu enchaîné (3 s) puis programme le suivant
+async function bgTube(gen, first) {
+  if (gen !== BG.gen || !SFX.bgOn) return;
+  const nx = BG.next || (await bgPrep(gen)); BG.next = null;
+  if (gen !== BG.gen || !SFX.bgOn) return;
+  if (!nx) { toast("🎶 Vrais tubes indisponibles (pas d'internet ?) : ambiance Disco à la place", 3500); SFX.bgK = "fete"; SFX.bgPlaying = null; return bgSet(true); }
+  const old = BG.cur, e = sfxEl(nx.k); BG.cur = nx.k; SFX.bgNow = nx.s2;
+  bgGain(nx.k, 0, 0);
+  try { e.currentTime = 0; } catch (x) {}
+  try { await e.play(); } catch (er) { if (gen === BG.gen) setTimeout(() => bgTube(gen), 300); return; }
+  const X = first ? 1.5 : 3; // durée du fondu enchaîné
+  bgGain(nx.k, SFX.bgVol, X);
+  if (!first) { bgGain(old, 0, X); setTimeout(() => { if (BG.cur !== old) sfxEl(old).pause(); }, X * 1000 + 200); }
+  BG.next = await bgPrep(gen); // le suivant se charge pendant que celui-ci joue
+  // on enchaîne 3,5 s avant la fin de l'extrait (≈ 30 s)
+  const arm = () => {
+    clearTimeout(BG.t); if (gen !== BG.gen) return;
+    const d = isFinite(e.duration) && e.duration > 8 ? e.duration : 30, left = d - (e.currentTime || 0) - 3.5;
+    BG.t = setTimeout(() => bgTube(gen), Math.max(500, left * 1000));
+  };
+  if (isFinite(e.duration) && e.duration > 0) arm(); else { e.addEventListener("loadedmetadata", arm, { once: true }); BG.t = setTimeout(() => bgTube(gen), 26000); }
+  e.onended = () => { if (gen === BG.gen && SFX.bgOn && BG.cur === nx.k) { clearTimeout(BG.t); bgTube(gen); } };
+}
+async function bgSet(on, vol) {
+  if (vol != null) SFX.bgVol = vol;
+  const kind = SFX.bgK || (S.pub && S.pub.bgm && S.pub.bgm.k) || "tubes";
+  if (on) {
+    await bgEnsure();
+    if (SFX.bgOn && SFX.bgPlaying === kind) { bgGain(BG.cur, SFX.bgVol, 0.6); return; } // même style : volume seulement
+    const gen = ++BG.gen; clearTimeout(BG.t); BG.next = null;
+    const wasOn = SFX.bgOn; SFX.bgOn = true; SFX.bgPlaying = kind;
+    if (kind === "tubes") return bgTube(gen, !wasOn);
+    try {
+      if (!SFX.cache[BGU[kind] || "fete"]) toast("🎶 Préparation de la musique…", 2500);
+      const u = await sfxUrl(BGU[kind] || "fete"); if (gen !== BG.gen) return;
+      const old = BG.cur, k = bgOther(), e = sfxEl(k); BG.cur = k;
+      e.onended = null; e.src = u; e.loop = true; bgGain(k, 0, 0); await e.play();
+      bgGain(k, SFX.bgVol, wasOn ? 3 : 1.5);
+      if (wasOn) { bgGain(old, 0, 3); setTimeout(() => { if (BG.cur !== old) sfxEl(old).pause(); }, 3200); }
+    } catch (er) { SFX.bgOn = false; SFX.bgPlaying = null; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
+  } else if (SFX.bgOn) {
+    SFX.bgOn = false; SFX.bgPlaying = null; BG.gen++; clearTimeout(BG.t); BG.next = null;
+    const X = 1.2; ["b", "b2"].forEach((k) => bgGain(k, 0, X));
+    setTimeout(() => { if (!SFX.bgOn) ["b", "b2"].forEach((k) => { const e = sfxEl(k); e.pause(); e.onended = null; }); }, X * 1000 + 150); // arrêt garanti
+  }
 }
 async function sfxUrl(k) { if (!SFX.cache[k]) SFX.cache[k] = SFXDEF[k](); return SFX.cache[k]; }
 async function sfxPlay(k) {
   if (!SFXDEF[k] || k === "bg") return;
   try { const u = await sfxUrl(k), e = sfxEl(SFXP[sfxI++ % SFXP.length]); e.loop = false; e.volume = 1; e.src = u; await e.play(); }
   catch (er) { console.warn(er); toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
-}
-async function bgSet(on, vol) {
-  const e = sfxEl("b"); if (vol != null) SFX.bgVol = vol;
-  clearInterval(SFX.bgFade);
-  const kind = SFX.bgK || (S.pub && S.pub.bgm && S.pub.bgm.k) || "tubes";
-  if (on) {
-    try {
-      if (SFX.bgOn && SFX.bgPlaying === kind) { // même style : on ajuste juste le volume
-        fadeEl(e, SFX.bgShownVol != null ? SFX.bgShownVol : SFX.bgVol, SFX.bgVol, 500); SFX.bgShownVol = SFX.bgVol;
-        return;
-      }
-      const gen = (SFX.bgGen = (SFX.bgGen || 0) + 1); clearTimeout(SFX.bgT); SFX.bgShownVol = SFX.bgVol;
-      SFX.bgOn = true; SFX.bgPlaying = kind;
-      if (kind === "tubes") return bgTubeNext(e, gen);
-      if (!SFX.cache[BGU[kind] || "fete"]) toast("🎶 Préparation de la musique…", 2500);
-      const u = await sfxUrl(BGU[kind] || "fete"); if (gen !== SFX.bgGen) return;
-      e.onended = null; e.onerror = null; e.src = u; e.loop = true; await e.play();
-      fadeEl(e, 0, SFX.bgVol, 1200); SFX.bgShownVol = SFX.bgVol;
-    } catch (er) { SFX.bgOn = false; SFX.bgPlaying = null; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
-  } else if (SFX.bgOn) {
-    SFX.bgOn = false; SFX.bgPlaying = null; SFX.bgGen = (SFX.bgGen || 0) + 1; clearTimeout(SFX.bgT);
-    e.onended = null; e.onerror = null;
-    fadeEl(e, SFX.bgVol, 0, IOS ? 400 : 1200, () => { e.pause(); }); // arrêt garanti, même sur iPhone
-  }
 }
 // Le téléphone de la sono suit les ordres de l'animateur (bruitages + musique d'ambiance)
 function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF).filter((k) => !["fete", "electro", "latino", "bg"].includes(k)); /* les musiques : seulement quand on les choisit */ const nx = () => { if (i < ks.length) sfxUrl(ks[i++]).then(() => setTimeout(nx, 50)); }; setTimeout(nx, 1500); }
@@ -1348,7 +1379,6 @@ function sfxPanel(mode) {
     ((bg.k || "tubes") === "tubes" ? '<label class="small" style="display:block;margin-top:6px">Morceau</label><select id="bgSong">' + tubeOpts(bg.song) + "</select>" : "") +
     '<p class="small muted" style="margin:4px 0 0">🎉 Vrais tubes : des extraits de vrais morceaux de fête qui s\'enchaînent (jamais deux fois le même, jamais un morceau de vos manches). Les autres styles sont fabriqués par l\'appli.</p>' +
     '<div class="row" style="margin-top:6px;flex-wrap:nowrap;align-items:center"><span class="small">Volume</span><button class="btn ghost sm" id="bgM">−</button><b id="bgV" style="min-width:3ch;text-align:center">' + Math.round(bg.vol * 100) + '%</b><button class="btn ghost sm" id="bgP">+</button></div>' +
-    (IOS ? '<p class="small muted">📱 Sur iPhone, le volume de l\'ambiance se règle avec les boutons du téléphone ou de la sono (Apple ne laisse pas l\'appli le baisser).</p>' : "") +
     '<p class="small muted">L\'ambiance s\'arrête toute seule quand un extrait est lancé.</p></div>' +
     (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ <b>Mode automatique</b> : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage, et musique d\'ambiance pendant les corrections et à la fin (elle s\'arrête dès qu\'un extrait est lancé)</span></label>' : "") + "</div>";
 }
