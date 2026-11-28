@@ -183,7 +183,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 .qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .qrgrid .it{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;font-size:.85rem}
 .qrgrid .it .qrbox{width:110px;padding:6px}
-.check{list-style:none;padding:0;margin:0 0 12px}.check li{padding:6px 0;color:var(--ko)}.check li.ok{color:var(--ok)}
+.check{list-style:none;padding:0;margin:0 0 12px}.check li{padding:6px 0;color:var(--ko)}.check li.ok{color:var(--ok)}.check li.warn{color:#ff9f1a}
 .lock{background:#3d2a00;border:1px solid var(--warn);color:var(--warn);padding:10px;border-radius:12px;margin:12px 0}
 #modal{position:fixed;inset:0;z-index:50;background:rgba(5,2,15,.72);display:none;align-items:center;justify-content:center;padding:16px}
 #modal.show{display:flex}
@@ -517,7 +517,7 @@ function pageVersion() {
   fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
 }
 // l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
-const APP_V = "2026-11-28-20h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
+const APP_V = "2026-11-28-21h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
 function appVersionCheck(p) {
   if (!p || !p.app || p.app === APP_V || S.appWarned) return;
   const r = S.sess && S.sess.role;
@@ -2059,6 +2059,13 @@ async function fakeFill() {
   setTimeout(() => { S.lastSig = ""; renderTab(); }, 400);
 }
 
+/* Aller à la carte « Décor du podium » dans Réglages */
+function goPodbg() {
+  closeModal();
+  const b = document.querySelector('.tabs button[data-tab="reglages"]');
+  if (b) b.click();
+  setTimeout(() => { const c = $("#pbgL"); if (c) { const k = c.closest(".card"); k.scrollIntoView({ behavior: "smooth", block: "center" }); k.style.outline = "3px solid #ff9f1a"; setTimeout(() => (k.style.outline = ""), 2500); } }, 250);
+}
 /* ---- Onglet Jeu ---- */
 function tabJeu(v) {
   const d = S.data, g = d.game, p = d.pub, st = d.setup;
@@ -2077,7 +2084,10 @@ function tabJeu(v) {
         const txt = k.st === "ok" ? "Extraits vérifiés : " + k.c.ok + " / " + k.n + " OK" : k.st === "warn" ? "Extraits vérifiés : " + k.c.ok + " ✓ · " + k.c.w + " ⚠️ à écouter" : k.st === "bad" ? "Extraits vérifiés : " + k.c.b + " ✗ illisible(s) à remplacer" : k.st === "old" ? "Extraits à revérifier (morceaux modifiés depuis)" : "Extraits pas encore vérifiés (" + k.n + " morceaux)";
         return '<li class="' + cls + '">' + (k.st === "ok" ? "✓" : k.st === "warn" ? "⚠️" : "✗") + " " + txt + (k.st !== "ok" ? ' <button class="btn alt sm" id="gChk" style="margin-left:6px">🔊 Vérifier maintenant</button>' : ' <button class="btn ghost sm" id="gChk" style="margin-left:6px">Revérifier</button>') + "</li>"; })() +
       (okT ? (() => { const r = p.teams.filter((t) => t.joined && t.named).length; return '<li class="' + (r === p.teams.length ? "ok" : "") + '">' + (r === p.teams.length ? "✓" : "⏳") + " Équipes prêtes sur leur téléphone : " + r + " / " + p.teams.length + "</li>"; })() : "") +
-      (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") + "</ul></div>" +
+      (LS.get("bt_combo", false) ? '<li class="ok">✓ Vous êtes aussi le DJ (playlist : onglet Manches → Copier)</li>' : '<li class="' + (p.djReady ? "ok" : "") + '">' + (p.djReady ? "✓" : "✗") + " Code DJ " + (p.djReady ? "défini" : "à définir (Réglages)") + "</li>") +
+      (p.podbg ? '<li class="warn">⚠️ 🎨 Décor du podium : <b>votre image</b> <img src="/api/podbg?v=' + p.podbg + (ESSAI ? "&essai=1" : "") + '" style="height:42px;border-radius:6px;vertical-align:middle;margin:0 4px"> c\'est bien elle qui doit s\'afficher ce soir ? <button class="btn alt sm" id="gPbg" style="margin-left:6px">🎨 Changer / retirer</button></li>'
+        : '<li class="ok">✓ 🎨 Décor du podium : décor de scène de l\'appli <button class="btn ghost sm" id="gPbg" style="margin-left:6px">Mettre mon image</button></li>') +
+      "</ul></div>" +
       '<div class="card"><h3>🎬 Lancer la soirée</h3><p class="muted small">Tout se pilote d\'ici : l\'écran géant suit chaque étape.</p><div class="steps">' +
       '<div><span class="n">1</span><div class="b"><button class="btn big" id="gTeams"' + (okT ? "" : " disabled") + '>👥 Afficher les équipes</button><p class="muted small">Chacun trouve son nom et son équipe sur le grand écran.</p></div></div>' +
       '<div><span class="n">⚡</span><div class="b"><button class="btn big ghost" id="gChain"' + (okT ? "" : " disabled") + '>👥➜📲 Équipe par équipe : membres puis QR code</button><p class="muted small">Le plus rapide : l\'équipe 1 s\'affiche, ses membres vous rejoignent et choisissent un chef, il scanne le QR, puis ▶ équipe suivante.</p></div></div>' +
@@ -2093,6 +2103,7 @@ function tabJeu(v) {
     $("#gQr").onclick = () => goQr(st.teams.length <= 12 ? "all" : "one", 0);
     $("#gTeams").onclick = async () => { S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); pgTo(0); };
     $("#gChk").onclick = () => runCheck(v);
+    if ($("#gPbg")) $("#gPbg").onclick = () => goPodbg();
     $("#gStart").onclick = async () => { if (!(await checkBeforeStart(v))) return; if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
     return;
   }
@@ -2596,7 +2607,16 @@ function bindRegie(R, g, rv, T, ties) {
       if (order[n - 1] === 1) { setTimeout(fan, 900); setTimeout(() => api("/game", { method: "POST", body: { action: "reveal", n: T } }).catch(() => {}), 2500); } // tout est dévoilé (palmarès)
     }
   }));
-  if ($("#rgPod")) $("#rgPod").onclick = async () => { await gameAct("finView", { v: "podium" }); if (sfxAuto()) sfxFire("whoosh"); };
+  if ($("#rgPod")) $("#rgPod").onclick = async () => {
+    const pb = S.data && S.data.pub && S.data.pub.podbg;
+    if (pb) {
+      const go = await new Promise((res) => openModal('<h3>🎨 Image derrière le podium</h3><p>Le podium va s\'afficher sur l\'écran géant <b>avec cette image</b> :</p><img src="/api/podbg?v=' + pb + (ESSAI ? "&essai=1" : "") + '" style="width:100%;border-radius:10px;display:block;margin:8px 0"><p class="muted small">Pas la bonne ? Changez-la avant d\'afficher.</p><div class="row end"><button class="btn ghost" id="cNo">🎨 Changer l\'image</button><button class="btn" id="cOk">🏅 Oui, afficher le podium</button></div>', (box) => {
+        $("#cNo", box).onclick = () => { closeModal(); res(false); };
+        $("#cOk", box).onclick = () => { closeModal(); res(true); };
+      }));
+      if (!go) { goPodbg(); return; }
+    }
+    await gameAct("finView", { v: "podium" }); if (sfxAuto()) sfxFire("whoosh"); };
   if ($("#fvPost")) $("#fvPost").onclick = () => { gameAct("finView", { v: "poster" }); fan(); };
   if ($("#fvOff")) $("#fvOff").onclick = () => gameAct("finView", { v: null });
   if ($("#fvA4")) $("#fvA4").onclick = () => posterBox(g.runId || 1);
