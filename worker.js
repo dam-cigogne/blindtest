@@ -277,7 +277,9 @@ export class Soiree extends DurableObject {
 
   revealed() {
     const all = this.ranking(), T = all.length, n = Math.min(T, this.game.reveal || 0);
-    return all.map((r, k) => (k >= T - n ? r : { rank: r.rank, hidden: true }));
+    // podium annoncé place par place : les places déjà annoncées (3e, puis 2e, puis 1re) deviennent visibles
+    const pod = this.game.finView === "podium" ? [3, 2, 1].filter((k) => all.some((r) => r.rank === k)).slice(0, this.game.podStep || 0) : [];
+    return all.map((r, k) => (k >= T - n || pod.includes(r.rank) ? r : { rank: r.rank, hidden: true }));
   }
 
   doubtCount(m) {
@@ -555,6 +557,8 @@ export class Soiree extends DurableObject {
       if (who !== "anim" && who !== "dj") return json({ error: "non autorisé" }, 401);
       const act = body.action;
       const g = this.game;
+      // une photo affichée « à la demande » s'efface dès que l'animateur fait autre chose
+      if (!["showPhoto", "sfx", "bgm", "land", "podLand"].includes(act)) g.showPhoto = null;
       const djOk = ["play", "next", "prev", "cut"];
       if (who === "dj" && !djOk.includes(act)) return json({ error: "réservé à l'animateur" }, 403);
       const mans = this.setup.manches;
