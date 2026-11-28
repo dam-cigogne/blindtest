@@ -62,7 +62,20 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .song .st{font-size:1.45rem;font-weight:800}.song .sa{font-size:1.1rem;color:var(--pri2);font-weight:700}.song .sh{color:var(--mu);margin-top:4px}
 .links{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .links a.pref{flex-basis:100%;background:var(--pri);border-color:var(--pri);color:#fff;font-size:17px}
-.pkc button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}.pkrow{display:flex;align-items:center;gap:10px;margin:4px 0}.pkrow span{flex:1}.pkrow b{min-width:2ch;text-align:center;font-size:1.15rem}.pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
+.pkc button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}.pkrow{display:flex;align-items:center;gap:10px;margin:4px 0}.pkrow span{flex:1}.pkrow b{min-width:2ch;text-align:center;font-size:1.15rem}.av{width:2.2em;height:2.2em;border-radius:50%;object-fit:cover;flex:none;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#fff;vertical-align:middle;border:2px solid rgba(255,255,255,.7);box-sizing:border-box}
+.scr .rr .av{height:1.6em;width:1.6em;font-size:.9em}.scr .tl .av{width:3.2em;height:3.2em;margin-bottom:.3em}
+.phc{display:flex;align-items:center;gap:12px}.phc .av{width:84px;height:84px;font-size:32px}.tcard .hd .av{width:40px;height:40px;font-size:16px;cursor:pointer}
+.scr .tone .av.big1{width:1.3em;height:1.3em}
+.scr .pod2{display:flex;align-items:flex-end;justify-content:center;gap:2.5vw;flex:1;min-height:0}
+.scr .pod2>div{display:flex;flex-direction:column;align-items:center;width:26vw;animation:up .9s ease both}
+.scr .pod2 .av{width:min(14vw,20vh);height:min(14vw,20vh);font-size:min(6vw,8vh);border-width:.5vw;margin-bottom:-2vh;z-index:1;box-shadow:0 1vw 3vw rgba(0,0,0,.5)}.scr .pod2 .q1 .av{width:min(19vw,27vh);height:min(19vw,27vh);font-size:min(8vw,11vh);border-color:#ffcf4a}
+.scr .pod2 .blk{width:100%;border-radius:1.5vw 1.5vw 0 0;padding:2.6vh 1vw 1vh;font-size:min(2vw,3.3vh);line-height:1.25;font-weight:800;text-align:center;box-sizing:border-box}
+.scr .pod2 .q1 .blk{min-height:24vh;background:linear-gradient(#ffcf4a,#b8860b);color:#2b1a00}.scr .pod2 .q2 .blk{min-height:19vh;background:linear-gradient(#e6e6f0,#8d8da8);color:#1b1b2b}.scr .pod2 .q3 .blk{min-height:15vh;background:linear-gradient(#e8a56b,#8b4a1c)}
+.scr .poster{display:flex;align-items:center;justify-content:center;gap:4vw;flex:1;padding:2vh 3vw}
+.scr .poster .av{width:min(42vw,68vh);height:min(42vw,68vh);font-size:16vw;border:1vw solid #ffcf4a;box-shadow:0 0 6vw rgba(255,207,74,.55);animation:pop 1s ease both}
+.scr .poster .pt{text-align:left;max-width:45vw}.scr .poster .pt .k{font-size:min(2.2vw,4vh);white-space:nowrap;color:#ffcf4a;font-weight:900;letter-spacing:.06em}
+.scr .poster .pt .n{font-size:min(7vw,12vh);font-weight:900;line-height:1.02;margin:.15em 0}.scr .poster .pt .s{font-size:min(3.2vw,5.5vh);font-weight:800}.scr .poster .pt .m{font-size:min(1.8vw,3vh);color:var(--mu);margin-top:1em}
+.pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
 .dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
 .links a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--tx);text-decoration:none;font-weight:600;min-width:120px}
 ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity:.45}ol.pl li.cur{color:var(--pri2);font-weight:700}
@@ -190,6 +203,7 @@ ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity
 body.printing #verBar{display:none}
 body.essai::after{content:"";position:fixed;inset:0;border:4px solid #ff9f1a;pointer-events:none;z-index:99}
 #essaiBar{background:#ff9f1a;color:#2b1a00;font-weight:700;font-size:14px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+body.essai .scr{min-height:calc(100vh - 44px)}
 #essaiBar button{background:#2b1a00;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px}
 body.essai .top{padding-top:10px}
 .pv{display:flex;gap:10px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0}
@@ -276,6 +290,41 @@ function pgY() { const e = pgEl(); return e ? e.scrollTop : window.scrollY; }
 function pgTo(y) { const e = pgEl(); if (e) e.scrollTop = y; else window.scrollTo(0, y); }
 function fixTop() { const t = document.querySelector(".top"); if (t && t.offsetHeight) document.documentElement.style.setProperty("--toph", t.offsetHeight + "px"); }
 setInterval(fixTop, 800); addEventListener("resize", fixTop);
+// 📸 Photos d'équipe
+const phTeam = (p, id) => ((p && p.teams) || []).find((t) => t.id === id);
+const phUrl = (t) => "/api/photo?id=" + t.id + "&v=" + t.ph + (ESSAI ? "&essai=1" : "");
+function avHtml(p, id, cls) {
+  const t = phTeam(p, id); if (!t) return "";
+  if (t.ph) return '<img class="av ' + (cls || "") + '" src="' + phUrl(t) + '" alt="">';
+  const ini = neutralName(t.name) ? String(t.id) : t.name.replace(/^(les|la|le|l')\s*/i, "").trim().slice(0, 1).toUpperCase();
+  return '<span class="av ini ' + (cls || "") + '" style="background:hsl(' + (t.id * 47) % 360 + ',65%,55%)">' + esc(ini) + "</span>";
+}
+// Photo → carré de 480 px en JPEG (≈ 40 Ko), pour l'envoyer au serveur
+function photoPick() {
+  return new Promise((res) => {
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0]; if (!f) return res(null);
+      const url = URL.createObjectURL(f), img = new Image();
+      img.onload = () => {
+        const S2 = 480, c = document.createElement("canvas"); c.width = c.height = S2;
+        const m = Math.min(img.naturalWidth, img.naturalHeight), sx = (img.naturalWidth - m) / 2, sy = (img.naturalHeight - m) / 2.6;
+        c.getContext("2d").drawImage(img, sx, Math.max(0, sy), m, m, 0, 0, S2, S2);
+        URL.revokeObjectURL(url);
+        let q = 0.8, d = c.toDataURL("image/jpeg", q);
+        while (d.length > 110000 && q > 0.3) { q -= 0.15; d = c.toDataURL("image/jpeg", q); }
+        res(d);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); toast("Photo illisible : réessayez"); res(null); };
+      img.src = url;
+    };
+    inp.click();
+  });
+}
+async function photoSend(data, teamId) {
+  try { await api("/photo", { method: "POST", body: data ? { data, teamId } : { remove: true, teamId } }); toast(data ? "📸 Photo enregistrée !" : "Photo supprimée"); S.lastSig = ""; pollNow(); return true; }
+  catch (e) { toast(e.message, 3500); return false; }
+}
 const ordF = (n) => n + (n === 1 ? "re" : "e"); // féminin : 1re place
 
 const S = {
@@ -551,7 +600,7 @@ async function pickRole(r) {
 function buildTeam(app) {
   S.built = "team"; S.formM = null; S.formKey = null; S.lastSig = "";
   app.innerHTML = '<div class="top"><div class="tt"><b id="tName">Mon équipe</b><small id="tMem"></small></div><div class="row" style="margin:0;flex-wrap:nowrap"><button class="btn ghost sm upd">🔄</button><button class="btn ghost sm" id="out">Quitter</button></div></div>' +
-    '<div class="wrap" style="padding:0"><div id="tBan" class="banner"><b>Connexion…</b></div><div id="tForm"></div><div id="tSave" class="muted small center"></div><div id="tRes"></div></div>';
+    '<div class="wrap" style="padding:0"><div id="tBan" class="banner"><b>Connexion…</b></div><div id="tPhoto"></div><div id="tForm"></div><div id="tSave" class="muted small center"></div><div id="tRes"></div></div>';
   $("#out").onclick = async () => { if (await confirmBox("Quitter l'équipe sur ce téléphone ?", "Quitter")) logout(); };
   S.tick = tickTeam;
   if (S.data && S.data.team) updTeam();
@@ -561,6 +610,12 @@ function updTeam() {
   const p = d.pub;
   $("#tName").textContent = "Équipe " + d.team.id + " – " + d.team.name;
   $("#tMem").textContent = d.team.members.join(", ");
+  const me = phTeam(p, d.team.id) || {}, phSig = p.status + ":" + (me.ph || 0);
+  if (S.phSig !== phSig) {
+    S.phSig = phSig;
+    $("#tPhoto").innerHTML = p.status === "setup" ? '<div class="card" style="margin:12px"><h3>📸 Votre photo</h3><div class="phc">' + avHtml(p, d.team.id) + '<div style="flex:1"><p class="small muted" style="margin-top:0">' + (me.ph ? "Elle s'affichera sur l'écran géant, dans le classement et sur le podium !" : "Prenez une photo de toute l'équipe (ou de vous si vous jouez seul) : elle s'affichera sur l'écran géant et sur le podium !") + '</p><button class="btn ' + (me.ph ? "ghost" : "") + '" id="tPh">' + (me.ph ? "🔄 Changer la photo" : "📸 Prendre la photo") + "</button></div></div></div>" : "";
+    if ($("#tPh")) $("#tPh").onclick = async () => { const dt = await photoPick(); if (dt) { $("#tPh").disabled = true; $("#tPh").textContent = "Envoi…"; await photoSend(dt); S.phSig = ""; } };
+  }
   const man = p.manches[p.m];
   if (p.status === "running" && man) {
     if (S.formKey !== p.runId + ":" + p.m) buildForm(p.m, man, (d.answers || {})[p.m] || [], p.runId);
@@ -1052,7 +1107,7 @@ function rankRace(p) {
     const pr = prevPos[r.id] || { total: 0, rank: k + 1 };
     const el = document.createElement("div"); el.className = "rr";
     el.style.height = rowH * 0.86 + "px"; el.style.top = (idxPrev[r.id] ?? k) * rowH + "px";
-    el.innerHTML = '<span class="rk">' + pr.rank + '</span><span class="rn">' + esc(r.name) + '</span><span class="rb"><i style="width:' + (pr.total / max * 100) + '%"></i></span><span class="rs">' + pr.total + '</span><span class="ra"></span>';
+    el.innerHTML = '<span class="rk">' + pr.rank + "</span>" + avHtml(p, r.id) + '<span class="rn">' + esc(r.name) + '</span><span class="rb"><i style="width:' + (pr.total / max * 100) + '%"></i></span><span class="rs">' + pr.total + '</span><span class="ra"></span>';
     box.appendChild(el);
     return { r, pr, el, k };
   });
@@ -1096,7 +1151,7 @@ function finalReveal(p) {
     el.style.height = rowH * 0.86 + "px"; el.style.top = k * rowH + "px";
     const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank;
     el.innerHTML = r.hidden ? '<span class="rk">' + r.rank + '</span><span class="rn">❓ ❓ ❓</span><span class="rb"></span><span class="rs">?</span>'
-      : '<span class="rk">' + medal + '</span><span class="rn">' + (r.rank === 1 ? "👑 " : "") + esc(r.name) + '</span><span class="rb"><i style="width:' + (r.total / max * 100) + '%"></i></span><span class="rs">' + r.total + "</span>";
+      : '<span class="rk">' + medal + "</span>" + avHtml(p, r.id) + '<span class="rn">' + (r.rank === 1 ? "👑 " : "") + esc(r.name) + '</span><span class="rb"><i style="width:' + (r.total / max * 100) + '%"></i></span><span class="rs">' + r.total + "</span>";
     box.appendChild(el);
   });
   const winner = R[0] && !R[0].hidden;
@@ -1121,10 +1176,25 @@ function confetti(cv) {
 function teamOneHtml(p) {
   const T = p.teams.length, i = Math.min(p.showTeams.i || 0, T - 1), t = p.teams[i];
   const n = t.members.length, cols = n > 16 ? 3 : n > 6 ? 2 : 1;
-  return '<div class="tone"><div class="tid">Équipe ' + t.id + ' <span>' + (i + 1) + " / " + T + '</span></div><div class="tnm">' + esc(t.name) + '</div>' +
+  return '<div class="tone"><div class="tid">Équipe ' + t.id + ' <span>' + (i + 1) + " / " + T + '</span></div><div class="tnm">' + (t.ph ? avHtml(p, t.id, "big1") + " " : "") + esc(t.name) + '</div>' +
     '<ul class="tmem" style="columns:' + cols + '">' + t.members.map((m) => "<li>" + esc(m) + "</li>").join("") + "</ul></div>";
 }
 // Toutes les équipes et leurs membres, calculé pour tenir sur un seul écran
+// Fin de partie : podium avec les photos, puis grande affiche du vainqueur
+function finViewHtml(p) {
+  const R = p.ranking.filter((r) => !r.hidden);
+  const w = R.find((r) => r.rank === 1);
+  if (p.finView === "poster" && w) {
+    const t = phTeam(p, w.id) || { members: [] };
+    setTimeout(() => confetti($("#confetti")), 700);
+    return '<div class="poster">' + avHtml(p, w.id) + '<div class="pt"><div class="k">🏆 VAINQUEURS DU BLIND TEST</div><div class="n">' + esc(w.name) + '</div><div class="s">' + plural(w.total, "point") + "</div>" +
+      (t.members && t.members.length ? '<div class="m">' + t.members.map(esc).join(" · ") + "</div>" : "") + '</div></div><canvas id="confetti"></canvas>';
+  }
+  const by = (k) => R.find((r) => r.rank === k);
+  const col = (k, delay) => { const r = by(k); return r ? '<div class="q' + k + '" style="animation-delay:' + delay + 's">' + avHtml(p, r.id) + '<div class="blk">' + ["", "🥇", "🥈", "🥉"][k] + "<br>" + esc(r.name) + '<br><span style="font-weight:600">' + plural(r.total, "pt") + "</span></div></div>" : ""; };
+  setTimeout(() => confetti($("#confetti")), 2600);
+  return '<div class="big" style="font-size:min(4vw,7vh);margin:0">🏆 Le podium</div><div class="pod2">' + col(2, 1.2) + col(1, 2.4) + col(3, 0) + '</div><canvas id="confetti"></canvas>';
+}
 function teamsScreenHtml(p) {
   if (p.showTeams && p.showTeams.mode === "one") return teamOneHtml(p);
   const T = p.teams.length || 1, maxM = Math.max(1, ...p.teams.map((t) => t.members.length));
@@ -1138,7 +1208,7 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.teams.map((t) => t.ph)]);
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
@@ -1154,7 +1224,9 @@ function renderScreen(app) {
     h += rulesHtml(p, true);
   } else if (p.status === "setup") {
     h += '<div class="big">Blind test</div><div class="mid muted">La partie va commencer…</div>' +
-      '<div class="tl">' + p.teams.map((t) => "<div><b>Équipe " + t.id + "</b><br>" + esc(t.name) + "</div>").join("") + "</div>";
+      '<div class="tl">' + p.teams.map((t) => "<div>" + (p.teams.some((x) => x.ph) ? avHtml(p, t.id) + "<br>" : "") + "<b>Équipe " + t.id + "</b><br>" + esc(t.name) + "</div>").join("") + "</div>";
+  } else if (p.status === "finished" && p.finView && p.ranking && p.ranking.length) {
+    h += finViewHtml(p);
   } else if (p.status === "finished") {
     if (p.ranking && p.ranking.length && !S.oldPodium) {
       h += '<div class="mid" style="font-size:min(3.4vw,6vh)">🏆 Le classement final</div><div class="race fin" id="fin"></div><canvas id="confetti"></canvas>';
@@ -1406,6 +1478,10 @@ function tabJeu(v) {
         (nx ? '<p class="small" style="margin-top:6px">🤫 Entre nous : <b>' + esc(nx.name) + "</b> – " + plural(nx.total, "point") + "</p>" : "")
         : '<p style="font-size:1.2rem;font-weight:800;margin:6px 0">🎉 Tout le classement est dévoilé !</p>') +
       '<div class="row" style="justify-content:center"><span class="chip">' + rv + " / " + T + ' révélées</span>' + (rv > 0 ? '<button class="btn ghost sm" id="gRevBack">◀ Recacher la dernière</button>' : "") + (rv < T ? '<button class="btn ghost sm" id="gRevAll">Tout révéler</button>' : "") + (rv > 0 ? '<button class="btn ghost sm" id="gRev0">↺ Recommencer</button>' : "") + "</div></div>" +
+      (rv >= T && T ? '<div class="card center"><h3>📺 Le final sur l\'écran géant</h3><p class="small muted">Après la révélation : le podium avec les photos des équipes, puis la grande affiche des vainqueurs.</p>' +
+        '<button class="btn big' + (g.finView === "podium" ? " ok" : "") + '" id="fvPod">🏅 Podium avec photos' + (g.finView === "podium" ? " ✓" : "") + "</button>" +
+        '<button class="btn big rankbtn' + (g.finView === "poster" ? " ok" : "") + '" id="fvPost" style="margin-top:8px">🖼 Grande affiche des vainqueurs' + (g.finView === "poster" ? " ✓" : "") + "</button>" +
+        (g.finView ? '<button class="btn ghost" id="fvOff" style="margin-top:8px;width:100%">↩ Revenir au classement complet</button>' : "") + "</div>" : "") +
       '<div class="card center"><h3>🏁 Partie terminée</h3>' + podiumHtml(d.ranking) +
       '<label class="row keep" style="justify-content:center"><input type="checkbox" id="shRk" style="width:auto"' + (g.showRanking ? " checked" : "") + "> Afficher le classement sur l'écran géant et sur les téléphones des équipes</label></div>" +
       rankTable(d.ranking, st) +
@@ -1413,6 +1489,9 @@ function tabJeu(v) {
     v.innerHTML = h;
     $("#shRk").onchange = (e) => gameAct("showRanking", { show: e.target.checked });
     bindTie(v, ties, g);
+    if ($("#fvPod")) $("#fvPod").onclick = () => gameAct("finView", { v: "podium" });
+    if ($("#fvPost")) $("#fvPost").onclick = () => gameAct("finView", { v: "poster" });
+    if ($("#fvOff")) $("#fvOff").onclick = () => gameAct("finView", { v: null });
     if ($("#gRev")) $("#gRev").onclick = async () => {
       const grp = nx && ties.find((t) => t.ids.includes(nx.id));
       if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); pgTo(0); return; }
@@ -1824,6 +1903,17 @@ function drawInfo() {
   const T = !N ? 0 : ds.mode === "n" ? Math.min(val, N) : Math.max(1, Math.round(N / val));
   return { N, T, ds, lo: T ? Math.floor(N / T) : 0, hi: T ? Math.ceil(N / T) : 0 };
 }
+// L'animateur peut prendre / changer / supprimer la photo d'une équipe (ex. une photo déplacée)
+function teamPhotoBox(id) {
+  const t = phTeam(S.pub, id);
+  if (!t) return toast("Enregistrez d'abord les équipes (le serveur ne les connaît pas encore)");
+  openModal("<h3>📸 Photo – Équipe " + t.id + "</h3><p class=\"small\">" + esc(t.name) + '</p><div class="center" style="margin:10px 0">' + (t.ph ? '<img src="' + phUrl(t) + '" style="width:220px;height:220px;border-radius:50%;object-fit:cover">' : '<p class="muted small">Pas encore de photo. L\'équipe peut la prendre elle-même en scannant son QR code, ou vous pouvez la prendre ici.</p>') +
+    '</div><div class="row end"><button class="btn ghost" id="phX">Fermer</button>' + (t.ph ? '<button class="btn ko" id="phDel">🗑 Supprimer</button>' : "") + '<button class="btn" id="phTake">📸 ' + (t.ph ? "Changer" : "Prendre la photo") + "</button></div>", (box) => {
+    $("#phX", box).onclick = closeModal;
+    if ($("#phDel", box)) $("#phDel", box).onclick = async () => { if (await photoSend(null, id)) closeModal(); };
+    $("#phTake", box).onclick = async () => { const d = await photoPick(); if (d && (await photoSend(d, id))) closeModal(); };
+  });
+}
 function tabEquipes(v) {
   const di = drawInfo(), teams = S.draft.teams, ppl = S.people;
   let h = lockBanner() + '<div class="card"><h3>1. La liste des invités</h3>' +
@@ -1836,7 +1926,7 @@ function tabEquipes(v) {
     '<div class="row"><input type="number" id="nTeams" min="1" max="60" inputmode="numeric" value="' + (teams.length || 8) + '" style="width:90px;flex:none"><span class="grow">équipes ou joueurs</span><button class="btn alt" id="bEmpty">➕ Créer</button></div></div></div>';
   const tot = teams.reduce((a, t) => a + t.members.length, 0), sz = teams.map((t) => t.members.length), lo = Math.min(...sz), hi = Math.max(...sz);
   h += '<div class="card"><h3>3. Les équipes (' + teams.length + ")</h3>" + (teams.length && tot ? '<div class="tsum"><span><b>' + teams.length + "</b> équipe" + (teams.length > 1 ? "s" : "") + "</span><span><b>" + (lo === hi ? lo : lo + " à " + hi) + "</b> pers. par équipe</span><span><b>" + tot + "</b> inscrit" + (tot > 1 ? "s" : "") + " au total</span></div>" : "") + (teams.length ? '<p class="muted small">Touchez une personne pour la déplacer. Vous pouvez renommer les équipes.</p>' : '<p class="muted">Pas encore d\'équipes.</p>') +
-    teams.map((t, ti) => '<div class="tcard"><div class="hd"><b>N°' + t.id + '</b><input class="tn" data-ti="' + ti + '" value="' + esc(t.name) + '" maxlength="40"><span class="chip">' + esc(t.code) + '</span></div><div class="mems">' +
+    teams.map((t, ti) => '<div class="tcard"><div class="hd"><span data-tph="' + t.id + '" title="Photo de l\'équipe">' + avHtml(S.pub, t.id) + "</span><b>N°" + t.id + '</b><input class="tn" data-ti="' + ti + '" value="' + esc(t.name) + '" maxlength="40"><span class="chip">' + esc(t.code) + '</span></div><div class="mems">' +
       t.members.map((m, mi) => '<button class="mem" data-ti="' + ti + '" data-mi="' + mi + '">' + esc(m) + "</button>").join("") +
       '<button class="mem" data-add="' + ti + '" style="border-style:dashed">+ ajouter</button></div><div class="muted small" style="margin-top:6px">' + plural(t.members.length, "personne") + "</div></div>").join("") + "</div>";
   const locked = !!S.draft.teamsLocked && teams.length > 0;
@@ -1872,6 +1962,7 @@ function tabEquipes(v) {
   $("#bAddP").onclick = () => addPerson(v);
   $("#fImp").onchange = (e) => { const file = e.target.files[0]; if (file) readFile(file, v); e.target.value = ""; };
   $$(".tn", v).forEach((i) => (i.oninput = () => { S.draft.teams[Number(i.dataset.ti)].name = i.value; saveDraft(); }));
+  $$("[data-tph]", v).forEach((e) => (e.onclick = () => teamPhotoBox(Number(e.dataset.tph))));
   $$("[data-mi]", v).forEach((b) => (b.onclick = () => moveMember(Number(b.dataset.ti), Number(b.dataset.mi), v)));
   $$("[data-add]", v).forEach((b) => (b.onclick = async () => { const n = await ask("Ajouter une personne", { placeholder: "Prénom Nom" }); if (n) { S.draft.teams[Number(b.dataset.add)].members.push(n); saveDraft(true); tabEquipes(v); } }));
   if (S.imp) renderImpMap(v);

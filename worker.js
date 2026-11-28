@@ -161,7 +161,7 @@ export default {
     if (url.pathname === "/api/dzpl") return dzPlaylists(url);
     if (url.pathname.startsWith("/api/")) {
       // Mode essai : une partie séparée, la vraie soirée n'est jamais touchée
-      const name = request.headers.get("x-essai") === "1" ? "essai" : "main";
+      const name = request.headers.get("x-essai") === "1" || (url.pathname === "/api/photo" && url.searchParams.get("essai") === "1") ? "essai" : "main";
       const stub = env.SOIREE.get(env.SOIREE.idFromName(name));
       return stub.fetch(request);
     }
@@ -179,7 +179,8 @@ export class Soiree extends DurableObject {
     this.ctx = ctx;
     this.env = env;
     this.ready = ctx.blockConcurrencyWhile(async () => {
-      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played", "seen"]);
+      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played", "seen", "photos"]);
+      this.photos = d.get("photos") || {}; // photo d'équipe : clé = code d'équipe, valeur = version
       this.seen = d.get("seen") || {}; // équipes qui ont déjà ouvert leur QR code (clé = code d'équipe)
       this.played = d.get("played") || [];
       this.setup = d.get("setup") || defaultSetup();
@@ -266,7 +267,7 @@ export class Soiree extends DurableObject {
       needInit: !setup.codes.anim,
       djReady: !!setup.codes.dj,
       // joined = l'équipe a scanné son QR code ; named = elle a choisi son nom (prête)
-      teams: setup.teams.map((t) => ({ id: t.id, name: t.name, members: t.members, joined: !!this.seen[t.code], named: setup.teamNames === false || !/^Équipe \d+$/.test(t.name) })),
+      teams: setup.teams.map((t) => ({ id: t.id, name: t.name, members: t.members, joined: !!this.seen[t.code], ph: this.photos[t.code] || 0, named: setup.teamNames === false || !/^Équipe \d+$/.test(t.name) })),
       status: game.status,
       runId: game.runId || 0,
       m: game.m,
@@ -301,6 +302,7 @@ export class Soiree extends DurableObject {
       // fin de partie : seules les places déjà révélées (en partant de la dernière) sont envoyées
       ranking: game.showRanking ? (game.status === "finished" ? this.revealed() : this.ranking()) : null,
       reveal: game.reveal || 0,
+      finView: game.status === "finished" ? game.finView || null : null,
       tbShow: game.tbShow ? { place: game.tbShow.place, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
       // classement d'avant la dernière manche publiée, pour l'animation de l'écran géant
       rankPrev: game.showRanking && game.status === "running" ? this.ranking(game.m) : null,
@@ -364,6 +366,32 @@ export class Soiree extends DurableObject {
         answers: mine,
         me: rk || null,
       });
+    }
+
+    // ---- photos d'équipe (prise sur le téléphone de l'équipe, ou par l'animateur)
+    if (path === "/photo" && method === "GET") {
+      const t = this.setup.teams.find((x) => x.id === Number(url.searchParams.get("id")));
+      const data = t && this.photos[t.code] ? await this.ctx.storage.get("photo:" + t.code) : null;
+      if (!data) return new Response("", { status: 404 });
+      const bin = Uint8Array.from(atob(data.split(",")[1] || ""), (c) => c.charCodeAt(0));
+      return new Response(bin, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=604800" } });
+    }
+    if (path === "/photo" && method === "POST") {
+      const id = who === "team" ? teamId : who === "anim" ? Number(body.teamId) : 0;
+      const t = id && this.setup.teams.find((x) => x.id === id);
+      if (!t) return json({ error: "non autorisé" }, 401);
+      if (body.remove) {
+        delete this.photos[t.code]; await this.ctx.storage.delete("photo:" + t.code);
+      } else {
+        const data = String(body.data || "");
+        if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 120000) return json({ error: "photo invalide ou trop lourde" }, 400);
+        await this.ctx.storage.put("photo:" + t.code, data);
+        this.photos[t.code] = Date.now();
+      }
+      const codes = new Set(this.setup.teams.map((x) => x.code)); // on oublie les photos des anciennes équipes
+      for (const c of Object.keys(this.photos)) if (!codes.has(c)) { delete this.photos[c]; await this.ctx.storage.delete("photo:" + c); }
+      await this.save("photos");
+      return json({ ok: true });
     }
 
     if (path === "/team/name" && method === "POST") {
@@ -497,7 +525,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now();
@@ -547,6 +575,10 @@ export class Soiree extends DurableObject {
         // révélation finale, une place à la fois (de la dernière à la première)
         g.reveal = Math.max(0, Math.min(this.setup.teams.length, Number(body.n) || 0));
         g.showRanking = true;
+      } else if (act === "finView") {
+        // fin de partie sur l'écran géant : classement, podium avec photos, ou grande affiche du vainqueur
+        g.finView = ["podium", "poster"].includes(body.v) ? body.v : null;
+        if (g.finView) { g.showRanking = true; g.tbShow = null; }
       } else if (act === "tbShow") {
         // écran géant : annonce du morceau de départage pour les équipes à égalité
         const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter((id) => this.setup.teams.some((t) => t.id === id)) : [];
