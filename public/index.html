@@ -1143,7 +1143,29 @@ const SFXDEF = {
   tictac: () => synth(6.2, ({ hit, tone }) => { for (let i = 0; i < 12; i++) { const t = i * 0.5; hit(t, 0.04, 0.7, "bandpass", i % 2 ? 2200 : 3000, 6); } tone("sine", 55, 0, 0.5, 5.2, 0.4, 0.25); }),
   corne: () => synth(2.4, ({ c, out, tone }) => { const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3000; lp.connect(out); [[0, 0.25], [0.35, 0.25], [0.7, 1.4]].forEach(([t, d]) => [440, 554, 659].forEach((f) => tone("sawtooth", f, t, 0.02, d, 0.1, 0.22, lp))); }),
   whoosh: () => synth(1.4, ({ c, out, noise, env }) => { const s = noise(), f = c.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2; f.frequency.setValueAtTime(300, 0); f.frequency.exponentialRampToValueAtTime(5000, 0.7); f.frequency.exponentialRampToValueAtTime(800, 1.3); const g = env(0, 0.6, 0.1, 0.6, 0.9); s.connect(f); f.connect(g); g.connect(out); s.start(0); s.stop(1.4); }),
-  // musique d'ambiance : petit groove doux (Am7 – Dm7 – G7 – Cmaj7), 16 secondes qui tournent en boucle
+  // 🎉 musique d'ambiance FESTIVE : disco-house 124 bpm (Do – Sol – Lam – Fa), 16 mesures (~31 s) en boucle
+  fete: () => synth(16 * 4 * 60 / 124, ({ c, out, tone, hit }) => {
+    const b = 60 / 124, hp = c.createBiquadFilter(); hp.type = "lowpass"; hp.frequency.value = 3200; hp.connect(out);
+    const prog = [[262, 330, 392], [247, 294, 392], [220, 262, 330], [175, 220, 262]], bass = [65.4, 98, 110, 87.3];
+    const mel = [[0, 784], [0.5, 659], [1, 784], [1.5, 880], [2.5, 784], [3, 659], [3.5, 587]], mel2 = [[0, 659], [0.5, 587], [1, 523], [1.5, 587], [2, 659], [3, 784], [3.5, 880]];
+    for (let bar = 0; bar < 16; bar++) {
+      const t0 = bar * 4 * b, k = bar % 4, big = bar >= 4; // 4 mesures d'intro, puis tout le groupe
+      for (let s = 0; s < 4; s++) {
+        const t = t0 + s * b;
+        tone("sine", 150, t, 0.001, 0.01, 0.22, 1, null, 45); // grosse caisse sur chaque temps
+        hit(t + b / 2, 0.09, 0.32, "highpass", 8000, 0.7); // charleston ouvert à contretemps
+        hit(t + b / 4, 0.025, 0.12, "highpass", 9000, 0.7); hit(t + 3 * b / 4, 0.025, 0.12, "highpass", 9000, 0.7);
+        if (s % 2) { hit(t, 0.16, 0.55, "bandpass", 1300, 0.8); hit(t + 0.012, 0.12, 0.35, "bandpass", 2100, 0.8); } // clap
+        // basse funky en octaves
+        tone("sawtooth", bass[k], t, 0.005, 0.12, 0.08, 0.32, hp); tone("sawtooth", bass[k] * 2, t + b / 2, 0.005, 0.1, 0.06, 0.26, hp);
+        // accords « stab » cuivrés
+        if (big || s % 2) prog[k].forEach((f) => { tone("sawtooth", f * 2, t + b / 2, 0.005, 0.07, 0.12, 0.06, hp); tone("square", f * 2.005, t + b / 2, 0.005, 0.07, 0.12, 0.03, hp); });
+      }
+      if (big) (bar % 2 ? mel2 : mel).forEach(([s2, f]) => { tone("square", f, t0 + s2 * b, 0.005, 0.12, 0.12, 0.09, hp); tone("triangle", f * 2, t0 + s2 * b, 0.005, 0.08, 0.1, 0.05, hp); });
+      if (bar % 4 === 3) hit(t0 + 3.5 * b, 0.5, 0.4, "highpass", 6000, 0.5); // petit crash de transition
+    }
+  }),
+  // musique d'ambiance douce : petit groove (Am7 – Dm7 – G7 – Cmaj7) (Am7 – Dm7 – G7 – Cmaj7), 16 secondes qui tournent en boucle
   bg: () => synth(16, ({ c, out, tone, hit }) => {
     const b = 0.5, lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1800; lp.connect(out);
     const ch = [[220, 262, 330, 392], [147, 175, 220, 262], [196, 247, 294, 349], [131, 165, 196, 247]], ba = [110, 73.4, 98, 65.4];
@@ -1155,6 +1177,7 @@ const SFXDEF = {
     }
   }),
 };
+const bgKind = () => LS.get("bt_bgk", "fete");
 async function sfxUrl(k) { if (!SFX.cache[k]) SFX.cache[k] = SFXDEF[k](); return SFX.cache[k]; }
 async function sfxPlay(k) {
   if (!SFXDEF[k] || k === "bg") return;
@@ -1165,7 +1188,7 @@ async function bgSet(on, vol) {
   const e = sfxEl("b"); if (vol != null) SFX.bgVol = vol;
   clearInterval(SFX.bgFade);
   if (on) {
-    try { const u = await sfxUrl("bg"); if (e.src !== u) e.src = u; e.loop = true; if (!SFX.bgOn) e.volume = 0; SFX.bgOn = true; await e.play();
+    try { const kind = (S.pub && S.pub.bgm && S.pub.bgm.k) || "fete", u = await sfxUrl(kind === "doux" ? "bg" : "fete"); if (e.src !== u) { e.src = u; if (SFX.bgOn) e.play().catch(() => {}); } e.loop = true; if (!SFX.bgOn) e.volume = 0; SFX.bgOn = true; await e.play();
       SFX.bgFade = setInterval(() => { const d = SFX.bgVol - e.volume; if (Math.abs(d) < 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, Math.min(1, e.volume + Math.sign(d) * 0.03)); }, 60);
     } catch (er) { SFX.bgOn = false; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
   } else if (SFX.bgOn) {
@@ -1184,7 +1207,7 @@ function sfxSync(p) {
     todo.forEach((x) => { if (!(SFX.localAt[x.k] && Date.now() - SFX.localAt[x.k] < 4000)) sfxPlay(x.k); });
   }
   const bg = p.bgm || { on: false, vol: 0.35 };
-  if (bg.on !== SFX.bgOn || (bg.on && Math.abs(bg.vol - SFX.bgVol) > 0.01)) bgSet(bg.on, bg.vol);
+  if (bg.on !== SFX.bgOn || (bg.on && (Math.abs(bg.vol - SFX.bgVol) > 0.01 || (bg.k || "fete") !== SFX.bgK))) { SFX.bgK = bg.k || "fete"; bgSet(bg.on, bg.vol); }
 }
 // Envoyer un bruitage (depuis n'importe quel téléphone animateur) : il sort de la sono
 function sfxFire(k) {
@@ -1198,20 +1221,33 @@ function sfxPanel(mode) {
       : '<p class="small muted">Les sons sortent du téléphone branché à la sono' + (sonoOn() ? " (celui-ci)" : " (case 📻 « branché à la sono » cochée chez le DJ)") + ".</p>") +
     '<div class="sfxg">' + SFXL.map(([k, e, l]) => '<button data-sfx="' + k + '"><span>' + e + "</span>" + l + "</button>").join("") + "</div>" +
     '<div class="bgrow"><button class="btn ' + (bg.on ? "ok" : "") + '" id="bgOn">' + (bg.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)") + "</button>" +
+    '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><button class="btn sm ' + ((bg.k || "fete") === "fete" ? "" : "ghost") + '" data-bgk="fete" style="flex:1">🎉 Festive</button><button class="btn sm ' + (bg.k === "doux" ? "" : "ghost") + '" data-bgk="doux" style="flex:1">🍸 Douce</button></div>' +
     '<div class="row" style="margin-top:6px;flex-wrap:nowrap;align-items:center"><span class="small">Volume</span><button class="btn ghost sm" id="bgM">−</button><b id="bgV" style="min-width:3ch;text-align:center">' + Math.round(bg.vol * 100) + '%</b><button class="btn ghost sm" id="bgP">+</button></div>' +
     '<p class="small muted">L\'ambiance s\'arrête toute seule quand un extrait est lancé.</p></div>' +
-    (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ Bruitages automatiques : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage</span></label>' : "") + "</div>";
+    (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ <b>Mode automatique</b> : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage, et musique d\'ambiance pendant les corrections et à la fin (elle s\'arrête dès qu\'un extrait est lancé)</span></label>' : "") + "</div>";
 }
 function bindSfx(v) {
   $$("[data-sfx]", v).forEach((b) => (b.onclick = () => { b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 300); sfxFire(b.dataset.sfx); }));
   const bg = () => (S.pub && S.pub.bgm) || { on: false, vol: 0.35 };
-  const send = (on, vol) => { S.pub.bgm = { on, vol }; if (sonoOn()) bgSet(on, vol); api("/game", { method: "POST", body: { action: "bgm", on, vol } }).then(() => pollNow()).catch((e) => toast(e.message)); };
+  const send = (on, vol, k) => { k = k || bg().k || "fete"; S.pub.bgm = { on, vol, k }; if (sonoOn()) { SFX.bgK = k; bgSet(on, vol); } api("/game", { method: "POST", body: { action: "bgm", on, vol, k } }).then(() => pollNow()).catch((e) => toast(e.message)); };
+  $$("[data-bgk]", v).forEach((b) => (b.onclick = () => { const x = bg(); send(x.on, x.vol, b.dataset.bgk); $$("[data-bgk]", v).forEach((y) => y.classList.toggle("ghost", y !== b)); if (!x.on) sfxPreview(b.dataset.bgk); }));
   if ($("#bgOn", v)) $("#bgOn", v).onclick = () => { const b = bg(); send(!b.on, b.vol); const x = $("#bgOn", v); x.classList.toggle("ok", !b.on); x.textContent = !b.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)"; };
   const step = (d) => { const b = bg(), vol = Math.round(Math.max(0.05, Math.min(1, b.vol + d)) * 100) / 100; send(b.on, vol); $("#bgV", v).textContent = Math.round(vol * 100) + "%"; };
   if ($("#bgM", v)) { $("#bgM", v).onclick = () => step(-0.1); $("#bgP", v).onclick = () => step(0.1); }
   if ($("#sfxAuto", v)) $("#sfxAuto", v).onchange = (e) => LS.set("bt_sfxauto", e.target.checked);
 }
 const sfxAuto = () => LS.get("bt_sfxauto", true);
+// écouter 8 s du style choisi, sur ce téléphone
+async function sfxPreview(k) { try { const e = sfxEl("a3"), u = await sfxUrl(k === "doux" ? "bg" : "fete"); e.src = u; e.volume = 0.8; await e.play(); setTimeout(() => e.pause(), 8000); toast("🎧 Aperçu sur ce téléphone (8 s)"); } catch (er) {} }
+// Ambiance automatique : pendant la correction d'une manche et à la fin de la partie
+function bgAuto(action) {
+  if (!sfxAuto()) return;
+  const g = S.data && S.data.game, last = g && S.data.setup && g.m >= S.data.setup.manches.length - 1;
+  if (action === "close" || action === "finish" || (action === "nextManche" && last)) {
+    const b = (S.pub && S.pub.bgm) || { vol: 0.35 };
+    api("/game", { method: "POST", body: { action: "bgm", on: true, vol: b.vol || 0.35, k: b.k || "fete" } }).catch(() => {});
+  }
+}
 
 /* ================= Écran géant ================= */
 // QR codes des équipes sur l'écran géant : tous à la fois, ou un par un (piloté depuis le téléphone)
@@ -1596,7 +1632,7 @@ function renderTab() {
 const lockBanner = () => isLocked() ? '<div class="lock">🔒 Partie en cours : les équipes et les manches sont verrouillées. Pour les modifier, remettez la partie à zéro (Réglages).</div>' : "";
 function lockInputs(v) { if (isLocked()) $$("input,select,textarea,button", v).forEach((e) => { if (!e.closest(".keep")) e.disabled = true; }); }
 const gameAct = async (action, extra) => {
-  try { await api("/game", { method: "POST", body: Object.assign({ action }, extra || {}) }); S.lastSig = ""; pollNow(); return true; }
+  try { await api("/game", { method: "POST", body: Object.assign({ action }, extra || {}) }); bgAuto(action); S.lastSig = ""; pollNow(); return true; }
   catch (e) { toast(e.message, 3500); return false; }
 };
 

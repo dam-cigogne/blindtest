@@ -613,7 +613,7 @@ export class Soiree extends DurableObject {
         const n = ((g.sfx && g.sfx.n) || 0) + 1;
         g.sfx = { k, n, q: (((g.sfx && g.sfx.q) || []).concat([{ k, n }])).slice(-6) }; // les derniers, pour ne rien rater entre deux rafraîchissements
       } else if (act === "bgm") {
-        g.bgm = { on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)) };
+        g.bgm = { on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: body.k === "doux" ? "doux" : "fete" };
       } else if (act === "showPhoto") {
         // une photo d'équipe en plein écran sur l'écran géant (à tout moment)
         const t = this.setup.teams.find((x) => x.id === Number(body.id));
