@@ -1434,7 +1434,8 @@ function renderScreen(app) {
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
   if (p.showPhoto && phTeam(p, p.showPhoto) && phTeam(p, p.showPhoto).ph) {
     const t = phTeam(p, p.showPhoto);
-    h += '<div class="fph"><img src="' + phUrl(t) + '" alt=""><div class="fn">' + (neutralName(t.name) ? "Équipe " + t.id : "Équipe " + t.id + " · " + esc(t.name)) + "</div></div>";
+    // plein écran total : la photo prend toute la hauteur, le fond reprend la même photo floutée
+    h += '<div class="posterF"><div class="bg" style="background-image:url(\'' + phUrl(t) + '\')"></div><img src="' + phUrl(t) + '" alt=""><div class="cap">' + (neutralName(t.name) ? "" : '<div class="k">ÉQUIPE ' + t.id + "</div>") + '<div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div></div></div>";
   } else if (p.tbShow && p.status === "finished") {
     h += '<div class="big">⚖️ Égalité !</div><div class="mid">Pour la ' + ordF(p.tbShow.place) + ' place' + (p.tbShow.place === 1 ? " 🏆" : "") + '</div>' +
       '<div class="tl" style="display:flex;justify-content:center;flex-wrap:wrap">' + p.tbShow.teams.map((n, i) => '<div style="min-width:22vw' + (p.tbShow.hand === i ? ";border:.4vw solid #ffcf4a;transform:scale(1.12)" : p.tbShow.hand != null ? ";opacity:.4" : "") + '"><b>' + (p.tbShow.hand === i ? "✋ " : "") + esc(n) + "</b></div>").join("") + "</div>" +
