@@ -82,9 +82,12 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .phIntro .cap{position:absolute;left:0;right:0;bottom:0;padding:14vh 4vw 4vh;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center;transition:opacity .4s}
 .phIntro .k{font-size:min(3vw,5vh);color:#ffcf4a;font-weight:900}.phIntro .n{font-size:min(7vw,12vh);font-weight:900;line-height:1.05}
 .phIntro.fly{background:transparent}.phIntro.fly .bg,.phIntro.fly .cap{opacity:0}.phIntro.fly .rib{animation:none;opacity:0}
+.phIntro img.noph{inset:auto;left:calc(50% - min(35vh,35vw));top:calc(50% - min(35vh,35vw));width:min(70vh,70vw);height:min(70vh,70vw);border-radius:50%;border:1vh solid rgba(255,255,255,.8)}
+.phIntro .iniBig{position:absolute;left:50%;top:50%;transform:translate(-50%,-55%);font-size:min(40vh,40vw);font-weight:900;color:#fff;text-shadow:0 1vh 4vh rgba(0,0,0,.4)}
 .phIntro .rib{position:absolute;z-index:2;top:calc(50% - 50vh + 15vh);left:calc(50% - min(50vh,50vw) - 3vw);transform:rotate(-11deg);transform-origin:left top;background:linear-gradient(90deg,#ffcf4a,#ff9f1a);color:#1a1033;font-weight:900;font-size:min(6vw,10vh);padding:1.2vh 4vw 1.2vh 3vw;border-radius:1vh;box-shadow:0 1.5vh 4vh rgba(0,0,0,.55);letter-spacing:.02em;transition:opacity .4s;animation:ribIn .6s .3s ease both}
 @keyframes ribIn{from{opacity:0;transform:rotate(-11deg) translateX(-30vw)}to{opacity:1;transform:rotate(-11deg)}}
 .av.land{animation:pop .5s ease}@keyframes fadein{from{opacity:0}to{opacity:1}}
+.scr .appv{position:fixed;left:.6vw;bottom:.4vh;font-size:max(10px,.9vw);opacity:.35;z-index:60}
 .posterF{position:fixed;inset:0;z-index:5;background:#000;overflow:hidden}.posterF .bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(30px) brightness(.55)}
 .posterF img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;animation:pop 1s ease both}
 .posterF .cap{position:absolute;left:0;right:0;bottom:0;padding:16vh 4vw 4vh;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center}
@@ -447,6 +450,7 @@ async function api(path, opt) {
 let pollT = null, polling = false, again = false;
 function interval() {
   const r = S.sess && S.sess.role, p = S.pub;
+  if (r === "screen") return 900; // l'écran géant réagit vite à chaque toucher de l'animateur
   if (document.hidden && r !== "screen") return 15000;
   if (sonoOn()) return 700; // la sono doit réagir vite (extraits, bruitages)
   if (!p || p.status !== "running") return r === "anim" ? 2500 : 4000;
@@ -482,9 +486,17 @@ function pageVersion() {
   fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
 }
 // l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
+const APP_V = "2026-11-28-15h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
+function appVersionCheck(p) {
+  if (!p || !p.app || p.app === APP_V || S.appWarned) return;
+  const r = S.sess && S.sess.role;
+  if (new URLSearchParams(location.search).get("v") === p.app) return; // déjà rechargé pour cette version
+  if (r === "screen") { S.appWarned = true; location.replace(location.pathname + "?v=" + encodeURIComponent(p.app) + location.hash); return; }
+  S.appWarned = true; S.verShown = false; checkVersion("force-" + p.app);
+}
 function checkVersion(v) {
   if (!v) return;
-  if (!S.ver) { S.ver = v; return; }
+  if (!S.ver && !String(v).startsWith("force-")) { S.ver = v; return; }
   if (v === S.ver || S.verShown) return;
   const r = S.sess && S.sess.role;
   if (r === "screen") { location.reload(); return; }
@@ -588,6 +600,7 @@ function onData() {
   else if (r === "screen") renderScreen($("#app"));
   else if (r === "anim") updAnim();
   sonoSync();
+  appVersionCheck(S.pub);
 }
 
 /* ================= Accueil ================= */
@@ -908,11 +921,25 @@ function pvUnlock() {
   if (pr && pr.then) pr.then(back).catch(() => { PV.unlocked = false; back(); }); else back();
 }
 ["touchend", "click"].forEach((ev) => document.addEventListener(ev, pvUnlock, true));
+// 📥 Les extraits sont téléchargés ENTIERS dans le téléphone avant d'être joués : la lecture ne dépend plus
+// du réseau (beaucoup plus stable, surtout en Bluetooth où le Wi-Fi et le Bluetooth se partagent l'antenne).
+const PVB = { map: {}, order: [] };
+function pvBlobGet(url) { const b = PVB.map[url]; return b && b.u ? b.u : null; }
+function pvFetchBlob(url) {
+  if (!url || PVB.map[url]) return PVB.map[url] && PVB.map[url].p;
+  const ent = (PVB.map[url] = {});
+  ent.p = fetch(url).then((r) => (r.ok ? r.blob() : null)).then((b) => { if (b && b.size > 20000) ent.u = URL.createObjectURL(b); else delete PVB.map[url]; return ent.u; }).catch(() => { delete PVB.map[url]; });
+  PVB.order.push(url);
+  while (PVB.order.length > 8) { const old = PVB.order.shift(), e = PVB.map[old]; if (e && e.u && pvAudio().src !== e.u) URL.revokeObjectURL(e.u); delete PVB.map[old]; }
+  return ent.p;
+}
+async function pvPrefetch(s) { if (!s) return; const it = await pvResolve(s); if (it && it.url) pvFetchBlob(it.url); }
 function pvPlay(it, sec, retry, off) {
   pvStop();
   const a = pvAudio();
   off = Math.max(0, Number(off) || 0);
-  if (a.src !== it.url) a.src = it.url;
+  const local = pvBlobGet(it.url) || it.url; // version téléchargée si elle est prête
+  if (a.src !== local) a.src = local;
   // début de l'extrait : on se place au bon endroit dès que le fichier est prêt
   const seek = () => { try { if (Math.abs(a.currentTime - off) > 0.4) a.currentTime = off; } catch (e) {} };
   if (a.readyState >= 1) seek(); else a.addEventListener("loadedmetadata", seek, { once: true });
@@ -929,7 +956,7 @@ function pvPlay(it, sec, retry, off) {
     if (retry) { toast("Nouvel essai de l'extrait…", 1500); retry().then((it2) => { if (it2) pvPlay(it2, sec > 0 ? Math.max(3, sec - (Date.now() - t0) / 1000) : 0, null, off); else toast("Extrait illisible : utilisez « Autres sources (secours) »", 4000); }); }
     else toast("Extrait illisible (" + name + ") : utilisez « Autres sources (secours) »", 4000);
   };
-  a.onerror = () => fail({ name: "MediaError" });
+  a.onerror = () => { if (local !== it.url) { delete PVB.map[it.url]; a.src = it.url; a.play().catch(fail); return; } fail({ name: "MediaError" }); };
   const pr = a.play();
   if (pr && pr.catch) pr.catch(fail);
   if (sec > 0) {
@@ -1083,6 +1110,11 @@ const sonoOn = () => { const r = S.sess && S.sess.role; return audioOn() && (r =
 function sonoSync() {
   const p = S.pub; if (!p || !sonoOn()) return;
   sfxSync(p);
+  { // 📥 préparation : le morceau en cours et le suivant sont téléchargés en entier à l'avance
+    const songs0 = (S.data && (S.data.songs || (S.data.setup && S.data.setup.manches[p.m] && S.data.setup.manches[p.m].songs))) || [];
+    const pk = p.runId + ":" + p.m + ":" + p.k;
+    if (p.status === "running" && PV.prepK !== pk) { PV.prepK = pk; pvPrefetch(songs0[p.k]).then(() => pvPrefetch(songs0[p.k + 1])); }
+  }
   const songs = (S.data && (S.data.songs || (S.data.setup && S.data.setup.manches[p.m] && S.data.setup.manches[p.m].songs))) || [];
   const s = songs[p.k];
   const key = p.runId + ":" + p.m + ":" + p.k + ":" + (p.started ? p.phaseStart : 0);
@@ -1519,10 +1551,14 @@ function finalReveal(p) {
 // 📸 La photo de l'équipe en très grand, puis elle « rentre » dans sa bulle du classement
 // label = « 2e place » (ruban penché en haut de la photo) ; sub = points (sous le nom)
 function photoIntro(p, id, label, target, hold, sub) {
-  const t = phTeam(p, id); if (!t || !t.ph || !target) return false;
+  const t = phTeam(p, id); if (!t || !target) return false;
   document.querySelectorAll(".phIntro").forEach((x) => { if (x._t) x._t.style.opacity = ""; x.remove(); }); // clic rapide : on termine la précédente
-  const url = phUrl(t), ov = document.createElement("div"); ov.className = "phIntro";
-  ov.innerHTML = '<div class="bg" style="background-image:url(\'' + url + '\')"></div><img src="' + url + '" alt=""><div class="rib">' + label + '</div><div class="cap"><div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div>" + (sub ? '<div class="k">' + sub + "</div>" : "") + "</div>";
+  const ov = document.createElement("div"); ov.className = "phIntro";
+  // sans photo : une grande pastille de couleur avec l'initiale (même principe)
+  const url = t.ph ? phUrl(t) : "", hue = (t.id * 47) % 360, ini = neutralName(t.name) ? String(t.id) : t.name.replace(/^(les|la|le|l')\s*/i, "").trim().slice(0, 1).toUpperCase();
+  ov.innerHTML = (url ? '<div class="bg" style="background-image:url(\'' + url + '\')"></div><img src="' + url + '" alt="">'
+    : '<div class="bg" style="background:radial-gradient(circle,hsl(' + hue + ',60%,35%),#0d0820)"></div><img class="noph" alt="" style="background:hsl(' + hue + ',65%,55%)"><div class="iniBig">' + esc(ini) + "</div>") +
+    '<div class="rib">' + label + '</div><div class="cap"><div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div>" + (sub ? '<div class="k">' + sub + "</div>" : "") + "</div>";
   document.body.appendChild(ov); target.style.opacity = "0"; ov._t = target;
   const img = ov.querySelector("img");
   let done = false;
@@ -1530,8 +1566,10 @@ function photoIntro(p, id, label, target, hold, sub) {
     if (done) return; done = true; clearTimeout(tm);
     if (!document.body.contains(target)) { ov.remove(); return; }
     const W = innerWidth, H = innerHeight, sz = Math.min(W, H), x0 = (W - sz) / 2, y0 = (H - sz) / 2, r = target.getBoundingClientRect();
-    img.style.cssText = "position:fixed;left:" + x0 + "px;top:" + y0 + "px;width:" + sz + "px;height:" + sz + "px;object-fit:cover;border-radius:50%;animation:none";
-    ov.classList.add("fly");
+    const nb = img.classList.contains("noph"), r0 = img.getBoundingClientRect(), bgc = img.style.background;
+    img.style.cssText = nb ? "position:fixed;left:" + r0.left + "px;top:" + r0.top + "px;width:" + r0.width + "px;height:" + r0.height + "px;transform:none;border-radius:50%;animation:none;background:" + bgc
+      : "position:fixed;left:" + x0 + "px;top:" + y0 + "px;width:" + sz + "px;height:" + sz + "px;object-fit:cover;border-radius:50%;animation:none";
+    ov.classList.add("fly"); const ib = ov.querySelector(".iniBig"); if (ib) ib.remove();
     requestAnimationFrame(() => requestAnimationFrame(() => {
       img.style.transition = "all .9s cubic-bezier(.6,0,.3,1)";
       img.style.left = r.left + "px"; img.style.top = r.top + "px"; img.style.width = r.width + "px"; img.style.height = r.height + "px";
@@ -1616,7 +1654,7 @@ function renderScreen(app) {
   if (S.intro && p.landed && p.landed === S.intro.key) { S.intro.ctl.land(); S.intro = null; } // « Dans le classement ! » touché par l'animateur // « Sur le podium ! » touché par l'animateur
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
-  let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
+  let h = '<div class="scr"><div class="appv">v ' + APP_V + '</div><div class="nm">🎵 ' + esc(p.name) + "</div>";
   if (p.showPhoto && phTeam(p, p.showPhoto) && phTeam(p, p.showPhoto).ph) {
     const t = phTeam(p, p.showPhoto);
     // plein écran total : la photo prend toute la hauteur, le fond reprend la même photo floutée
@@ -1893,7 +1931,7 @@ function tabJeu(v) {
     const R = d.ranking || [], T = R.length, rv = Math.min(T, g.reveal || 0), nx = R[T - rv - 1];
     const ties = tieGroups(R);
     h += tieCard(ties, g);
-    const justR = rv > 0 && R[T - rv], waitLand = justR && !justR.hidden && (phTeam(S.pub, justR.id) || {}).ph && g.landed !== "rv" + rv;
+    const justR = rv > 0 && R[T - rv], waitLand = justR && !justR.hidden && g.landed !== "rv" + rv;
     h += '<div class="card center"><h3>🥁 La révélation finale</h3><p class="muted small">Chaque appui dévoile une place sur l\'écran géant, en partant de la dernière. La photo de l\'équipe s\'affiche en grand avec sa place ; touchez « ⬇️ Dans le classement » pour l\'y envoyer.</p>' +
       (waitLand ? '<button class="btn big ok" id="gLand">⬇️ ' + esc(justR.name) + " dans le classement !</button>" : "") +
       (rv < T ? '<button class="btn big rankbtn" id="gRev">🥁 Révéler la ' + (nx ? (nx.rank === 1 ? "1re place 🏆" : nx.rank + "e place") : "suite") + "</button>" +
@@ -2362,7 +2400,7 @@ function teamPhotoBox(id) {
 // classement de manche : la photo de l'équipe en tête reste en grand jusqu'au toucher
 function rkLandBtn(g, d) {
   const lead = g.showRanking && d && d.ranking && d.ranking[0];
-  if (!lead || !lead.total || !(phTeam(S.pub, lead.id) || {}).ph || g.landed === "rk" + g.rankAt) return "";
+  if (!lead || !lead.total || g.landed === "rk" + g.rankAt) return "";
   return '<button class="btn big ok rkland" style="margin-bottom:8px">⬇️ ' + esc(lead.name) + " dans le classement !</button>";
 }
 function bindRkLand(g) { $$(".rkland").forEach((b) => (b.onclick = () => gameAct("land", { key: "rk" + g.rankAt }))); }

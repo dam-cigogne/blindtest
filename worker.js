@@ -8,6 +8,7 @@ const json = (o, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
+const APP_V = "2026-11-28-15h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
 const defaultSetup = () => ({
   name: "Blind test",
   codes: { anim: null, dj: null },
@@ -292,6 +293,7 @@ export class Soiree extends DurableObject {
     return {
       now: Date.now(),
       v: vm && vm.id ? String(vm.id) : "",
+      app: APP_V, // version publiée : l'écran géant se recharge tout seul s'il a une version plus ancienne
       name: setup.name,
       needInit: !setup.codes.anim,
       djReady: !!setup.codes.dj,
