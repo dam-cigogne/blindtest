@@ -332,6 +332,8 @@ export class Soiree extends DurableObject {
       reveal: game.reveal || 0,
       finView: game.status === "finished" ? game.finView || null : null,
       showPhoto: game.showPhoto || null,
+      podStep: game.podStep || 0,
+      podLand: game.podLand || 0,
       sfx: game.sfx || null,
       bgm: game.bgm || { on: false, vol: 0.35 },
       tbShow: game.tbShow ? { place: game.tbShow.place, hand: game.tbShow.hand ?? null, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
@@ -556,7 +558,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto" && act !== "sfx" && act !== "bgm") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto" && act !== "sfx" && act !== "bgm" && act !== "podStep" && act !== "podLand") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now(); g.showRanking = false; g.showPhoto = null; if (g.bgm) g.bgm.on = false; // la musique reprend : l'écran revient au jeu
@@ -613,7 +615,7 @@ export class Soiree extends DurableObject {
         const n = ((g.sfx && g.sfx.n) || 0) + 1;
         g.sfx = { k, n, q: (((g.sfx && g.sfx.q) || []).concat([{ k, n }])).slice(-6) }; // les derniers, pour ne rien rater entre deux rafraîchissements
       } else if (act === "bgm") {
-        g.bgm = { on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: body.k === "doux" ? "doux" : "fete" };
+        g.bgm = { on: !!body.on, vol: Math.max(0.05, Math.min(1, Number(body.vol) || 0.35)), k: ["tubes", "fete", "electro", "latino", "doux"].includes(body.k) ? body.k : "tubes" };
       } else if (act === "showPhoto") {
         // une photo d'équipe en plein écran sur l'écran géant (à tout moment)
         const t = this.setup.teams.find((x) => x.id === Number(body.id));
@@ -622,6 +624,11 @@ export class Soiree extends DurableObject {
         // fin de partie sur l'écran géant : classement, podium avec photos, ou grande affiche du vainqueur
         g.finView = ["podium", "poster"].includes(body.v) ? body.v : null;
         if (g.finView) { g.showRanking = true; g.tbShow = null; }
+        if (g.finView === "podium") { g.podStep = 0; g.podLand = 0; }
+      } else if (act === "podStep") {
+        g.podStep = Math.max(0, Math.min(3, Number(body.n) || 0)); g.podLand = 0;
+      } else if (act === "podLand") {
+        g.podLand = g.podStep || 0;
       } else if (act === "tbShow") {
         // écran géant : annonce du morceau de départage pour les équipes à égalité
         const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter((id) => this.setup.teams.some((t) => t.id === id)) : [];

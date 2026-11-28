@@ -71,6 +71,7 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .scr .pod2>div{display:flex;flex-direction:column;align-items:center;width:26vw;animation:up .9s ease both}
 .scr .pod2 .av{width:min(14vw,20vh);height:min(14vw,20vh);font-size:min(6vw,8vh);border-width:.5vw;margin-bottom:-2vh;z-index:1;box-shadow:0 1vw 3vw rgba(0,0,0,.5)}.scr .pod2 .q1 .av{width:min(19vw,27vh);height:min(19vw,27vh);font-size:min(8vw,11vh);border-color:#ffcf4a}
 .scr .pod2 .blk{width:100%;border-radius:1.5vw 1.5vw 0 0;padding:2.6vh 1vw 1vh;font-size:min(2vw,3.3vh);line-height:1.25;font-weight:800;text-align:center;box-sizing:border-box}
+.scr .pod2 .wait .blk{opacity:.55}.scr .pod2 .qm{background:rgba(255,255,255,.12)!important;border-style:dashed}.scr .pod2>div.land .blk{animation:pop .6s ease}
 .scr .pod2 .q1 .blk{min-height:24vh;background:linear-gradient(#ffcf4a,#b8860b);color:#2b1a00}.scr .pod2 .q2 .blk{min-height:19vh;background:linear-gradient(#e6e6f0,#8d8da8);color:#1b1b2b}.scr .pod2 .q3 .blk{min-height:15vh;background:linear-gradient(#e8a56b,#8b4a1c)}
 .scr .poster{display:flex;align-items:center;justify-content:center;gap:4vw;flex:1;padding:2vh 3vw}
 .scr .poster .av{width:min(42vw,68vh);height:min(42vw,68vh);font-size:16vw;border:1vw solid #ffcf4a;box-shadow:0 0 6vw rgba(255,207,74,.55);animation:pop 1s ease both}
@@ -89,6 +90,7 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .scr .fph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;min-height:0}.scr .fph img{height:min(64vh,80vw);width:min(64vh,80vw);object-fit:cover;border-radius:2vw;border:.6vw solid #fff;box-shadow:0 2vw 6vw rgba(0,0,0,.6);animation:pop .8s ease both}.scr .fph .fn{font-size:min(4.5vw,7vh);font-weight:900}
 .phs{display:flex;flex-wrap:wrap;gap:8px}.phs button{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg2);border:2px solid var(--line);border-radius:12px;padding:8px;color:var(--tx);width:88px;font-size:12px}.phs button span{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phs button.on{border-color:var(--pri);background:rgba(255,92,168,.18)}.phs .av{width:52px;height:52px;font-size:20px}
 .sfxhere{background:rgba(46,204,143,.12);border:1px solid rgba(46,204,143,.5);border-radius:12px;padding:8px 10px;margin:4px 0 10px;font-size:14px}
+.bgks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bgks .btn{flex:1 1 30%;padding-left:6px;padding-right:6px;white-space:nowrap}
 .sfxg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sfxg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--tx);font-size:12px;font-weight:700;touch-action:manipulation}.sfxg button span{font-size:26px}.sfxg button:active,.sfxg button.hit{transform:scale(.94);background:rgba(255,92,168,.25);border-color:var(--pri)}.bgrow{margin-top:10px}.bgrow>.btn{width:100%}
 .pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
 .dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
@@ -1167,6 +1169,45 @@ const SFXDEF = {
       if (bar % 4 === 3) hit(t0 + 3.5 * b, 0.5, 0.4, "highpass", 6000, 0.5); // petit crash de transition
     }
   }),
+  // ⚡ Électro : 128 bpm, intro – montée – « drop » – pause – drop, ~60 s
+  electro: () => synth(32 * 4 * 60 / 128, ({ c, out, tone, hit }) => {
+    const b = 60 / 128, lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3800; lp.connect(out);
+    const roots = [110, 87.3, 130.8, 98], arp = [[440, 523, 659, 880], [349, 440, 523, 698], [523, 659, 784, 1047], [392, 494, 587, 784]];
+    for (let bar = 0; bar < 32; bar++) {
+      const t0 = bar * 4 * b, k = bar % 4, sec = bar < 4 ? "intro" : bar < 8 ? "up" : bar < 16 ? "drop" : bar < 20 ? "break" : bar < 24 ? "up" : "drop";
+      for (let s2 = 0; s2 < 4; s2++) {
+        const t = t0 + s2 * b;
+        if (sec !== "break") tone("sine", 160, t, 0.001, 0.01, 0.2, sec === "intro" ? 0.6 : 1, null, 42);
+        if (sec === "drop" || sec === "up") hit(t + b / 2, 0.06, 0.3, "highpass", 8500, 0.7);
+        if (sec === "drop" && s2 % 2) hit(t, 0.15, 0.5, "bandpass", 1500, 0.8);
+        if (sec === "drop") { tone("sawtooth", roots[k], t + b / 2, 0.005, 0.18, 0.05, 0.35, lp); tone("square", roots[k] / 2, t + b / 2, 0.005, 0.18, 0.05, 0.2, lp); }
+      }
+      // arpège (toujours là, plus fort dans le drop)
+      for (let n = 0; n < 16; n++) tone(n % 2 ? "square" : "sawtooth", arp[k][n % 4], t0 + n * b / 4, 0.003, 0.04, 0.06, sec === "drop" ? 0.09 : sec === "break" ? 0.07 : 0.05, lp);
+      if (sec === "break") arp[k].slice(0, 3).forEach((f) => tone("triangle", f / 2, t0, 0.4, 4 * b - 0.6, 0.3, 0.08, lp));
+      if (sec === "up" && bar % 4 === 3) { for (let n = 0; n < 16; n++) hit(t0 + n * b / 4, 0.05, 0.1 + n * 0.03, "bandpass", 1800 + n * 200, 1); }
+      if (sec === "drop" && bar % 8 === 0) hit(t0, 0.9, 0.5, "highpass", 6000, 0.5);
+    }
+  }),
+  // 🌴 Latino : 100 bpm, rythme reggaeton + mélodie « marimba », ~58 s
+  latino: () => synth(24 * 4 * 60 / 100, ({ c, out, tone, hit }) => {
+    const b = 60 / 100, lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3000; lp.connect(out);
+    const bass = [73.4, 98, 82.4, 110], ch = [[294, 349, 440], [392, 494, 587], [330, 415, 494], [440, 554, 659]];
+    const melA = [[0, 587], [0.75, 659], [1.5, 698], [2, 659], [2.5, 587], [3, 523]], melB = [[0, 880], [0.5, 784], [1, 698], [1.75, 659], [2.5, 587], [3.25, 659]];
+    for (let bar = 0; bar < 24; bar++) {
+      const t0 = bar * 4 * b, k = bar % 4, full = bar >= 2;
+      for (let s2 = 0; s2 < 4; s2++) {
+        const t = t0 + s2 * b;
+        tone("sine", 140, t, 0.001, 0.01, 0.22, 0.9, null, 45); // grosse caisse
+        if (full) { hit(t + 0.75 * b, 0.1, 0.45, "bandpass", 1700, 0.9); hit(t + 1.5 * b > t0 + 4 * b ? t : t + 0.5 * b, 0.08, 0.25, "bandpass", 2500, 1); } // rythme « dembow »
+        hit(t + b / 2, 0.03, 0.15, "highpass", 9000, 0.7);
+        if (full) tone("sine", bass[k], t, 0.005, 0.3, 0.1, 0.45);
+      }
+      if (full) ch[k].forEach((f) => [0.5, 1.5, 2.5, 3.5].forEach((s3) => tone("triangle", f, t0 + s3 * b, 0.003, 0.05, 0.1, 0.05, lp)));
+      if (bar >= 4) (bar % 8 < 4 ? melA : melB).forEach(([s3, f]) => { tone("sine", f, t0 + s3 * b, 0.002, 0.03, 0.35, 0.16); tone("sine", f * 4, t0 + s3 * b, 0.001, 0.005, 0.08, 0.04); });
+      if (bar % 4 === 3) hit(t0 + 3 * b, 0.4, 0.25, "bandpass", 3500, 2); // güiro
+    }
+  }),
   // musique d'ambiance douce : petit groove (Am7 – Dm7 – G7 – Cmaj7) (Am7 – Dm7 – G7 – Cmaj7), 16 secondes qui tournent en boucle
   bg: () => synth(16, ({ c, out, tone, hit }) => {
     const b = 0.5, lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1800; lp.connect(out);
@@ -1179,7 +1220,39 @@ const SFXDEF = {
     }
   }),
 };
-const bgKind = () => LS.get("bt_bgk", "fete");
+// styles d'ambiance : « tubes » = vrais morceaux festifs enchaînés (extraits de 30 s, jamais deux fois le même)
+const BGS = [["tubes", "🎉 Vrais tubes"], ["fete", "🪩 Disco"], ["electro", "⚡ Électro"], ["latino", "🌴 Latino"], ["doux", "🍸 Douce"]];
+const BGU = { fete: "fete", electro: "electro", latino: "latino", doux: "bg" };
+function tubesPool() {
+  const ex = new Set();
+  const add = (m) => (m || []).forEach((x) => (x.songs || []).forEach((y) => ex.add(sKey(y))));
+  if (S.data) { add(S.data.all); add(S.data.setup && S.data.setup.manches); }
+  // uniquement des morceaux qui bougent : tous les « Tubes de fête » + une sélection dansante des années 80 à aujourd'hui
+  const DANSE = /^(Billie Jean|Take On Me|Girls Just Want to Have Fun|Les Démons de minuit|Footloose|Wake Me Up Before You Go-Go|Pump Up the Jam|Nuit de folie|Il tape sur des bambous|Femme libérée|Beat It|Hips Don't Lie|Alors on danse|Dragostea Din Tei|I Gotta Feeling|Hey Ya!|Poker Face|Single Ladies.*|Moi\.\.\. Lolita|Crazy in Love|Relax, Take It Easy|Yeah!|Happy|Uptown Funk|Get Lucky|Despacito|Moves Like Jagger|Djadja|Levitating|Dance Monkey|Can't Stop the Feeling!|Andalouse|Rather Be|Wake Me Up)$/;
+  const pool = LIB.themes.flatMap((t) => t.songs.filter((x) => t.id === "fete" || (["s80", "s00", "s10"].includes(t.id) && DANSE.test(x.t)))).filter((x) => !ex.has(sKey(x)));
+  return shuffle(pool);
+}
+async function bgTubeNext(e, gen) {
+  if (gen !== SFX.bgGen || !SFX.bgOn) return;
+  if (!SFX.tubes || !SFX.tubes.length) SFX.tubes = tubesPool();
+  for (let tries = 0; tries < 6 && SFX.tubes.length; tries++) {
+    const s2 = SFX.tubes.shift(), it = await pvResolve(s2);
+    if (gen !== SFX.bgGen || !SFX.bgOn) return;
+    if (!it || !it.url) continue;
+    e.loop = false; e.src = it.url; e.volume = 0; SFX.bgNow = s2;
+    try { await e.play(); } catch (er) { continue; }
+    clearInterval(SFX.bgFade);
+    SFX.bgFade = setInterval(() => { if (e.volume >= SFX.bgVol - 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.min(1, e.volume + 0.03); }, 60);
+    clearTimeout(SFX.bgT);
+    SFX.bgT = setTimeout(() => { // fondu de sortie puis morceau suivant
+      if (gen !== SFX.bgGen) return; clearInterval(SFX.bgFade);
+      SFX.bgFade = setInterval(() => { if (e.volume <= 0.04) { clearInterval(SFX.bgFade); bgTubeNext(e, gen); } else e.volume = Math.max(0, e.volume - 0.04); }, 60);
+    }, 26500);
+    const nx = SFX.tubes[0]; if (nx) pvResolve(nx); // prépare le suivant
+    return;
+  }
+  toast("🎶 Vrais tubes indisponibles (pas d'internet ?) : ambiance Disco à la place", 3500); SFX.bgK = "fete"; bgSet(true);
+}
 async function sfxUrl(k) { if (!SFX.cache[k]) SFX.cache[k] = SFXDEF[k](); return SFX.cache[k]; }
 async function sfxPlay(k) {
   if (!SFXDEF[k] || k === "bg") return;
@@ -1189,17 +1262,28 @@ async function sfxPlay(k) {
 async function bgSet(on, vol) {
   const e = sfxEl("b"); if (vol != null) SFX.bgVol = vol;
   clearInterval(SFX.bgFade);
+  const kind = SFX.bgK || (S.pub && S.pub.bgm && S.pub.bgm.k) || "tubes";
   if (on) {
-    try { const kind = (S.pub && S.pub.bgm && S.pub.bgm.k) || "fete", u = await sfxUrl(kind === "doux" ? "bg" : "fete"); if (e.src !== u) { e.src = u; if (SFX.bgOn) e.play().catch(() => {}); } e.loop = true; if (!SFX.bgOn) e.volume = 0; SFX.bgOn = true; await e.play();
+    try {
+      if (SFX.bgOn && SFX.bgPlaying === kind) { // même style : on ajuste juste le volume
+        SFX.bgFade = setInterval(() => { const d = SFX.bgVol - e.volume; if (Math.abs(d) < 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, Math.min(1, e.volume + Math.sign(d) * 0.03)); }, 60);
+        return;
+      }
+      const gen = (SFX.bgGen = (SFX.bgGen || 0) + 1); clearTimeout(SFX.bgT);
+      SFX.bgOn = true; SFX.bgPlaying = kind;
+      if (kind === "tubes") return bgTubeNext(e, gen);
+      if (!SFX.cache[BGU[kind] || "fete"]) toast("🎶 Préparation de la musique…", 2500);
+      const u = await sfxUrl(BGU[kind] || "fete"); if (gen !== SFX.bgGen) return;
+      e.src = u; e.loop = true; e.volume = 0; await e.play();
       SFX.bgFade = setInterval(() => { const d = SFX.bgVol - e.volume; if (Math.abs(d) < 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, Math.min(1, e.volume + Math.sign(d) * 0.03)); }, 60);
-    } catch (er) { SFX.bgOn = false; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
+    } catch (er) { SFX.bgOn = false; SFX.bgPlaying = null; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
   } else if (SFX.bgOn) {
-    SFX.bgOn = false;
+    SFX.bgOn = false; SFX.bgPlaying = null; SFX.bgGen = (SFX.bgGen || 0) + 1; clearTimeout(SFX.bgT);
     SFX.bgFade = setInterval(() => { if (e.volume <= 0.04) { e.pause(); e.volume = 0; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, e.volume - 0.04); }, 60);
   }
 }
 // Le téléphone de la sono suit les ordres de l'animateur (bruitages + musique d'ambiance)
-function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF); const nx = () => { if (i < ks.length) sfxUrl(ks[i++]).then(() => setTimeout(nx, 50)); }; setTimeout(nx, 1500); }
+function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF).filter((k) => !["fete", "electro", "latino", "bg"].includes(k)); /* les musiques : seulement quand on les choisit */ const nx = () => { if (i < ks.length) sfxUrl(ks[i++]).then(() => setTimeout(nx, 50)); }; setTimeout(nx, 1500); }
 function sfxSync(p) {
   sfxWarm(); // la sono prépare les sons à l'avance
   const n = (p.sfx && p.sfx.n) || 0;
@@ -1209,7 +1293,7 @@ function sfxSync(p) {
     todo.forEach((x) => { if (!(SFX.localAt[x.k] && Date.now() - SFX.localAt[x.k] < 4000)) sfxPlay(x.k); });
   }
   const bg = p.bgm || { on: false, vol: 0.35 };
-  if (bg.on !== SFX.bgOn || (bg.on && (Math.abs(bg.vol - SFX.bgVol) > 0.01 || (bg.k || "fete") !== SFX.bgK))) { SFX.bgK = bg.k || "fete"; bgSet(bg.on, bg.vol); }
+  if (bg.on !== SFX.bgOn || (bg.on && (Math.abs(bg.vol - SFX.bgVol) > 0.01 || (bg.k || "tubes") !== SFX.bgPlaying))) { SFX.bgK = bg.k || "tubes"; bgSet(bg.on, bg.vol); }
 }
 // Envoyer un bruitage (depuis n'importe quel téléphone animateur) : il sort de la sono
 function sfxFire(k) {
@@ -1223,7 +1307,8 @@ function sfxPanel(mode) {
     '<label class="row sfxhere"><input type="checkbox" id="sfxHere" style="width:auto"' + (sonoOn() ? " checked" : "") + '><span style="flex:1">📻 <b>Les sons sortent de CE téléphone</b>' + (sonoOn() ? " ✓ (branchez-le à la sono)" : (mode === "dj" ? "" : " – sinon ils partent vers le téléphone du DJ")) + "</span></label>" +
     '<div class="sfxg">' + SFXL.map(([k, e, l]) => '<button data-sfx="' + k + '"><span>' + e + "</span>" + l + "</button>").join("") + "</div>" +
     '<div class="bgrow"><button class="btn ' + (bg.on ? "ok" : "") + '" id="bgOn">' + (bg.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)") + "</button>" +
-    '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><button class="btn sm ' + ((bg.k || "fete") === "fete" ? "" : "ghost") + '" data-bgk="fete" style="flex:1">🎉 Festive</button><button class="btn sm ' + (bg.k === "doux" ? "" : "ghost") + '" data-bgk="doux" style="flex:1">🍸 Douce</button></div>' +
+    '<div class="bgks">' + BGS.map(([k, l]) => '<button class="btn sm ' + ((bg.k || "tubes") === k ? "" : "ghost") + '" data-bgk="' + k + '">' + l + "</button>").join("") + "</div>" +
+    '<p class="small muted" style="margin:4px 0 0">🎉 Vrais tubes : des extraits de vrais morceaux de fête qui s\'enchaînent (jamais deux fois le même, jamais un morceau de vos manches). Les autres styles sont fabriqués par l\'appli.</p>' +
     '<div class="row" style="margin-top:6px;flex-wrap:nowrap;align-items:center"><span class="small">Volume</span><button class="btn ghost sm" id="bgM">−</button><b id="bgV" style="min-width:3ch;text-align:center">' + Math.round(bg.vol * 100) + '%</b><button class="btn ghost sm" id="bgP">+</button></div>' +
     '<p class="small muted">L\'ambiance s\'arrête toute seule quand un extrait est lancé.</p></div>' +
     (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ <b>Mode automatique</b> : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage, et musique d\'ambiance pendant les corrections et à la fin (elle s\'arrête dès qu\'un extrait est lancé)</span></label>' : "") + "</div>";
@@ -1232,8 +1317,8 @@ function bindSfx(v) {
   if ($("#sfxHere", v)) $("#sfxHere", v).onchange = (e) => { LS.set("bt_sono", e.target.checked); if (e.target.checked) { LS.set("bt_audio", true); sfxUnlock(); sfxWarm(); toast("📻 Les sons sortiront de ce téléphone"); } else if (SFX.bgOn) bgSet(false); S.lastSig = ""; if (S.sess.role === "dj") renderDJ($("#app")); else renderTab(); };
   $$("[data-sfx]", v).forEach((b) => (b.onclick = () => { b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 300); sfxFire(b.dataset.sfx); }));
   const bg = () => (S.pub && S.pub.bgm) || { on: false, vol: 0.35 };
-  const send = (on, vol, k) => { k = k || bg().k || "fete"; S.pub.bgm = { on, vol, k }; if (sonoOn()) { SFX.bgK = k; bgSet(on, vol); } api("/game", { method: "POST", body: { action: "bgm", on, vol, k } }).then(() => pollNow()).catch((e) => toast(e.message)); };
-  $$("[data-bgk]", v).forEach((b) => (b.onclick = () => { const x = bg(); send(x.on, x.vol, b.dataset.bgk); $$("[data-bgk]", v).forEach((y) => y.classList.toggle("ghost", y !== b)); if (!x.on) sfxPreview(b.dataset.bgk); }));
+  const send = (on, vol, k) => { k = k || bg().k || "tubes"; S.pub.bgm = { on, vol, k }; if (sonoOn()) { SFX.bgK = k; bgSet(on, vol); } api("/game", { method: "POST", body: { action: "bgm", on, vol, k } }).then(() => pollNow()).catch((e) => toast(e.message)); };
+  $$("[data-bgk]", v).forEach((b) => (b.onclick = () => { const x = bg(); send(x.on, x.vol, b.dataset.bgk); $$("[data-bgk]", v).forEach((y) => y.classList.toggle("ghost", y !== b)); if (!x.on && b.dataset.bgk !== "tubes") sfxPreview(b.dataset.bgk); }));
   if ($("#bgOn", v)) $("#bgOn", v).onclick = () => { const b = bg(); send(!b.on, b.vol); const x = $("#bgOn", v); x.classList.toggle("ok", !b.on); x.textContent = !b.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)"; };
   const step = (d) => { const b = bg(), vol = Math.round(Math.max(0.05, Math.min(1, b.vol + d)) * 100) / 100; send(b.on, vol); $("#bgV", v).textContent = Math.round(vol * 100) + "%"; };
   if ($("#bgM", v)) { $("#bgM", v).onclick = () => step(-0.1); $("#bgP", v).onclick = () => step(0.1); }
@@ -1241,14 +1326,14 @@ function bindSfx(v) {
 }
 const sfxAuto = () => LS.get("bt_sfxauto", true);
 // écouter 8 s du style choisi, sur ce téléphone
-async function sfxPreview(k) { try { const e = sfxEl("a3"), u = await sfxUrl(k === "doux" ? "bg" : "fete"); e.src = u; e.volume = 0.8; await e.play(); setTimeout(() => e.pause(), 8000); toast("🎧 Aperçu sur ce téléphone (8 s)"); } catch (er) {} }
+async function sfxPreview(k) { try { const e = sfxEl("a3"), u = await sfxUrl(BGU[k] || "fete"); e.src = u; e.volume = 0.8; await e.play(); setTimeout(() => e.pause(), 8000); toast("🎧 Aperçu sur ce téléphone (8 s)"); } catch (er) {} }
 // Ambiance automatique : pendant la correction d'une manche et à la fin de la partie
 function bgAuto(action) {
   if (!sfxAuto()) return;
   const g = S.data && S.data.game, last = g && S.data.setup && g.m >= S.data.setup.manches.length - 1;
   if (action === "close" || action === "finish" || (action === "nextManche" && last)) {
     const b = (S.pub && S.pub.bgm) || { vol: 0.35 };
-    api("/game", { method: "POST", body: { action: "bgm", on: true, vol: b.vol || 0.35, k: b.k || "fete" } }).catch(() => {});
+    api("/game", { method: "POST", body: { action: "bgm", on: true, vol: b.vol || 0.35, k: b.k || "tubes" } }).catch(() => {});
   }
 }
 
@@ -1364,7 +1449,9 @@ function photoIntro(p, id, label, target, hold) {
   ov.innerHTML = '<div class="bg" style="background-image:url(\'' + url + '\')"></div><img src="' + url + '" alt=""><div class="cap"><div class="k">' + label + '</div><div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div></div>";
   document.body.appendChild(ov); target.style.opacity = "0"; ov._t = target;
   const img = ov.querySelector("img");
-  setTimeout(() => {
+  let done = false;
+  const fly = () => {
+    if (done) return; done = true; clearTimeout(tm);
     if (!document.body.contains(target)) { ov.remove(); return; }
     const W = innerWidth, H = innerHeight, sz = Math.min(W, H), x0 = (W - sz) / 2, y0 = (H - sz) / 2, r = target.getBoundingClientRect();
     img.style.cssText = "position:fixed;left:" + x0 + "px;top:" + y0 + "px;width:" + sz + "px;height:" + sz + "px;object-fit:cover;border-radius:50%;animation:none";
@@ -1373,9 +1460,11 @@ function photoIntro(p, id, label, target, hold) {
       img.style.transition = "all .9s cubic-bezier(.6,0,.3,1)";
       img.style.left = r.left + "px"; img.style.top = r.top + "px"; img.style.width = r.width + "px"; img.style.height = r.height + "px";
     }));
-    setTimeout(() => { target.style.opacity = ""; target.classList.add("land"); ov.remove(); }, 950);
-  }, hold || 2600);
-  return true;
+    setTimeout(() => { target.style.opacity = ""; target.classList.add("land"); ov.remove(); if (ctl.onLand) ctl.onLand(); }, 950);
+  };
+  const tm = setTimeout(fly, hold || 2600);
+  const ctl = { land: fly, onLand: null };
+  return ctl;
 }
 function confetti(cv) {
   if (!cv) return;
@@ -1410,10 +1499,28 @@ function finViewHtml(p) {
     return '<div class="poster">' + avHtml(p, w.id) + '<div class="pt"><div class="k">🏆 VAINQUEURS DU BLIND TEST</div><div class="n">' + esc(w.name) + '</div><div class="s">' + plural(w.total, "point") + "</div>" +
       (t.members && t.members.length ? '<div class="m">' + t.members.map(esc).join(" · ") + "</div>" : "") + '</div></div><canvas id="confetti"></canvas>';
   }
-  const by = (k) => R.find((r) => r.rank === k);
-  const col = (k, delay) => { const r = by(k); return r ? '<div class="q' + k + '" style="animation-delay:' + delay + 's">' + avHtml(p, r.id) + '<div class="blk">' + ["", "🥇", "🥈", "🥉"][k] + "<br>" + esc(r.name) + '<br><span style="font-weight:600">' + plural(r.total, "pt") + "</span></div></div>" : ""; };
-  setTimeout(() => confetti($("#confetti")), 2600);
-  return '<div class="big" style="font-size:min(4vw,7vh);margin:0">🏆 Le podium</div><div class="pod2">' + col(2, 1.2) + col(1, 2.4) + col(3, 0) + '</div><canvas id="confetti"></canvas>';
+  // 🏅 Podium place par place : la photo arrive en plein écran, puis descend sur sa marche
+  const order = podOrder(R), step = Math.min(p.podStep || 0, order.length);
+  const col = (k) => {
+    const r = R.find((x) => x.rank === k); if (!r) return "";
+    const shown = order.indexOf(k) > -1 && order.indexOf(k) < step;
+    return '<div class="q' + k + (shown ? "" : " wait") + '" data-pk="' + k + '">' + (shown ? avHtml(p, r.id) : '<span class="av ini qm">?</span>') + '<div class="blk">' + ["", "🥇", "🥈", "🥉"][k] + "<br>" + (shown ? esc(r.name) + '<br><span style="font-weight:600">' + plural(r.total, "pt") + "</span>" : "&nbsp;<br>&nbsp;") + "</div></div>";
+  };
+  return '<div class="big" style="font-size:min(4vw,7vh);margin:0">🏆 Le podium</div><div class="pod2">' + col(2) + col(1) + col(3) + '</div><canvas id="confetti"></canvas>';
+}
+const podOrder = (R) => [3, 2, 1].filter((k) => (R || []).some((r) => !r.hidden && r.rank === k));
+// après l'affichage du podium : lance la photo de la place qui vient d'être annoncée
+function podAnim(p) {
+  const R = (p.ranking || []).filter((r) => !r.hidden), order = podOrder(R), step = Math.min(p.podStep || 0, order.length);
+  if (!step || S.podDone === p.runId + ":" + step) return;
+  S.podDone = p.runId + ":" + step;
+  const k = order[step - 1], r = R.find((x) => x.rank === k), el = document.querySelector('.pod2 [data-pk="' + k + '"]');
+  if (!r || !el) return;
+  const last = step === order.length;
+  const boom = () => { el.classList.add("land"); if (k === 1) confetti($("#confetti")); };
+  const ctl = photoIntro(p, r.id, (k === 1 ? "🏆 1re place" : ordF(k) + " place") + " · " + plural(r.total, "point"), el.querySelector(".av"), 5000);
+  if (ctl) { ctl.onLand = boom; S.podCtl = { ctl, step }; if (p.podLand === step) ctl.land(); }
+  else boom();
 }
 function teamsScreenHtml(p) {
   if (p.showTeams && p.showTeams.mode === "one") return teamOneHtml(p);
@@ -1428,7 +1535,8 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.showPhoto, p.teams.map((t) => t.ph)]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.podStep, p.showPhoto, p.teams.map((t) => t.ph)]);
+  if (S.podCtl && p.podLand && p.podLand === S.podCtl.step) { S.podCtl.ctl.land(); S.podCtl = null; } // « Sur le podium ! » touché par l'animateur
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
@@ -1476,6 +1584,7 @@ function renderScreen(app) {
   if (p.showQr && p.status === "setup") fitQr();
   if (p.ranking && p.status === "running" && $("#race")) rankRace(p);
   if (p.ranking && p.status === "finished" && $("#fin")) finalReveal(p);
+  if (p.finView === "podium" && $(".pod2")) podAnim(p);
   $("#scOut").onclick = async () => { if (await confirmBox("Quitter le mode écran géant ?", "Quitter")) logout(); };
   app.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
   S.tick = tickScreen; tickScreen();
@@ -1712,7 +1821,7 @@ function tabJeu(v) {
         : '<p style="font-size:1.2rem;font-weight:800;margin:6px 0">🎉 Tout le classement est dévoilé !</p>') +
       '<div class="row" style="justify-content:center"><span class="chip">' + rv + " / " + T + ' révélées</span>' + (rv > 0 ? '<button class="btn ghost sm" id="gRevBack">◀ Recacher la dernière</button>' : "") + (rv < T ? '<button class="btn ghost sm" id="gRevAll">Tout révéler</button>' : "") + (rv > 0 ? '<button class="btn ghost sm" id="gRev0">↺ Recommencer</button>' : "") + "</div></div>" +
       (rv >= T && T ? '<div class="card center"><h3>📺 Le final sur l\'écran géant</h3><p class="small muted">Après la révélation : le podium avec les photos des équipes, puis la grande affiche des vainqueurs.</p>' +
-        '<button class="btn big' + (g.finView === "podium" ? " ok" : "") + '" id="fvPod">🏅 Podium avec photos' + (g.finView === "podium" ? " ✓" : "") + "</button>" +
+        podBtns(d.ranking, g) +
         '<button class="btn big rankbtn' + (g.finView === "poster" ? " ok" : "") + '" id="fvPost" style="margin-top:8px">🖼 Grande affiche des vainqueurs' + (g.finView === "poster" ? " ✓" : "") + "</button>" +
         (g.finView ? '<button class="btn ghost" id="fvOff" style="margin-top:8px;width:100%">↩ Revenir au classement complet</button>' : "") +
         '<button class="btn ok big" id="fvA4" style="margin-top:8px">🖨 Affiche A4 des vainqueurs (PDF)</button><p class="small muted">Elle reste disponible plus tard dans ⚙️ Réglages → 🏆 Palmarès.</p></div>' : "") +
@@ -1724,7 +1833,7 @@ function tabJeu(v) {
     $("#shRk").onchange = (e) => gameAct("showRanking", { show: e.target.checked });
     bindTie(v, ties, g);
     const fan = () => { if (sfxAuto()) { sfxFire("tada"); setTimeout(() => sfxFire("applau"), 1400); } };
-    if ($("#fvPod")) $("#fvPod").onclick = () => { gameAct("finView", { v: "podium" }); fan(); };
+    bindPod(d.ranking, g, fan);
     if ($("#fvPost")) $("#fvPost").onclick = () => { gameAct("finView", { v: "poster" }); fan(); };
     if ($("#fvOff")) $("#fvOff").onclick = () => gameAct("finView", { v: null });
     if ($("#fvA4")) $("#fvA4").onclick = () => posterBox(g.runId || 1);
@@ -2167,6 +2276,32 @@ function teamPhotoBox(id) {
     if ($("#phDel", box)) $("#phDel", box).onclick = async () => { if (await photoSend(null, id)) closeModal(); };
     $("#phTake", box).onclick = async () => { const d = await photoPick(); if (d && (await photoSend(d, id))) closeModal(); };
   });
+}
+// 🏅 Podium place par place, piloté depuis le téléphone
+function podBtns(R, g) {
+  const order = podOrder(R), st = g.finView === "podium" ? g.podStep || 0 : -1;
+  if (st < 0) return '<button class="btn big" id="fvPod">🏅 Afficher le podium (vide)</button><p class="small muted">Puis vous annoncez les places une par une : la photo arrive en plein écran, puis descend sur le podium.</p>';
+  const lab = { 3: "🥉 Annoncer la 3e place", 2: "🥈 Annoncer la 2e place", 1: "🥇 Annoncer la 1re place !" };
+  const holding = st > 0 && (g.podLand || 0) < st && Date.now() - (S.podAt || 0) < 7000;
+  return '<p class="small">🏅 Podium affiché · ' + st + " / " + order.length + " place" + (order.length > 1 ? "s" : "") + " annoncée" + (st > 1 ? "s" : "") + "</p>" +
+    (holding ? '<button class="btn big ok" id="fvLand">⬇️ Sur le podium !</button><p class="small muted">Sinon la photo y descend toute seule au bout de 5 secondes.</p>' : "") +
+    (st < order.length ? '<button class="btn big' + (holding ? " ghost" : "") + '" id="fvNext" style="margin-top:8px">' + lab[order[st]] + "</button>" : '<p class="small">✓ Tout le podium est annoncé</p>');
+}
+function bindPod(R, g, fan) {
+  const order = podOrder(R), st = g.podStep || 0;
+  if ($("#fvPod")) $("#fvPod").onclick = async () => { await gameAct("finView", { v: "podium" }); if (sfxAuto()) sfxFire("whoosh"); };
+  if ($("#fvNext")) $("#fvNext").onclick = async () => {
+    const b = $("#fvNext"); b.disabled = true;
+    if (sfxAuto()) { b.textContent = "🥁 Roulement de tambour…"; sfxFire("roul"); await new Promise((r) => setTimeout(r, 2900)); }
+    S.podAt = Date.now(); const k = order[st];
+    await gameAct("podStep", { n: st + 1 });
+    if (k === 1) { clearTimeout(S.podFan); S.podFan = setTimeout(fan, 6000); }
+    setTimeout(() => { if (S.tab === "jeu") renderTab(); }, 7100); // le bouton « Sur le podium » disparaît
+  };
+  if ($("#fvLand")) $("#fvLand").onclick = async () => {
+    await gameAct("podLand");
+    if (order[st - 1] === 1) { clearTimeout(S.podFan); S.podFan = setTimeout(fan, 900); }
+  };
 }
 // 🏆 Palmarès + affiche A4 des vainqueurs (on peut la refaire plus tard, même après une remise à zéro)
 const frDate = (t) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
