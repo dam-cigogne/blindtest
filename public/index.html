@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1a1033">
+<meta name="theme-color" content="#140c29">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- iOS 26 : avec « black-translucent » le système floute le haut de l'appli installée → barre d'état opaque -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Blind test">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -87,6 +88,7 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .posterF .k{font-size:min(2.6vw,4.5vh);color:#ffcf4a;font-weight:900;letter-spacing:.08em}.posterF .n{font-size:min(8vw,13vh);font-weight:900;line-height:1.05;text-shadow:0 .4vw 2vw rgba(0,0,0,.6)}.posterF .s{font-size:min(3.4vw,6vh);font-weight:800;color:#ffcf4a}
 .scr .fph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;min-height:0}.scr .fph img{height:min(64vh,80vw);width:min(64vh,80vw);object-fit:cover;border-radius:2vw;border:.6vw solid #fff;box-shadow:0 2vw 6vw rgba(0,0,0,.6);animation:pop .8s ease both}.scr .fph .fn{font-size:min(4.5vw,7vh);font-weight:900}
 .phs{display:flex;flex-wrap:wrap;gap:8px}.phs button{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg2);border:2px solid var(--line);border-radius:12px;padding:8px;color:var(--tx);width:88px;font-size:12px}.phs button span{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phs button.on{border-color:var(--pri);background:rgba(255,92,168,.18)}.phs .av{width:52px;height:52px;font-size:20px}
+.sfxhere{background:rgba(46,204,143,.12);border:1px solid rgba(46,204,143,.5);border-radius:12px;padding:8px 10px;margin:4px 0 10px;font-size:14px}
 .sfxg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sfxg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--tx);font-size:12px;font-weight:700;touch-action:manipulation}.sfxg button span{font-size:26px}.sfxg button:active,.sfxg button.hit{transform:scale(.94);background:rgba(255,92,168,.25);border-color:var(--pri)}.bgrow{margin-top:10px}.bgrow>.btn{width:100%}
 .pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
 .dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
@@ -1073,7 +1075,7 @@ function pvCheckAll(manches, onChange, onReplace, lockedMsg) {
 
 /* ================= Sono télécommandée ================= */
 // Le téléphone branché à la sono joue l'extrait dès que le chrono est lancé, par lui ou par l'animateur.
-const sonoOn = () => { const r = S.sess && S.sess.role; return audioOn() && (r === "dj" || (r === "anim" && LS.get("bt_combo", false))) && LS.get("bt_sono", r === "dj"); };
+const sonoOn = () => { const r = S.sess && S.sess.role; return audioOn() && (r === "dj" || r === "anim") && LS.get("bt_sono", r === "dj" || (r === "anim" && LS.get("bt_combo", false))); };
 function sonoSync() {
   const p = S.pub; if (!p || !sonoOn()) return;
   sfxSync(p);
@@ -1212,13 +1214,13 @@ function sfxSync(p) {
 // Envoyer un bruitage (depuis n'importe quel téléphone animateur) : il sort de la sono
 function sfxFire(k) {
   if (sonoOn()) { SFX.localAt[k] = Date.now(); sfxPlay(k); }
+  else if (!SFX.toldDj) { SFX.toldDj = 1; toast("🔈 Son envoyé au téléphone du DJ (pour l'entendre ici : cochez « Les sons sortent de CE téléphone »)", 4500); }
   return api("/game", { method: "POST", body: { action: "sfx", k } }).catch(() => {});
 }
 function sfxPanel(mode) {
   const p = S.pub || {}, bg = p.bgm || { on: false, vol: 0.35 };
   return '<div class="card sfxc"><h3>🔊 Bruitages & ambiance</h3>' +
-    (mode === "dj" ? '<p class="small muted">Les sons sortent de ce téléphone (branchez-le à la sono). L\'animateur peut aussi les déclencher depuis son téléphone.</p>'
-      : '<p class="small muted">Les sons sortent du téléphone branché à la sono' + (sonoOn() ? " (celui-ci)" : " (case 📻 « branché à la sono » cochée chez le DJ)") + ".</p>") +
+    '<label class="row sfxhere"><input type="checkbox" id="sfxHere" style="width:auto"' + (sonoOn() ? " checked" : "") + '><span style="flex:1">📻 <b>Les sons sortent de CE téléphone</b>' + (sonoOn() ? " ✓ (branchez-le à la sono)" : (mode === "dj" ? "" : " – sinon ils partent vers le téléphone du DJ")) + "</span></label>" +
     '<div class="sfxg">' + SFXL.map(([k, e, l]) => '<button data-sfx="' + k + '"><span>' + e + "</span>" + l + "</button>").join("") + "</div>" +
     '<div class="bgrow"><button class="btn ' + (bg.on ? "ok" : "") + '" id="bgOn">' + (bg.on ? "🎶 Ambiance en cours – couper" : "🎶 Musique d'ambiance (pour les annonces)") + "</button>" +
     '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><button class="btn sm ' + ((bg.k || "fete") === "fete" ? "" : "ghost") + '" data-bgk="fete" style="flex:1">🎉 Festive</button><button class="btn sm ' + (bg.k === "doux" ? "" : "ghost") + '" data-bgk="doux" style="flex:1">🍸 Douce</button></div>' +
@@ -1227,6 +1229,7 @@ function sfxPanel(mode) {
     (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ <b>Mode automatique</b> : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage, et musique d\'ambiance pendant les corrections et à la fin (elle s\'arrête dès qu\'un extrait est lancé)</span></label>' : "") + "</div>";
 }
 function bindSfx(v) {
+  if ($("#sfxHere", v)) $("#sfxHere", v).onchange = (e) => { LS.set("bt_sono", e.target.checked); if (e.target.checked) { LS.set("bt_audio", true); sfxUnlock(); sfxWarm(); toast("📻 Les sons sortiront de ce téléphone"); } else if (SFX.bgOn) bgSet(false); S.lastSig = ""; if (S.sess.role === "dj") renderDJ($("#app")); else renderTab(); };
   $$("[data-sfx]", v).forEach((b) => (b.onclick = () => { b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 300); sfxFire(b.dataset.sfx); }));
   const bg = () => (S.pub && S.pub.bgm) || { on: false, vol: 0.35 };
   const send = (on, vol, k) => { k = k || bg().k || "fete"; S.pub.bgm = { on, vol, k }; if (sonoOn()) { SFX.bgK = k; bgSet(on, vol); } api("/game", { method: "POST", body: { action: "bgm", on, vol, k } }).then(() => pollNow()).catch((e) => toast(e.message)); };
