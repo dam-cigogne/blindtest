@@ -1347,7 +1347,7 @@ async function sfxPlay(k) {
   catch (er) { console.warn(er); toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
 }
 // Le téléphone de la sono suit les ordres de l'animateur (bruitages + musique d'ambiance)
-function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF).filter((k) => !["fete", "electro", "latino", "bg"].includes(k)); /* les musiques : seulement quand on les choisit */ const nx = () => { if (i < ks.length) sfxUrl(ks[i++]).then(() => setTimeout(nx, 50)); }; setTimeout(nx, 1500); }
+function sfxWarm() { if (SFX.warm) return; SFX.warm = true; let i = 0; const ks = Object.keys(SFXDEF).filter((k) => !["fete", "electro", "latino", "bg"].includes(k)); /* les musiques : seulement quand on les choisit */ const nx = () => { if (i >= ks.length) return; if (PV.playing || SFX.bgOn) return setTimeout(nx, 3000); /* jamais pendant qu'une musique joue : évite les accrocs */ sfxUrl(ks[i++]).then(() => setTimeout(nx, 400)); }; setTimeout(nx, 1500); }
 function sfxSync(p) {
   sfxWarm(); // la sono prépare les sons à l'avance
   const n = (p.sfx && p.sfx.n) || 0;
