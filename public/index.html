@@ -83,10 +83,22 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .scr .stage .stars i{position:absolute;width:.5vw;height:.5vw;background:#fff;border-radius:50%;box-shadow:0 0 1vw #fff;animation:twinkle 2.6s ease-in-out infinite}
 @keyframes twinkle{0%,100%{opacity:.15}50%{opacity:1}}
 .scr .podTitle{margin-top:9vh;font-size:min(4.6vw,8vh);font-weight:900;letter-spacing:.12em;background:linear-gradient(180deg,#fff3b0,#ffcf4a 55%,#c98a00);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 3vw rgba(255,207,74,.35);filter:drop-shadow(0 .5vh 0 rgba(0,0,0,.4))}
-.scr .pod2 .blk{position:relative;box-shadow:inset 0 .8vh 0 rgba(255,255,255,.35),inset 0 -1.5vh 2vh rgba(0,0,0,.25),0 2vh 4vh rgba(0,0,0,.5)}
-.scr .pod2 .blk::after{content:attr(data-n);position:absolute;left:0;right:0;bottom:1vh;font-size:min(7vw,12vh);font-weight:900;opacity:.25;line-height:1}
+.scr .stage.own{background-size:cover;background-position:center}.scr .stage.own::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,5,25,.55),rgba(10,5,25,.25) 40%,rgba(10,5,25,.7))}
+/* marches : métal brossé, dessus en relief, chiffre gravé, reflet qui passe, plaque avec le nom */
+.scr .pod2 .blk{position:relative;overflow:visible;border-radius:.6vh .6vh 0 0!important;box-shadow:inset 0 .5vh 0 rgba(255,255,255,.55),inset .6vw 0 1vw rgba(255,255,255,.18),inset -.6vw 0 1vw rgba(0,0,0,.25),0 3vh 5vh rgba(0,0,0,.6);padding:0!important;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+.scr .pod2 .blk::before{content:"";position:absolute;left:-4%;right:-4%;top:-2.2vh;height:2.6vh;border-radius:1vh;background:inherit;filter:brightness(1.35);transform:perspective(30vh) rotateX(50deg);box-shadow:0 .6vh 1vh rgba(0,0,0,.35)}
+.scr .pod2 .q1 .blk{background:linear-gradient(90deg,#b8860b,#ffe27a 30%,#fff2b3 45%,#e0a91a 70%,#9c6d00)!important}
+.scr .pod2 .q2 .blk{background:linear-gradient(90deg,#8d8da8,#e9e9f5 30%,#ffffff 45%,#c3c3d6 70%,#76768f)!important}
+.scr .pod2 .q3 .blk{background:linear-gradient(90deg,#8b4a1c,#e8a56b 30%,#f7c79b 45%,#c77a3e 70%,#6d3812)!important}
+.scr .pod2 .blk .num{font-size:min(9vw,15vh);font-weight:900;line-height:1;margin-top:auto;margin-bottom:.6vh;color:rgba(255,255,255,.85);text-shadow:0 .4vh 0 rgba(0,0,0,.25),0 -.2vh 0 rgba(255,255,255,.6);-webkit-text-stroke:.15vw rgba(0,0,0,.12)}
+.scr .pod2 .blk .plq{margin-top:1.6vh;background:rgba(20,10,40,.82);color:#fff;border:.25vh solid rgba(255,255,255,.55);border-radius:1vh;padding:.6vh 1vw;max-width:92%;display:flex;flex-direction:column;align-items:center;box-shadow:0 .6vh 1.2vh rgba(0,0,0,.35)}
+.scr .pod2 .blk .plq b{font-size:min(1.9vw,3.2vh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.scr .pod2 .blk .plq span{font-size:min(1.4vw,2.4vh);color:#ffcf4a;font-weight:800}
+.scr .pod2 .blk .shine{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none}
+.scr .pod2 .blk .shine::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:shine 3.5s ease-in-out infinite}
+@keyframes shine{0%{left:-40%}60%,100%{left:120%}}
+.scr .pod2 .wait .blk{filter:saturate(.5) brightness(.8)}
 .scr .pod2 .blk{width:100%;border-radius:1.5vw 1.5vw 0 0;padding:2.6vh 1vw 1vh;font-size:min(2vw,3.3vh);line-height:1.25;font-weight:800;text-align:center;box-sizing:border-box}
-.scr .pod2 .wait .blk{opacity:.55}.scr .pod2 .qm{background:rgba(255,255,255,.12)!important;border-style:dashed}.scr .pod2>div.land .blk{animation:pop .6s ease}
+.scr .pod2 .wait .blk{opacity:.8}.scr .pod2 .qm{background:rgba(255,255,255,.12)!important;border-style:dashed}.scr .pod2>div.land .blk{animation:pop .6s ease}
 .scr .pod2 .q1 .blk{min-height:24vh;background:linear-gradient(#ffcf4a,#b8860b);color:#2b1a00}.scr .pod2 .q2 .blk{min-height:19vh;background:linear-gradient(#e6e6f0,#8d8da8);color:#1b1b2b}.scr .pod2 .q3 .blk{min-height:15vh;background:linear-gradient(#e8a56b,#8b4a1c)}
 .scr .poster{display:flex;align-items:center;justify-content:center;gap:4vw;flex:1;padding:2vh 3vw}
 .scr .poster .av{width:min(42vw,68vh);height:min(42vw,68vh);font-size:16vw;border:1vw solid #ffcf4a;box-shadow:0 0 6vw rgba(255,207,74,.55);animation:pop 1s ease both}
@@ -505,7 +517,7 @@ function pageVersion() {
   fetch("/", { method: "HEAD", cache: "no-store" }).then((r) => checkVersion(r.headers.get("etag") || r.headers.get("last-modified") || "")).catch(() => {});
 }
 // l'écran géant se recharge tout seul, les téléphones proposent de mettre à jour
-const APP_V = "2026-11-28-18h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
+const APP_V = "2026-11-28-19h"; // ⚠️ à changer à chaque publication (même valeur dans worker.js)
 function appVersionCheck(p) {
   if (!p || !p.app || p.app === APP_V || S.appWarned) return;
   const r = S.sess && S.sess.role;
@@ -1769,10 +1781,13 @@ function finViewHtml(p) {
   const col = (k) => {
     const r = RA.find((x) => x.rank === k); if (!r) return "";
     const shown = !r.hidden && order.indexOf(k) > -1 && order.indexOf(k) < step;
-    return '<div class="q' + k + (shown ? "" : " wait") + '" data-pk="' + k + '">' + (shown ? avHtml(p, r.id) : '<span class="av ini qm">?</span>') + '<div class="blk" data-n="' + k + '">' + ["", "🥇", "🥈", "🥉"][k] + "<br>" + (shown ? esc(r.name) + '<br><span style="font-weight:600">' + plural(r.total, "pt") + "</span>" : "&nbsp;<br>&nbsp;") + "</div></div>";
+    return '<div class="q' + k + (shown ? "" : " wait") + '" data-pk="' + k + '">' + (shown ? avHtml(p, r.id) : '<span class="av ini qm">?</span>') +
+      '<div class="blk"><div class="plq">' + (shown ? "<b>" + esc(r.name) + "</b><span>" + plural(r.total, "point") + "</span>" : "<b>?</b><span>&nbsp;</span>") + '</div><span class="num">' + k + '</span><i class="shine"></i></div></div>';
   };
   // 🎭 décor de scène : rideaux rouges, lambrequin doré, projecteurs qui balayent, étoiles, sol brillant
   const stars = Array.from({ length: 26 }, (_, i) => '<i style="left:' + ((i * 37) % 100) + "%;top:" + ((i * 53) % 55) + "%;animation-delay:" + ((i % 7) * 0.4) + "s;transform:scale(" + (0.6 + (i % 4) * 0.25) + ')"></i>').join("");
+  if (p.podbg) return '<div class="stage own" style="background-image:url(\'/api/podbg?v=' + p.podbg + (ESSAI ? "&essai=1" : "") + '\')"><div class="beam b1"></div><div class="beam b3"></div></div>' +
+    '<div class="podTitle">🏆 LE PODIUM 🏆</div><div class="pod2">' + col(2) + col(1) + col(3) + '</div><canvas id="confetti"></canvas>';
   return '<div class="stage"><div class="stars">' + stars + '</div><div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div><div class="curt l"></div><div class="curt r"></div><div class="valance"></div><div class="floor"></div></div>' +
     '<div class="podTitle">🏆 LE PODIUM 🏆</div><div class="pod2">' + col(2) + col(1) + col(3) + '</div><canvas id="confetti"></canvas>';
 }
@@ -1803,7 +1818,7 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.podStep, p.showPhoto, p.teams.map((t) => t.ph)]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.podStep, p.podbg, p.showPhoto, p.teams.map((t) => t.ph)]);
   if (S.podCtl && p.podLand && p.podLand === S.podCtl.step) { S.podCtl.ctl.land(); S.podCtl = null; }
   if (S.intro && p.landed && p.landed === S.intro.key) { S.intro.ctl.land(); S.intro = null; } // « Dans le classement ! » touché par l'animateur // « Sur le podium ! » touché par l'animateur
   if (S.built === "screen" && S.lastSig === sig) return;
@@ -3278,6 +3293,7 @@ function tabDistrib(v) {
 function tabReglages(v) {
   const st = S.draft;
   v.innerHTML = '<div class="card keep"><h3>🏆 Palmarès</h3><p class="muted small">Les vainqueurs de chaque partie, gardés même après une remise à zéro. « 🖨 Affiche » refait l\'affiche A4 quand vous voulez.</p><div id="hofL"><p class="muted small">Chargement…</p></div></div>' +
+    '<div class="card keep"><h3>🎨 Décor du podium</h3><p class="muted small">L\'image derrière le podium sur l\'écran géant : le décor de scène de l\'appli, ou votre propre image (logo de l\'amicale, photo de la salle…). Format paysage conseillé.</p><div id="pbgL"></div></div>' +
     '<div class="card keep"><h3>🔊 Bruitages</h3><p class="muted small">De vrais enregistrements. ▶ pour écouter ici, 🔎 pour en choisir un autre à l\'oreille, ✂️ pour régler le passage.</p><div id="sfxL"></div></div>' +
     '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
     (st.loadedFrom ? '<p>Partie actuelle : <b>' + esc(st.loadedFrom.name) + '</b></p>' : '') + durHtml(S.draft || st) +
@@ -3362,6 +3378,28 @@ function tabReglages(v) {
   lockInputs(v);
   hofCard(v);
   sfxCard(v);
+  podbgCard(v);
+}
+// 🎨 Image de fond du podium choisie par l'animateur
+function podbgCard(v) {
+  const L = $("#pbgL", v); if (!L) return;
+  const pb = S.pub && S.pub.podbg;
+  L.innerHTML = (pb ? '<img src="/api/podbg?v=' + pb + (ESSAI ? "&essai=1" : "") + '" style="width:100%;border-radius:12px;aspect-ratio:16/9;object-fit:cover;margin-bottom:8px">' : '<p class="small">Actuellement : <b>🎭 décor de scène</b> (rideaux, projecteurs).</p>') +
+    '<div class="row"><button class="btn" id="pbgPick">📷 ' + (pb ? "Changer d\'image" : "Mettre mon image") + "</button>" + (pb ? '<button class="btn ghost" id="pbgOff">↺ Décor de scène</button>' : "") + "</div>";
+  $("#pbgPick", v).onclick = async () => {
+    const d = await new Promise((res) => {
+      const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.style.cssText = "position:fixed;left:-2000px;opacity:0"; document.body.appendChild(inp);
+      inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return res(null); const img = new Image(), u = URL.createObjectURL(f);
+        img.onload = () => { const W = 1600, H = 900, c = document.createElement("canvas"); c.width = W; c.height = H; const sc = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+          c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h); URL.revokeObjectURL(u); let q = 0.82, out = c.toDataURL("image/jpeg", q); while (out.length > 850000 && q > 0.35) { q -= 0.08; out = c.toDataURL("image/jpeg", q); } inp.remove(); res(out); };
+        img.onerror = () => { inp.remove(); toast("Image illisible", 3000); res(null); }; img.src = u; };
+      inp.click();
+    });
+    if (!d) return;
+    toast("Envoi de l'image…", 2000);
+    try { await api("/podbg", { method: "POST", body: { data: d } }); toast("🎨 Décor du podium enregistré", 2500); S.lastSig = ""; await pollNow(); setTimeout(() => podbgCard(v), 800); } catch (e) { toast(e.message, 3500); }
+  };
+  if ($("#pbgOff", v)) $("#pbgOff", v).onclick = async () => { await api("/podbg", { method: "POST", body: { remove: true } }); toast("🎭 Décor de scène remis"); pollNow(); setTimeout(() => podbgCard(v), 800); };
 }
 // 🔊 Réglages → choisir ses bruitages à l'oreille
 function sfxCard(v) {

@@ -8,7 +8,7 @@ const json = (o, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
-const APP_V = "2026-11-28-18h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
+const APP_V = "2026-11-28-19h"; // ⚠️ à changer à chaque publication (même valeur dans public/index.html)
 const defaultSetup = () => ({
   name: "Blind test",
   codes: { anim: null, dj: null },
@@ -163,7 +163,7 @@ export default {
     if (url.pathname === "/api/dzpl") return dzPlaylists(url);
     if (url.pathname.startsWith("/api/")) {
       // Mode essai : une partie séparée, la vraie soirée n'est jamais touchée
-      const name = request.headers.get("x-essai") === "1" || (url.pathname === "/api/photo" && url.searchParams.get("essai") === "1") ? "essai" : "main";
+      const name = request.headers.get("x-essai") === "1" || ((url.pathname === "/api/photo" || url.pathname === "/api/podbg") && url.searchParams.get("essai") === "1") ? "essai" : "main";
       const stub = env.SOIREE.get(env.SOIREE.idFromName(name));
       return stub.fetch(request);
     }
@@ -181,7 +181,8 @@ export class Soiree extends DurableObject {
     this.ctx = ctx;
     this.env = env;
     this.ready = ctx.blockConcurrencyWhile(async () => {
-      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played", "seen", "photos"]);
+      const d = await ctx.storage.get(["setup", "game", "answers", "results", "adjust", "played", "seen", "photos", "podbg"]);
+      this.podbg = d.get("podbg") || null; // image de fond du podium choisie par l'animateur : { v, n } (n morceaux)
       this.photos = d.get("photos") || {}; // photo d'équipe : clé = code d'équipe, valeur = version
       this.seen = d.get("seen") || {}; // équipes qui ont déjà ouvert leur QR code (clé = code d'équipe)
       this.played = d.get("played") || [];
@@ -323,6 +324,7 @@ export class Soiree extends DurableObject {
       } : null,
       teamNames: setup.teamNames !== false,
       sfxSet: setup.sfxSet || {},
+      podbg: this.podbg ? this.podbg.v : 0,
       service: setup.service || "",
       scoring: (game.status !== "setup" && game.scoring) || setup.scoring,
       scoringLocked: !!(game.status !== "setup" && game.scoring),
@@ -410,6 +412,26 @@ export class Soiree extends DurableObject {
     }
 
     // ---- photos d'équipe (prise sur le téléphone de l'équipe, ou par l'animateur)
+    // ---- décor du podium : image choisie par l'animateur (découpée en morceaux, le stockage limite la taille d'une valeur)
+    if (path === "/podbg" && method === "GET") {
+      if (!this.podbg) return new Response("", { status: 404 });
+      const keys = [...Array(this.podbg.n)].map((_, i) => "podbg:" + i), m = await this.ctx.storage.get(keys);
+      const data = keys.map((k) => m.get(k) || "").join("");
+      const bin = Uint8Array.from(atob(data.split(",")[1] || ""), (c) => c.charCodeAt(0));
+      return new Response(bin, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=604800" } });
+    }
+    if (path === "/podbg" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      if (this.podbg) await this.ctx.storage.delete([...Array(this.podbg.n)].map((_, i) => "podbg:" + i));
+      if (body.remove) { this.podbg = null; await this.ctx.storage.delete("podbg"); return json({ ok: true }); }
+      const data = String(body.data || "");
+      if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 900000) return json({ error: "image invalide ou trop lourde" }, 400);
+      const parts = data.match(/.{1,100000}/g), put = {};
+      parts.forEach((x, i) => (put["podbg:" + i] = x));
+      this.podbg = { v: Date.now(), n: parts.length, dim: body.dim === false ? false : true }; put.podbg = this.podbg;
+      await this.ctx.storage.put(put);
+      return json({ ok: true });
+    }
     if (path === "/photo" && method === "GET") {
       const t = this.setup.teams.find((x) => x.id === Number(url.searchParams.get("id")));
       const data = t && this.photos[t.code] ? await this.ctx.storage.get("photo:" + t.code) : null;
