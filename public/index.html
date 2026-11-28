@@ -75,6 +75,12 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .scr .poster .av{width:min(42vw,68vh);height:min(42vw,68vh);font-size:16vw;border:1vw solid #ffcf4a;box-shadow:0 0 6vw rgba(255,207,74,.55);animation:pop 1s ease both}
 .scr .poster .pt{text-align:left;max-width:45vw}.scr .poster .pt .k{font-size:min(2.2vw,4vh);white-space:nowrap;color:#ffcf4a;font-weight:900;letter-spacing:.06em}
 .scr .poster .pt .n{font-size:min(7vw,12vh);font-weight:900;line-height:1.02;margin:.15em 0}.scr .poster .pt .s{font-size:min(3.2vw,5.5vh);font-weight:800}.scr .poster .pt .m{font-size:min(1.8vw,3vh);color:var(--mu);margin-top:1em}
+.phIntro{position:fixed;inset:0;z-index:50;background:#000;overflow:hidden;animation:fadein .4s ease both}.phIntro .bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(30px) brightness(.5);transition:opacity .6s}
+.phIntro img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;animation:pop .7s ease both}
+.phIntro .cap{position:absolute;left:0;right:0;bottom:0;padding:14vh 4vw 4vh;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center;transition:opacity .4s}
+.phIntro .k{font-size:min(3vw,5vh);color:#ffcf4a;font-weight:900}.phIntro .n{font-size:min(7vw,12vh);font-weight:900;line-height:1.05}
+.phIntro.fly{background:transparent}.phIntro.fly .bg,.phIntro.fly .cap{opacity:0}
+.av.land{animation:pop .5s ease}@keyframes fadein{from{opacity:0}to{opacity:1}}
 .posterF{position:fixed;inset:0;z-index:5;background:#000;overflow:hidden}.posterF .bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(30px) brightness(.55)}
 .posterF img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;animation:pop 1s ease both}
 .posterF .cap{position:absolute;left:0;right:0;bottom:0;padding:16vh 4vw 4vh;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center}
@@ -1144,6 +1150,7 @@ function rankRace(p) {
   });
   const run = (S.raceRun = (S.raceRun || 0) + 1);
   const later = (ms, f) => setTimeout(() => { if (run === S.raceRun && document.body.contains(box)) f(); }, ms);
+  later(3600, () => { const lead = rows.find((x) => x.k === 0); if (lead && lead.r.total > 0) photoIntro(p, lead.r.id, "👑 En tête du classement · " + plural(lead.r.total, "point"), lead.el.querySelector(".av"), 2600); });
   later(1300, () => {
     rows.forEach(({ r, el, k }) => { el.classList.add("go"); el.style.top = k * rowH + "px"; el.querySelector(".rb i").style.width = (r.total / max * 100) + "%"; });
     const t0 = performance.now(), D = 1700;
@@ -1185,9 +1192,33 @@ function finalReveal(p) {
       : '<span class="rk">' + medal + "</span>" + avHtml(p, r.id) + '<span class="rn">' + (r.rank === 1 ? "👑 " : "") + esc(r.name) + '</span><span class="rb"><i style="width:' + (r.total / max * 100) + '%"></i></span><span class="rs">' + r.total + "</span>";
     box.appendChild(el);
   });
+  let intro = false;
+  if (newOnes) { const k = T - p.reveal, r = R[k], el = box.children[k];
+    if (r && !r.hidden && el) intro = photoIntro(p, r.id, (r.rank === 1 ? "🏆 1re place" : ordF(r.rank) + " place") + " · " + plural(r.total, "point"), el.querySelector(".av"), r.rank === 1 ? 3500 : 2600); }
   const winner = R[0] && !R[0].hidden;
-  if (winner && newOnes) setTimeout(() => confetti($("#confetti")), 600);
+  if (winner && newOnes) setTimeout(() => confetti($("#confetti")), intro ? 4600 : 600);
   S.finSeen = p.reveal || 0;
+}
+// 📸 La photo de l'équipe en très grand, puis elle « rentre » dans sa bulle du classement
+function photoIntro(p, id, label, target, hold) {
+  const t = phTeam(p, id); if (!t || !t.ph || !target) return false;
+  document.querySelectorAll(".phIntro").forEach((x) => { if (x._t) x._t.style.opacity = ""; x.remove(); }); // clic rapide : on termine la précédente
+  const url = phUrl(t), ov = document.createElement("div"); ov.className = "phIntro";
+  ov.innerHTML = '<div class="bg" style="background-image:url(\'' + url + '\')"></div><img src="' + url + '" alt=""><div class="cap"><div class="k">' + label + '</div><div class="n">' + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</div></div>";
+  document.body.appendChild(ov); target.style.opacity = "0"; ov._t = target;
+  const img = ov.querySelector("img");
+  setTimeout(() => {
+    if (!document.body.contains(target)) { ov.remove(); return; }
+    const W = innerWidth, H = innerHeight, sz = Math.min(W, H), x0 = (W - sz) / 2, y0 = (H - sz) / 2, r = target.getBoundingClientRect();
+    img.style.cssText = "position:fixed;left:" + x0 + "px;top:" + y0 + "px;width:" + sz + "px;height:" + sz + "px;object-fit:cover;border-radius:50%;animation:none";
+    ov.classList.add("fly");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      img.style.transition = "all .9s cubic-bezier(.6,0,.3,1)";
+      img.style.left = r.left + "px"; img.style.top = r.top + "px"; img.style.width = r.width + "px"; img.style.height = r.height + "px";
+    }));
+    setTimeout(() => { target.style.opacity = ""; target.classList.add("land"); ov.remove(); }, 950);
+  }, hold || 2600);
+  return true;
 }
 function confetti(cv) {
   if (!cv) return;
@@ -1434,6 +1465,13 @@ function renderTab() {
   const f = { jeu: tabJeu, equipes: tabEquipes, manches: tabManches, distrib: tabDistrib, scores: tabScores, reglages: tabReglages }[S.tab] || tabJeu;
   S.tick = null; v.oninput = null; v.onchange = null; v.onclick = null;
   f(v);
+  // 🏆 Classement à tout moment (dès qu'une manche est publiée), même en pleine manche
+  const G = S.data && S.data.game;
+  if (S.tab === "jeu" && G && G.status === "running" && G.states.some((x) => x === "published") && !(G.states[G.m] === "published")) {
+    v.insertAdjacentHTML("beforeend", '<div class="card"><h3>🏆 Classement à tout moment</h3><p class="small muted">Le classement des manches déjà publiées, sur l\'écran géant et les téléphones, quand vous voulez.</p><button class="btn big rankbtn" id="gRankAny">' + (G.showRanking ? "🙈 Masquer le classement de l\'écran" : "🏆 Montrer le classement sur l\'écran géant") + "</button>" + (G.showRanking ? '<button class="btn ghost" id="gRankAny2" style="width:100%;margin-top:6px">🔁 Rejouer l\'animation</button>' : "") + "</div>");
+    $("#gRankAny").onclick = () => gameAct("showRanking", { show: !G.showRanking });
+    if ($("#gRankAny2")) $("#gRankAny2").onclick = () => gameAct("showRanking", { show: true });
+  }
   if (S.tab === "jeu" && S.pub && S.pub.teams.some((t) => t.ph)) { v.insertAdjacentHTML("beforeend", photoStrip()); bindPhotoStrip(v); }
 }
 const lockBanner = () => isLocked() ? '<div class="lock">🔒 Partie en cours : les équipes et les manches sont verrouillées. Pour les modifier, remettez la partie à zéro (Réglages).</div>' : "";

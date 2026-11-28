@@ -557,7 +557,7 @@ export class Soiree extends DurableObject {
       } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
-        g.started = true; g.phaseStart = Date.now();
+        g.started = true; g.phaseStart = Date.now(); g.showRanking = false; g.showPhoto = null; // la musique reprend : l'écran revient au jeu
       } else if (act === "next") {
         if (cur && g.k < cur.songs.length - 1) { g.k++; g.started = false; g.phaseStart = 0; }
       } else if (act === "prev") {
