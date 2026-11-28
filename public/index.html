@@ -18,6 +18,8 @@
 html{touch-action:manipulation}button,.btn,label,input,select{touch-action:manipulation}
 html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
 body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+html.inscr,html.inscr body{height:100%;overflow:hidden;overscroll-behavior:none}html.inscr body{min-height:0;padding-bottom:0}
+html.inscr #app{position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:env(safe-area-inset-bottom)}
 h1{font-size:1.7rem;margin:.2em 0}h2{font-size:1.2rem;margin:1.2em 0 .5em}h3{margin:.1em 0 .6em;font-size:1.08rem}
 .muted{color:var(--mu)}.small{font-size:.85rem}.center{text-align:center}.pad{padding:24px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;padding:12px 16px;font-size:1rem;font-weight:600;color:#fff;background:var(--pri);cursor:pointer;min-height:46px;text-decoration:none}
@@ -33,7 +35,7 @@ input:disabled,select:disabled,textarea:disabled{opacity:.6}
 label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:12px 0}
 .wrap{max-width:820px;margin:0 auto;padding:0 12px 40px}
-.top{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:rgba(20,12,41,.96);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:rgb(20,12,41);border-bottom:1px solid var(--line)}
 .top .tt{display:flex;flex-direction:column;min-width:0}.top .tt small{color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-block;padding:3px 9px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);font-size:.8rem;color:var(--mu);white-space:nowrap}
 .chip.ok{color:var(--ok);border-color:var(--ok)}.chip.ko{color:var(--ko);border-color:var(--ko)}.chip.warn{color:var(--warn);border-color:var(--warn)}
@@ -264,6 +266,13 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const plural = (n, s, p) => n + " " + (n > 1 ? (p || s + "s") : s);
 const ord = (n) => n + (n === 1 ? "er" : "e");
+// iPhone (appli installée, iOS 26) : le système floute le haut de l'écran quand la page défile dessous.
+// On fait défiler la zone de l'appli (#app) au lieu de la page entière : l'en-tête reste net.
+const INSCR = navigator.standalone === true || /[?&]inscr=1/.test(location.search);
+if (INSCR) document.documentElement.classList.add("inscr");
+const pgEl = () => (INSCR ? document.getElementById("app") : null);
+function pgY() { const e = pgEl(); return e ? e.scrollTop : window.scrollY; }
+function pgTo(y) { const e = pgEl(); if (e) e.scrollTop = y; else window.scrollTo(0, y); }
 const ordF = (n) => n + (n === 1 ? "re" : "e"); // féminin : 1re place
 
 const S = {
@@ -1202,7 +1211,7 @@ function renderAnim(app) {
   $$(".tabs button", app).forEach((b) => (b.onclick = () => {
     S.tab = b.dataset.tab; LS.set("bt_tab", S.tab);
     $$(".tabs button", app).forEach((x) => x.classList.toggle("on", x === b));
-    S.lastSig = ""; renderTab(); window.scrollTo(0, 0);
+    S.lastSig = ""; renderTab(); pgTo(0);
   }));
   $("#aOut").onclick = async () => { if (await confirmBox("Se déconnecter et revenir à l'accueil ? La partie continue sur le serveur : vous pourrez revenir avec votre code animateur.", "Se déconnecter")) logout(); };
   if (S.data && S.data.setup) updAnim();
@@ -1313,7 +1322,7 @@ function tabJeu(v) {
     $("#gRules").onclick = () => goRules();
     $("#gChain").onclick = () => chainGo("teams", 0);
     $("#gQr").onclick = () => goQr(st.teams.length <= 12 ? "all" : "one", 0);
-    $("#gTeams").onclick = async () => { S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
+    $("#gTeams").onclick = async () => { S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); pgTo(0); };
     $("#gChk").onclick = () => runCheck(v);
     $("#gStart").onclick = async () => { if (!(await checkBeforeStart(v))) return; if (await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer")) gameAct("start"); };
     return;
@@ -1336,7 +1345,7 @@ function tabJeu(v) {
     bindTie(v, ties, g);
     if ($("#gRev")) $("#gRev").onclick = async () => {
       const grp = nx && ties.find((t) => t.ids.includes(nx.id));
-      if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); window.scrollTo(0, 0); return; }
+      if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); pgTo(0); return; }
       if (grp && !(await confirmBox("⚖️ " + grp.names.join(" et ") + " sont à égalité pour la " + ordF(grp.place) + " place. Révéler quand même (ex æquo) ?", "Révéler quand même"))) return;
       gameAct("reveal", { n: rv + 1 });
     };
@@ -1392,7 +1401,7 @@ function tabJeu(v) {
   if ($("#aPv")) pvBind($("#aPv"), song);
   if (combo && song && man.songs[g.k + 1]) pvResolve(man.songs[g.k + 1]);
   pvUI();
-  on("gRules2", () => { S.rulesMode = true; S.lastSig = ""; renderTab(); window.scrollTo(0, 0); });
+  on("gRules2", () => { S.rulesMode = true; S.lastSig = ""; renderTab(); pgTo(0); });
   on("gTest", async () => { try { await api("/testfill", { method: "POST" }); toast("Réponses d'essai ajoutées"); pollNow(); } catch (e) { toast(e.message); } });
   on("gClose", async () => {
     const msg = g.k < man.songs.length - 1 ? "⚠️ Il reste des morceaux non joués dans cette manche. Clore quand même ?" : "Clore la manche ? Les équipes ne pourront plus modifier leurs réponses. Vérifiez qu'elles ont bien fini d'écrire.";
@@ -1435,7 +1444,7 @@ function rulesHtml(p, screen) {
 async function chainGo(kind, i) {
   if (kind === "qr") { S.teamsMode = false; S.qrMode = true; await gameAct("showQr", { mode: "one", i }); }
   else { S.qrMode = false; S.teamsMode = true; await gameAct("showTeams", { show: true, mode: "one", i }); }
-  S.lastSig = ""; renderTab(); window.scrollTo(0, 0);
+  S.lastSig = ""; renderTab(); pgTo(0);
 }
 function teamState(t) { return t.joined && t.named ? '<span style="color:var(--ok);font-weight:800">✅ Prête</span>' : t.joined ? "📱 Connectée, nom pas encore choisi" : "⏳ QR pas encore scanné"; }
 // Liste des équipes avec leur état : prête (nom choisi), connectée, en attente
@@ -1468,7 +1477,7 @@ async function checkBeforeStart(v) {
   if (await confirmBox("🔊 " + msg + "<br><br>Vérifier maintenant évite un extrait muet en pleine manche (environ 1 minute).", "🔊 Vérifier les extraits")) { runCheck(v); return false; }
   return confirmBox("Démarrer sans vérifier les extraits ?", "Démarrer quand même");
 }
-async function goQr(mode, i) { S.teamsMode = false; S.rulesMode = false; S.qrMode = true; await gameAct("showQr", { mode, i }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); }
+async function goQr(mode, i) { S.teamsMode = false; S.rulesMode = false; S.qrMode = true; await gameAct("showQr", { mode, i }); S.lastSig = ""; renderTab(); pgTo(0); }
 function tabQrShow(v) {
   const d = S.data, p = d.pub, st = d.setup, q = p.showQr, T = st.teams.length;
   const mode = q ? q.mode : "", i = q ? q.i : 0, t = st.teams[Math.min(i, T - 1)];
@@ -1490,9 +1499,9 @@ function tabQrShow(v) {
   $("#qRules").onclick = () => goRules();
   if ($("#chNextT")) $("#chNextT").onclick = () => chainGo("teams", i + 1);
   $("#qTeams").onclick = async () => { S.qrMode = false; S.teamsMode = true; await gameAct("showTeams", { show: true }); S.lastSig = ""; renderTab(); };
-  $("#qBack").onclick = async () => { S.qrMode = false; if (p.showQr) await gameAct("showQr", { mode: "" }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
+  $("#qBack").onclick = async () => { S.qrMode = false; if (p.showQr) await gameAct("showQr", { mode: "" }); S.lastSig = ""; renderTab(); pgTo(0); };
 }
-async function goRules() { S.qrMode = false; S.teamsMode = false; S.rulesMode = true; await gameAct("showRules", { show: true }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); }
+async function goRules() { S.qrMode = false; S.teamsMode = false; S.rulesMode = true; await gameAct("showRules", { show: true }); S.lastSig = ""; renderTab(); pgTo(0); }
 function tabTeamsShow(v) {
   const d = S.data, p = d.pub, st = p.showTeams === true ? { mode: "all", i: 0 } : p.showTeams, T = p.teams.length;
   const mode = st ? st.mode : "", i = st ? Math.min(st.i || 0, T - 1) : 0, t = p.teams[i];
@@ -1513,7 +1522,7 @@ function tabTeamsShow(v) {
   $("#tsNext").onclick = () => goRules();
   if ($("#chNext")) $("#chNext").onclick = () => chainGo("qr", i);
   $("#tsQr").onclick = () => goQr(p.teams.length <= 12 ? "all" : "one", 0);
-  $("#tsBack").onclick = async () => { S.teamsMode = false; if (p.showTeams) await gameAct("showTeams", { show: false }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
+  $("#tsBack").onclick = async () => { S.teamsMode = false; if (p.showTeams) await gameAct("showTeams", { show: false }); S.lastSig = ""; renderTab(); pgTo(0); };
 }
 function tabRules(v) {
   const d = S.data, p = d.pub, g = d.game;
@@ -1524,7 +1533,7 @@ function tabRules(v) {
     (running ? '<button class="btn big" id="rlBack">▶ Revenir au jeu</button>'
       : '<button class="btn big ok" id="rlGo">③ 🚀 C\'est parti : démarrer la partie</button><button class="btn ghost" id="rlBack" style="margin-top:8px;width:100%">◀ Retour</button>');
   $("#rlScr").onchange = (e) => gameAct("showRules", { show: e.target.checked });
-  const back = async () => { S.rulesMode = false; if (p.showRules) await gameAct("showRules", { show: false }); S.lastSig = ""; renderTab(); window.scrollTo(0, 0); };
+  const back = async () => { S.rulesMode = false; if (p.showRules) await gameAct("showRules", { show: false }); S.lastSig = ""; renderTab(); pgTo(0); };
   $("#rlBack").onclick = back;
   const go = $("#rlGo");
   if (go) go.onclick = async () => {
@@ -1534,7 +1543,7 @@ function tabRules(v) {
     if (!(await confirmBox("Démarrer la partie ? Les réponses d'un éventuel essai précédent seront effacées.", "Démarrer"))) return;
     S.rulesMode = false;
     if (p.showRules) await gameAct("showRules", { show: false });
-    await gameAct("start"); window.scrollTo(0, 0);
+    await gameAct("start"); pgTo(0);
   };
 }
 
@@ -2072,7 +2081,7 @@ function durHtml(st) {
   return '<div class="dur"><div class="dt">⏱ Durée estimée : <b>≈ ' + fmtMin(d.total) + "</b></div><div class=\"muted small\">🎵 musique et réponses " + fmtMin(d.play) + " · ✍️ corrections et classements entre les " + d.M + " manches " + fmtMin(d.corr) + " · 👥 lancement (équipes, QR, règles) " + fmtMin(d.start) + "</div></div>";
 }
 // Garder la position de la page (sur iPhone, le clavier fait bouger la page)
-function keepScroll(y) { const back = () => window.scrollTo(0, y); back(); requestAnimationFrame(back); setTimeout(back, 120); setTimeout(back, 400); }
+function keepScroll(y) { const back = () => pgTo(y); back(); requestAnimationFrame(back); setTimeout(back, 120); setTimeout(back, 400); }
 // Met à jour une seule ligne de morceau, sans redessiner la page
 function refreshRow(v, i, j, flash) {
   const m = S.draft.manches[i], r = $('.mcard[data-m="' + i + '"] .srow2[data-s="' + j + '"]', v);
@@ -2095,7 +2104,7 @@ async function replaceSong(v, i, j) {
 function editSong(i, j, v, isNew) {
   const m = S.draft.manches[i], s = m.songs[j], ro = isLocked();
   const l2 = esc((m.label2 || "Artiste").toLowerCase());
-  const y0 = window.scrollY; S.manY = y0;
+  const y0 = pgY(); S.manY = y0;
   openModal('<h3>' + (isNew ? "➕ Nouveau morceau" : "✏️ Morceau " + (j + 1)) + " – Manche " + (i + 1) + "</h3>" + (ro ? '<div class="lock">🔒 Partie en cours : lecture seule.</div>' : "") +
     '<label class="f">Titre</label><input id="esT" value="' + esc(s.t) + '" placeholder="Titre">' +
     '<label class="f">' + esc(m.label2 || "Artiste") + '</label><input id="esA" value="' + esc(s.a) + '" placeholder="' + esc(m.label2 || "Artiste") + '">' +
@@ -2132,7 +2141,7 @@ function editSong(i, j, v, isNew) {
   });
 }
 function tabManches(v) {
-  const keepY = window.scrollY;
+  const keepY = pgY();
   const M = S.draft.manches, st = S.draft;
   const nS = M.reduce((a, m) => a + m.songs.length, 0);
   const dur = Math.round((nS * (st.extractSec + st.answerSec + 6) + M.length * 90) / 60);
@@ -2215,7 +2224,7 @@ function tabManches(v) {
     else if (a === "pv") { const s = m.songs[Number(b.closest(".srow").dataset.s)]; if (!s.t && !s.a) return toast("Tapez d'abord le titre et l'artiste"); pvPicker(s, isLocked() ? null : (pv) => { if (pv) s.pv = pv; else delete s.pv; saveDraft(true); tabManches(v); }); return; }
     else if (a === "adds") { m.songs.push({ t: "", a: "", h: "Refrain", at: [], aa: [] }); tabManches(v); return editSong(i, m.songs.length - 1, v, true); }
     else if (a === "edit") { pvStop(); return editSong(i, Number(b.closest(".srow2").dataset.s), v); }
-    else if (a === "rnd") { const y = window.scrollY; await replaceSong(v, i, Number(b.closest(".srow2").dataset.s)); keepScroll(y); return; }
+    else if (a === "rnd") { const y = pgY(); await replaceSong(v, i, Number(b.closest(".srow2").dataset.s)); keepScroll(y); return; }
     else if (a === "play") {
       const r = b.closest(".srow2"), s = m.songs[Number(r.dataset.s)];
       if (!s.t && !s.a) return toast("Tapez d'abord le titre");
