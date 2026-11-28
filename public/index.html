@@ -39,7 +39,7 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .top .tt{display:flex;flex-direction:column;min-width:0}.top .tt small{color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-block;padding:3px 9px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);font-size:.8rem;color:var(--mu);white-space:nowrap}
 .chip.ok{color:var(--ok);border-color:var(--ok)}.chip.ko{color:var(--ko);border-color:var(--ko)}.chip.warn{color:var(--warn);border-color:var(--warn)}
-.tabs{position:sticky;top:60px;z-index:4;display:flex;gap:6px;overflow-x:auto;padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:none}
+.tabs{position:sticky;top:var(--toph,60px);z-index:4;display:flex;gap:6px;overflow-x:auto;padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--bg2);color:var(--tx);border-radius:99px;padding:8px 13px;font-size:.92rem;font-weight:600}
 .tabs button.on{background:var(--pri);border-color:var(--pri)}
@@ -62,6 +62,7 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .song .st{font-size:1.45rem;font-weight:800}.song .sa{font-size:1.1rem;color:var(--pri2);font-weight:700}.song .sh{color:var(--mu);margin-top:4px}
 .links{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .links a.pref{flex-basis:100%;background:var(--pri);border-color:var(--pri);color:#fff;font-size:17px}
+.pkc button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}.pkrow{display:flex;align-items:center;gap:10px;margin:4px 0}.pkrow span{flex:1}.pkrow b{min-width:2ch;text-align:center;font-size:1.15rem}.pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
 .dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
 .links a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--tx);text-decoration:none;font-weight:600;min-width:120px}
 ol.pl{padding-left:22px;margin:6px 0}ol.pl li{margin:5px 0}ol.pl li.done{opacity:.45}ol.pl li.cur{color:var(--pri2);font-weight:700}
@@ -273,6 +274,8 @@ if (INSCR) document.documentElement.classList.add("inscr");
 const pgEl = () => (INSCR ? document.getElementById("app") : null);
 function pgY() { const e = pgEl(); return e ? e.scrollTop : window.scrollY; }
 function pgTo(y) { const e = pgEl(); if (e) e.scrollTop = y; else window.scrollTo(0, y); }
+function fixTop() { const t = document.querySelector(".top"); if (t && t.offsetHeight) document.documentElement.style.setProperty("--toph", t.offsetHeight + "px"); }
+setInterval(fixTop, 800); addEventListener("resize", fixTop);
 const ordF = (n) => n + (n === 1 ? "re" : "e"); // féminin : 1re place
 
 const S = {
@@ -1194,6 +1197,73 @@ const TABS = [["jeu", "🎮 Jeu"], ["equipes", "👥 Équipes"], ["manches", "�
 const TEAM_NAMES = ["Les Vinyles Rayés", "Les Rois du Refrain", "Les Micros d'Or", "Les Platines Chaudes", "Les Fausses Notes", "Les Bémols", "Les Dièses", "Les Mélomanes", "Les Tympans d'Acier", "Les Accords Parfaits", "Les Boules à Facettes", "Les Shazam Humains", "Les Oreilles Musclées", "Les Juke-Box", "Les Cassettes", "Les Walkmans", "Les Refrains Têtus", "Les Disques d'Or", "Les Basses Fréquences", "Les Saxos Fous", "Les Tambours Battants", "Les Guitares Sèches", "Les Maracas", "Les Castagnettes", "Les Pianos Volants", "Les Violons Dingues", "Les Ukulélés", "Les DJ en Herbe", "Les Danseurs du Dimanche", "Les Rythmes Endiablés", "Les Notes Bleues", "Les Casques Fous", "Les Chœurs Battants", "Les Trompettes", "Les Harmonicas", "Les Solistes", "Les Contrebasses", "Les Triangles", "Les Clés de Sol", "Les Mégaphones"];
 const CODE_CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const newCode = () => Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join("");
+// 🎲 Créer un pack au hasard : nombre de manches, catégories, puis tirage relançable à volonté
+function packGen(o) {
+  const ths = LIB.themes.filter((t) => o.cats.includes(t.id));
+  const order = [];
+  while (order.length < o.n) {
+    const sh = shuffle(ths);
+    if (order.length && sh.length > 1 && sh[0].id === order[order.length - 1].id) sh.push(sh.shift()); // pas deux fois le même style d'affilée
+    order.push(...sh);
+  }
+  const used = new Set(), cnt = {};
+  return order.slice(0, o.n).map((th, i) => {
+    cnt[th.id] = (cnt[th.id] || 0) + 1;
+    const songs = pickFrom(th.songs, o.k, used); songs.forEach((x) => used.add(sKey(x)));
+    const fin = o.fin && i === o.n - 1 && o.n > 1;
+    return { title: (fin ? "Finale – " : "") + th.title + (cnt[th.id] > 1 ? " (" + cnt[th.id] + ")" : ""), mult: fin ? 2 : 1, label2: th.label2, theme: th.id, songs };
+  });
+}
+function packMaker(v) {
+  if (isLocked()) return toast("🔒 Partie en cours : remettez-la à zéro pour changer les manches", 3500);
+  const P = S.packOpt = S.packOpt || { n: 6, k: 5, fin: true, cats: ["s6070", "s80", "s90", "s00", "s10", "fr", "fete"] };
+  let res = null;
+  const draw = (box) => {
+    const L = $("#pkL", box);
+    if (!P.cats.length) { res = null; L.innerHTML = '<p class="muted small">Cochez au moins une catégorie.</p>'; $("#pkOk", box).disabled = true; return; }
+    res = packGen(P); $("#pkOk", box).disabled = false;
+    L.innerHTML = res.map((m, i) => '<div class="pkm"><div class="pkh"><b>' + (i + 1) + ". " + esc(m.title) + "</b>" + (m.mult > 1 ? ' <span class="chip">points ×2</span>' : "") + '<button class="btn ghost sm" data-pkr="' + i + '" title="Relancer cette manche">🎲</button></div><div class="small muted">' + m.songs.map((x) => esc(x.t) + " – " + esc(x.a)).join(" · ") + "</div></div>").join("") +
+      (P.n > P.cats.length ? '<p class="small muted">ℹ️ Plus de manches que de catégories : certains styles reviennent, avec d\'autres morceaux.</p>' : "");
+    $$("[data-pkr]", L).forEach((b) => (b.onclick = () => {
+      const i = Number(b.dataset.pkr), m = res[i], ex = new Set();
+      res.forEach((x, j) => { if (j !== i) x.songs.forEach((y) => ex.add(sKey(y))); });
+      m.songs.forEach((y) => ex.add(sKey(y)));
+      const th = LIB.themes.find((t) => t.id === m.theme); const got = pickFrom(th.songs, P.k, ex);
+      if (got.length < P.k) return toast("Plus assez d'autres morceaux dans ce style");
+      m.songs = got; b.closest(".pkm").querySelector(".small").innerHTML = got.map((x) => esc(x.t) + " – " + esc(x.a)).join(" · ");
+    }));
+  };
+  const stp = (id, val, lab) => '<div class="pkrow"><span>' + lab + '</span><button class="btn ghost sm" data-st="' + id + ':-1">−</button><b id="pk_' + id + '">' + val + '</b><button class="btn ghost sm" data-st="' + id + ':1">+</button></div>';
+  openModal('<h3>🎲 Créer un pack au hasard</h3>' +
+    '<p class="small muted">① Combien de manches ? ② Quelles catégories ? ③ Relancez autant que vous voulez, puis « Utiliser ce pack ».</p>' +
+    stp("n", P.n, "① Manches") + stp("k", P.k, "Morceaux par manche") +
+    '<label class="row small" style="margin:4px 0"><input type="checkbox" id="pkFin" style="width:auto"' + (P.fin ? " checked" : "") + '> Dernière manche = finale (points ×2)</label>' +
+    '<p class="small" style="margin:8px 0 2px"><b>② Catégories</b> <button class="btn ghost sm" id="pkAll">Toutes</button> <button class="btn ghost sm" id="pkNone">Aucune</button></p>' +
+    '<div class="dzchips pkc">' + LIB.themes.map((t) => '<button data-pkc="' + t.id + '"' + (P.cats.includes(t.id) ? ' class="on"' : "") + ">" + esc(t.title) + "</button>").join("") + "</div>" +
+    '<p class="small" style="margin:8px 0 2px"><b>③ Votre pack</b> · ' + '<span id="pkDur"></span></p><div id="pkL"></div>' +
+    '<div class="pkbar"><button class="btn ghost" id="pkX" title="Annuler">✕</button><button class="btn" id="pkRe">🎲 Relancer</button><button class="btn ok" id="pkOk">✓ Utiliser</button></div>', (box) => {
+    const dur = () => { $("#pkDur", box).textContent = P.n * P.k + " morceaux"; };
+    $$("[data-st]", box).forEach((b) => (b.onclick = () => {
+      const [id, d] = b.dataset.st.split(":"); const lim = id === "n" ? [1, 12] : [3, 10];
+      P[id] = Math.max(lim[0], Math.min(lim[1], P[id] + Number(d))); $("#pk_" + id, box).textContent = P[id]; dur(); draw(box);
+    }));
+    $("#pkFin", box).onchange = (e) => { P.fin = e.target.checked; draw(box); };
+    const syncCats = () => $$("[data-pkc]", box).forEach((b) => b.classList.toggle("on", P.cats.includes(b.dataset.pkc)));
+    $$("[data-pkc]", box).forEach((b) => (b.onclick = () => { const id = b.dataset.pkc; P.cats = P.cats.includes(id) ? P.cats.filter((x) => x !== id) : P.cats.concat(id); syncCats(); draw(box); }));
+    $("#pkAll", box).onclick = () => { P.cats = LIB.themes.map((t) => t.id); syncCats(); draw(box); };
+    $("#pkNone", box).onclick = () => { P.cats = []; syncCats(); draw(box); };
+    $("#pkRe", box).onclick = () => draw(box);
+    $("#pkX", box).onclick = closeModal;
+    $("#pkOk", box).onclick = async () => {
+      if (!res) return;
+      const had = S.draft.manches.some((m) => m.songs.length);
+      const pack = res; closeModal();
+      if (had && !(await confirmBox("Remplacer les manches actuelles par ce pack (" + plural(pack.length, "manche") + ", " + (P.n * P.k) + " morceaux) ?", "Remplacer"))) return;
+      S.draft.manches = pack; saveDraft(true); tabManches(v); toast("🎲 Pack créé : " + plural(pack.length, "manche"));
+    };
+    dur(); draw(box);
+  });
+}
 function defaultManches() {
   // le pack par défaut garde les 8 styles d'origine ; les autres sont au choix dans Manches
   const DEF = ["s6070", "s80", "s90", "s00", "s10", "film", "fr", "fete"];
@@ -2148,7 +2218,7 @@ function tabManches(v) {
   const thOpts = (m) => '<option value="">Libre (je tape mes morceaux)</option>' + LIB.themes.map((t) => '<option value="' + t.id + '"' + (t.id === m.theme ? " selected" : "") + ">" + esc(t.title) + " (" + t.songs.length + ")</option>").join("") +
     (isDz(m.theme) ? '<option value="' + esc(m.theme) + '" selected>🌐 Deezer : ' + esc(m.dz || "playlist") + "</option>" : "") + '<option value="__dz">🌐 Playlist Deezer (des milliers de morceaux)…</option>';
   let h = lockBanner() + '<div class="card"><b>' + plural(M.length, "manche") + " · " + plural(nS, "morceau", "morceaux") + "</b> · durée estimée ≈ " + dur + " min" +
-    durHtml(st) + '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button><button class="btn ghost sm keep" id="mChk">🔊 Vérifier les extraits</button></div>' +
+    durHtml(st) + '<div class="row"><button class="btn alt sm" id="mAdd">+ Ajouter une manche</button><button class="btn sm" id="mPack">🎲 Créer un pack au hasard</button><button class="btn ghost sm" id="mDef">↺ Pack par défaut (8 manches)</button><button class="btn ghost sm keep" id="mCopy">📋 Copier la playlist</button><button class="btn ghost sm keep" id="mChk">🔊 Vérifier les extraits</button></div>' +
     '<p class="muted small">Pour chaque manche : choisissez un style puis « 🎲 Tirer au sort », ou ajoutez vos morceaux. ▶ pour écouter, ✏️ (ou touchez le titre) pour modifier.</p></div>';
   M.forEach((m, i) => {
     h += '<div class="mcard" data-m="' + i + '"><div class="mh"><b>Manche ' + (i + 1) + '</b><div class="row" style="margin:0"><button class="btn ghost sm" data-a="up"' + (i === 0 ? " disabled" : "") + '>↑</button><button class="btn ghost sm" data-a="down"' + (i === M.length - 1 ? " disabled" : "") + '>↓</button><button class="btn ghost sm" data-a="delm">🗑</button></div></div>' +
@@ -2173,6 +2243,7 @@ function tabManches(v) {
       }, isLocked() ? "🔒 Partie en cours : vous pouvez écouter, mais pas changer de morceau. Pour changer : Réglages → « 🔄 Remettre la partie à zéro » (équipes et manches gardées), puis revenez ici." : "");
     const watch = setInterval(() => { if (!$("#caL")) { clearInterval(watch); if (dirty) tabManches(v); } }, 500);
   };
+  $("#mPack").onclick = () => packMaker(v);
   $("#mDef").onclick = async () => { if (await confirmBox("Remplacer toutes les manches par le pack par défaut (8 manches de 5 morceaux) ?", "Remplacer", true)) { S.draft.manches = defaultManches(); saveDraft(true); tabManches(v); } };
   $("#mAdd").onclick = () => openModal("<h3>Nouvelle manche</h3><label class=\"f\">Style</label><select id=\"nSty\">" + LIB.themes.map((t) => '<option value="' + t.id + '">' + esc(t.title) + "</option>").join("") + '<option value="">Libre (je tape mes morceaux)</option></select><label class="f">Nombre de morceaux</label><input type="number" id="nNb" value="5" min="1" max="20"><div class="row end"><button class="btn ghost" id="nNo">Annuler</button><button class="btn" id="nOk">Ajouter</button></div>', (b) => {
     $("#nNo", b).onclick = closeModal;
