@@ -1462,7 +1462,7 @@ function photoIntro(p, id, label, target, hold) {
     }));
     setTimeout(() => { target.style.opacity = ""; target.classList.add("land"); ov.remove(); if (ctl.onLand) ctl.onLand(); }, 950);
   };
-  const tm = setTimeout(fly, hold || 2600);
+  const tm = hold === 0 ? null : setTimeout(fly, hold || 2600); // 0 = reste en grand jusqu'au signal de l'animateur
   const ctl = { land: fly, onLand: null };
   return ctl;
 }
@@ -1518,7 +1518,7 @@ function podAnim(p) {
   if (!r || !el) return;
   const last = step === order.length;
   const boom = () => { el.classList.add("land"); if (k === 1) confetti($("#confetti")); };
-  const ctl = photoIntro(p, r.id, (k === 1 ? "🏆 1re place" : ordF(k) + " place") + " · " + plural(r.total, "point"), el.querySelector(".av"), 5000);
+  const ctl = photoIntro(p, r.id, (k === 1 ? "🏆 1re place" : ordF(k) + " place") + " · " + plural(r.total, "point"), el.querySelector(".av"), 0);
   if (ctl) { ctl.onLand = boom; S.podCtl = { ctl, step }; if (p.podLand === step) ctl.land(); }
   else boom();
 }
@@ -2282,10 +2282,10 @@ function podBtns(R, g) {
   const order = podOrder(R), st = g.finView === "podium" ? g.podStep || 0 : -1;
   if (st < 0) return '<button class="btn big" id="fvPod">🏅 Afficher le podium (vide)</button><p class="small muted">Puis vous annoncez les places une par une : la photo arrive en plein écran, puis descend sur le podium.</p>';
   const lab = { 3: "🥉 Annoncer la 3e place", 2: "🥈 Annoncer la 2e place", 1: "🥇 Annoncer la 1re place !" };
-  const holding = st > 0 && (g.podLand || 0) < st && Date.now() - (S.podAt || 0) < 7000;
+  const holding = st > 0 && (g.podLand || 0) < st;
   return '<p class="small">🏅 Podium affiché · ' + st + " / " + order.length + " place" + (order.length > 1 ? "s" : "") + " annoncée" + (st > 1 ? "s" : "") + "</p>" +
-    (holding ? '<button class="btn big ok" id="fvLand">⬇️ Sur le podium !</button><p class="small muted">Sinon la photo y descend toute seule au bout de 5 secondes.</p>' : "") +
-    (st < order.length ? '<button class="btn big' + (holding ? " ghost" : "") + '" id="fvNext" style="margin-top:8px">' + lab[order[st]] + "</button>" : '<p class="small">✓ Tout le podium est annoncé</p>');
+    (holding ? '<button class="btn big ok" id="fvLand">⬇️ Sur le podium !</button><p class="small muted">La photo reste en grand sur l\'écran aussi longtemps que vous voulez : touchez quand c\'est le bon moment.</p>'
+      : st < order.length ? '<button class="btn big" id="fvNext" style="margin-top:8px">' + lab[order[st]] + "</button>" : '<p class="small">✓ Tout le podium est annoncé</p>');
 }
 function bindPod(R, g, fan) {
   const order = podOrder(R), st = g.podStep || 0;
@@ -2295,12 +2295,10 @@ function bindPod(R, g, fan) {
     if (sfxAuto()) { b.textContent = "🥁 Roulement de tambour…"; sfxFire("roul"); await new Promise((r) => setTimeout(r, 2900)); }
     S.podAt = Date.now(); const k = order[st];
     await gameAct("podStep", { n: st + 1 });
-    if (k === 1) { clearTimeout(S.podFan); S.podFan = setTimeout(fan, 6000); }
-    setTimeout(() => { if (S.tab === "jeu") renderTab(); }, 7100); // le bouton « Sur le podium » disparaît
   };
   if ($("#fvLand")) $("#fvLand").onclick = async () => {
     await gameAct("podLand");
-    if (order[st - 1] === 1) { clearTimeout(S.podFan); S.podFan = setTimeout(fan, 900); }
+    if (order[st - 1] === 1) setTimeout(fan, 900); // 🥇 fanfare + applaudissements quand le gagnant descend
   };
 }
 // 🏆 Palmarès + affiche A4 des vainqueurs (on peut la refaire plus tard, même après une remise à zéro)
