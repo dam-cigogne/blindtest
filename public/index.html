@@ -1232,6 +1232,14 @@ function tubesPool() {
   const pool = LIB.themes.flatMap((t) => t.songs.filter((x) => t.id === "fete" || (["s80", "s00", "s10"].includes(t.id) && DANSE.test(x.t)))).filter((x) => !ex.has(sKey(x)));
   return shuffle(pool);
 }
+// Fondu du volume par minuterie. Sur iPhone, le volume d'un lecteur ne peut pas être changé par l'appli
+// (il reste à 100 %) : on ne relit donc jamais e.volume, sinon le fondu ne se terminerait jamais.
+const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function fadeEl(e, from, to, ms, done) {
+  clearInterval(SFX.bgFade); let i = 0; const n = Math.max(1, Math.round(ms / 60));
+  try { e.volume = from; } catch (x) {}
+  SFX.bgFade = setInterval(() => { i++; try { e.volume = Math.max(0, Math.min(1, from + (to - from) * i / n)); } catch (x) {} if (i >= n) { clearInterval(SFX.bgFade); if (done) done(); } }, 60);
+}
 async function bgTubeNext(e, gen) {
   if (gen !== SFX.bgGen || !SFX.bgOn) return;
   if (!SFX.tubes || !SFX.tubes.length) SFX.tubes = tubesPool();
@@ -1239,15 +1247,15 @@ async function bgTubeNext(e, gen) {
     const s2 = SFX.tubes.shift(), it = await pvResolve(s2);
     if (gen !== SFX.bgGen || !SFX.bgOn) return;
     if (!it || !it.url) continue;
-    e.loop = false; e.src = it.url; e.volume = 0; SFX.bgNow = s2;
+    e.loop = false; e.src = it.url; SFX.bgNow = s2;
+    try { e.volume = 0; } catch (x) {}
     try { await e.play(); } catch (er) { continue; }
-    clearInterval(SFX.bgFade);
-    SFX.bgFade = setInterval(() => { if (e.volume >= SFX.bgVol - 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.min(1, e.volume + 0.03); }, 60);
+    fadeEl(e, 0, SFX.bgVol, 1200);
     clearTimeout(SFX.bgT);
-    SFX.bgT = setTimeout(() => { // fondu de sortie puis morceau suivant
-      if (gen !== SFX.bgGen) return; clearInterval(SFX.bgFade);
-      SFX.bgFade = setInterval(() => { if (e.volume <= 0.04) { clearInterval(SFX.bgFade); bgTubeNext(e, gen); } else e.volume = Math.max(0, e.volume - 0.04); }, 60);
-    }, 26500);
+    const next = () => { if (gen === SFX.bgGen && SFX.bgOn) fadeEl(e, SFX.bgVol, 0, 1200, () => bgTubeNext(e, gen)); };
+    SFX.bgT = setTimeout(next, 26500); // fondu de sortie puis morceau suivant
+    e.onended = () => { if (gen === SFX.bgGen && SFX.bgOn) { clearTimeout(SFX.bgT); bgTubeNext(e, gen); } }; // extrait plus court : on enchaîne
+    e.onerror = () => { if (gen === SFX.bgGen && SFX.bgOn) { clearTimeout(SFX.bgT); bgTubeNext(e, gen); } };
     const nx = SFX.tubes[0]; if (nx) pvResolve(nx); // prépare le suivant
     return;
   }
@@ -1266,20 +1274,21 @@ async function bgSet(on, vol) {
   if (on) {
     try {
       if (SFX.bgOn && SFX.bgPlaying === kind) { // même style : on ajuste juste le volume
-        SFX.bgFade = setInterval(() => { const d = SFX.bgVol - e.volume; if (Math.abs(d) < 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, Math.min(1, e.volume + Math.sign(d) * 0.03)); }, 60);
+        fadeEl(e, SFX.bgShownVol != null ? SFX.bgShownVol : SFX.bgVol, SFX.bgVol, 500); SFX.bgShownVol = SFX.bgVol;
         return;
       }
-      const gen = (SFX.bgGen = (SFX.bgGen || 0) + 1); clearTimeout(SFX.bgT);
+      const gen = (SFX.bgGen = (SFX.bgGen || 0) + 1); clearTimeout(SFX.bgT); SFX.bgShownVol = SFX.bgVol;
       SFX.bgOn = true; SFX.bgPlaying = kind;
       if (kind === "tubes") return bgTubeNext(e, gen);
       if (!SFX.cache[BGU[kind] || "fete"]) toast("🎶 Préparation de la musique…", 2500);
       const u = await sfxUrl(BGU[kind] || "fete"); if (gen !== SFX.bgGen) return;
-      e.src = u; e.loop = true; e.volume = 0; await e.play();
-      SFX.bgFade = setInterval(() => { const d = SFX.bgVol - e.volume; if (Math.abs(d) < 0.03) { e.volume = SFX.bgVol; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, Math.min(1, e.volume + Math.sign(d) * 0.03)); }, 60);
+      e.onended = null; e.onerror = null; e.src = u; e.loop = true; await e.play();
+      fadeEl(e, 0, SFX.bgVol, 1200); SFX.bgShownVol = SFX.bgVol;
     } catch (er) { SFX.bgOn = false; SFX.bgPlaying = null; toast("🔇 Touchez l'écran une fois pour autoriser le son", 3000); }
   } else if (SFX.bgOn) {
     SFX.bgOn = false; SFX.bgPlaying = null; SFX.bgGen = (SFX.bgGen || 0) + 1; clearTimeout(SFX.bgT);
-    SFX.bgFade = setInterval(() => { if (e.volume <= 0.04) { e.pause(); e.volume = 0; clearInterval(SFX.bgFade); } else e.volume = Math.max(0, e.volume - 0.04); }, 60);
+    e.onended = null; e.onerror = null;
+    fadeEl(e, SFX.bgVol, 0, IOS ? 400 : 1200, () => { e.pause(); }); // arrêt garanti, même sur iPhone
   }
 }
 // Le téléphone de la sono suit les ordres de l'animateur (bruitages + musique d'ambiance)
@@ -1310,6 +1319,7 @@ function sfxPanel(mode) {
     '<div class="bgks">' + BGS.map(([k, l]) => '<button class="btn sm ' + ((bg.k || "tubes") === k ? "" : "ghost") + '" data-bgk="' + k + '">' + l + "</button>").join("") + "</div>" +
     '<p class="small muted" style="margin:4px 0 0">🎉 Vrais tubes : des extraits de vrais morceaux de fête qui s\'enchaînent (jamais deux fois le même, jamais un morceau de vos manches). Les autres styles sont fabriqués par l\'appli.</p>' +
     '<div class="row" style="margin-top:6px;flex-wrap:nowrap;align-items:center"><span class="small">Volume</span><button class="btn ghost sm" id="bgM">−</button><b id="bgV" style="min-width:3ch;text-align:center">' + Math.round(bg.vol * 100) + '%</b><button class="btn ghost sm" id="bgP">+</button></div>' +
+    (IOS ? '<p class="small muted">📱 Sur iPhone, le volume de l\'ambiance se règle avec les boutons du téléphone ou de la sono (Apple ne laisse pas l\'appli le baisser).</p>' : "") +
     '<p class="small muted">L\'ambiance s\'arrête toute seule quand un extrait est lancé.</p></div>' +
     (mode === "anim" ? '<label class="row small" style="margin-top:6px"><input type="checkbox" id="sfxAuto" style="width:auto"' + (LS.get("bt_sfxauto", true) ? " checked" : "") + '><span style="flex:1">✨ <b>Mode automatique</b> : roulement de tambour avant chaque place révélée, fanfare et applaudissements pour le podium, ✅ / ❌ au départage, et musique d\'ambiance pendant les corrections et à la fin (elle s\'arrête dès qu\'un extrait est lancé)</span></label>' : "") + "</div>";
 }
