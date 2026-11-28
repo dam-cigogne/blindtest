@@ -245,6 +245,27 @@ export class Soiree extends DurableObject {
     return rows;
   }
 
+  // Garde le podium de la soirée (avec les photos) dès que tout le classement est révélé, sans égalité pour la 1re place
+  async archive() {
+    const g = this.game, R = this.ranking(), T = R.length;
+    if (!T || (g.reveal || 0) < T || R.filter((r) => r.rank === 1).length !== 1) return;
+    const id = g.runId || 1;
+    const podium = R.filter((r) => r.rank <= 3).slice(0, 3).map((r) => {
+      const t = this.setup.teams.find((x) => x.id === r.id) || {};
+      return { rank: r.rank, name: r.name, total: r.total, members: t.members || [], code: t.code };
+    });
+    const list = ((await this.ctx.storage.get("hof")) || []).filter((x) => x.id !== id);
+    list.unshift({ id, at: Date.now(), title: this.setup.name || "Blind test", teams: T, podium: podium.map(({ code, ...x }) => x) });
+    const keep = list.slice(0, 30), gone = list.slice(30);
+    const put = { hof: keep };
+    for (let i = 0; i < podium.length; i++) {
+      const d = podium[i].code && this.photos[podium[i].code] ? await this.ctx.storage.get("photo:" + podium[i].code) : null;
+      if (d) put["hofph:" + id + ":" + i] = d; else await this.ctx.storage.delete("hofph:" + id + ":" + i);
+    }
+    await this.ctx.storage.put(put);
+    for (const x of gone) await this.ctx.storage.delete([0, 1, 2].map((i) => "hofph:" + x.id + ":" + i));
+  }
+
   revealed() {
     const all = this.ranking(), T = all.length, n = Math.min(T, this.game.reveal || 0);
     return all.map((r, k) => (k >= T - n ? r : { rank: r.rank, hidden: true }));
@@ -303,6 +324,7 @@ export class Soiree extends DurableObject {
       ranking: game.showRanking ? (game.status === "finished" ? this.revealed() : this.ranking()) : null,
       reveal: game.reveal || 0,
       finView: game.status === "finished" ? game.finView || null : null,
+      showPhoto: game.showPhoto || null,
       tbShow: game.tbShow ? { place: game.tbShow.place, teams: game.tbShow.ids.map((id) => (setup.teams.find((t) => t.id === id) || {}).name || "?") } : null,
       // classement d'avant la dernière manche publiée, pour l'animation de l'écran géant
       rankPrev: game.showRanking && game.status === "running" ? this.ranking(game.m) : null,
@@ -525,7 +547,7 @@ export class Soiree extends DurableObject {
         this.game = { status: "running", runId: Date.now(), m: 0, k: 0, started: false, phaseStart: 0, states: mans.map((_, i) => (i === 0 ? "open" : "pending")), showRanking: false };
         this.answers = {}; this.results = {}; this.adjust = {};
         await this.save("game", "answers", "results", "adjust");
-      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView") {
+      } else if (g.status !== "running" && act !== "showRanking" && act !== "showRules" && act !== "showTeams" && act !== "showQr" && act !== "reveal" && act !== "tbShow" && act !== "tbWin" && act !== "tbUndo" && act !== "finView" && act !== "showPhoto") {
         return json({ error: "jeu non démarré" }, 409);
       } else if (act === "play") {
         g.started = true; g.phaseStart = Date.now();
@@ -575,6 +597,10 @@ export class Soiree extends DurableObject {
         // révélation finale, une place à la fois (de la dernière à la première)
         g.reveal = Math.max(0, Math.min(this.setup.teams.length, Number(body.n) || 0));
         g.showRanking = true;
+      } else if (act === "showPhoto") {
+        // une photo d'équipe en plein écran sur l'écran géant (à tout moment)
+        const t = this.setup.teams.find((x) => x.id === Number(body.id));
+        g.showPhoto = t && this.photos[t.code] ? t.id : null;
       } else if (act === "finView") {
         // fin de partie sur l'écran géant : classement, podium avec photos, ou grande affiche du vainqueur
         g.finView = ["podium", "poster"].includes(body.v) ? body.v : null;
@@ -600,6 +626,27 @@ export class Soiree extends DurableObject {
         return json({ error: "action inconnue" }, 400);
       }
       await this.save("game");
+      if (g.status === "finished") await this.archive();
+      return json({ ok: true });
+    }
+
+    // ---- palmarès : les vainqueurs de chaque soirée restent gardés (même après une remise à zéro)
+    if (path === "/hof" && method === "GET") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      return json({ list: (await this.ctx.storage.get("hof")) || [] });
+    }
+    if (path === "/hof/get" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      const list = (await this.ctx.storage.get("hof")) || [], e = list.find((x) => x.id === Number(body.id));
+      if (!e) return json({ error: "introuvable" }, 404);
+      const ph = await this.ctx.storage.get(e.podium.map((_, i) => "hofph:" + e.id + ":" + i));
+      return json({ entry: e, photos: e.podium.map((_, i) => ph.get("hofph:" + e.id + ":" + i) || null) });
+    }
+    if (path === "/hof/delete" && method === "POST") {
+      if (who !== "anim") return json({ error: "non autorisé" }, 401);
+      const list = (await this.ctx.storage.get("hof")) || [], id = Number(body.id);
+      await this.ctx.storage.put("hof", list.filter((x) => x.id !== id));
+      await this.ctx.storage.delete([0, 1, 2].map((i) => "hofph:" + id + ":" + i));
       return json({ ok: true });
     }
 
@@ -616,6 +663,7 @@ export class Soiree extends DurableObject {
       if (who !== "anim") return json({ error: "non autorisé" }, 401);
       this.adjust[body.teamId] = Math.max(-100, Math.min(100, Number(body.value) || 0));
       await this.save("adjust");
+      if (this.game.status === "finished") await this.archive();
       return json({ ok: true });
     }
 

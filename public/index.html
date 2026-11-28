@@ -75,6 +75,8 @@ label.f{display:block;margin:10px 0 4px;color:var(--mu);font-size:.9rem}
 .scr .poster .av{width:min(42vw,68vh);height:min(42vw,68vh);font-size:16vw;border:1vw solid #ffcf4a;box-shadow:0 0 6vw rgba(255,207,74,.55);animation:pop 1s ease both}
 .scr .poster .pt{text-align:left;max-width:45vw}.scr .poster .pt .k{font-size:min(2.2vw,4vh);white-space:nowrap;color:#ffcf4a;font-weight:900;letter-spacing:.06em}
 .scr .poster .pt .n{font-size:min(7vw,12vh);font-weight:900;line-height:1.02;margin:.15em 0}.scr .poster .pt .s{font-size:min(3.2vw,5.5vh);font-weight:800}.scr .poster .pt .m{font-size:min(1.8vw,3vh);color:var(--mu);margin-top:1em}
+.scr .fph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;min-height:0}.scr .fph img{height:min(64vh,80vw);width:min(64vh,80vw);object-fit:cover;border-radius:2vw;border:.6vw solid #fff;box-shadow:0 2vw 6vw rgba(0,0,0,.6);animation:pop .8s ease both}.scr .fph .fn{font-size:min(4.5vw,7vh);font-weight:900}
+.phs{display:flex;flex-wrap:wrap;gap:8px}.phs button{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg2);border:2px solid var(--line);border-radius:12px;padding:8px;color:var(--tx);width:88px;font-size:12px}.phs button span{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phs button.on{border-color:var(--pri);background:rgba(255,92,168,.18)}.phs .av{width:52px;height:52px;font-size:20px}
 .pkbar{position:sticky;bottom:-1px;display:flex;gap:8px;padding:10px 0 2px;background:var(--card);margin-top:6px}.pkbar .btn{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px}.pkbar #pkX{flex:0 0 52px}.pkm{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.pkh{display:flex;align-items:center;gap:6px}.pkh b{flex:1}
 .dzchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dzchips button{background:var(--bg2);border:1px solid var(--line);color:var(--tx);border-radius:16px;padding:5px 10px;font-size:13px}
 .links a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--tx);text-decoration:none;font-weight:600;min-width:120px}
@@ -503,10 +505,10 @@ function pdfCtx(st, djUrl) {
   const title = (($("h3", box) || {}).textContent || "Les règles du jeu").trim(), end = (($("p", box) || {}).textContent || "").trim();
   return { st, teamUrl, djUrl: djUrl || null, addr: baseUrl().replace(/^https?:\/\//, ""), max: maxPoints(st), rules: { title, items, end } };
 }
-async function makePdf(kinds, name, djUrl) {
+async function makePdf(kinds, name, djUrl, ctx) {
   if (!window.BTPDF) return toast("Module PDF non chargé : rechargez l'appli (🔄)");
   const st = S.draft; let out;
-  try { out = BTPDF.make(kinds, pdfCtx(st, djUrl)); } catch (e) { console.error(e); return toast("Erreur pendant la création du PDF"); }
+  try { out = BTPDF.make(kinds, ctx || pdfCtx(st, djUrl)); } catch (e) { console.error(e); return toast("Erreur pendant la création du PDF"); }
   const fname = (st.name || "Blind test").replace(/[^\w\u00C0-\u017F -]+/g, "").trim().replace(/\s+/g, "-") + "-" + name + ".pdf";
   const blob = new Blob([out.bytes], { type: "application/pdf" });
   const file = new File([blob], fname, { type: "application/pdf" });
@@ -1208,11 +1210,14 @@ function teamsScreenHtml(p) {
 function renderScreen(app) {
   const p = S.pub;
   if (!p) { if (S.built !== "screen") { app.innerHTML = '<div class="pad center muted">Connexion…</div>'; S.built = "screen"; } return; }
-  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.teams.map((t) => t.ph)]);
+  const sig = JSON.stringify([p.name, p.status, p.m, p.k, p.started, p.teams.map((t) => t.name), p.manches.map((m) => [m.state, m.title, m.mult, m.n]), p.ranking, p.rankAt, p.reveal, p.showRules, p.showTeams, p.showQr, p.teams.map((t) => t.joined && t.named), p.teams.map((t) => t.members.length), p.scoring, p.extractSec, p.answerSec, p.tbShow, p.finView, p.showPhoto, p.teams.map((t) => t.ph)]);
   if (S.built === "screen" && S.lastSig === sig) return;
   S.built = "screen"; S.lastSig = sig;
   let h = '<div class="scr"><div class="nm">🎵 ' + esc(p.name) + "</div>";
-  if (p.tbShow && p.status === "finished") {
+  if (p.showPhoto && phTeam(p, p.showPhoto) && phTeam(p, p.showPhoto).ph) {
+    const t = phTeam(p, p.showPhoto);
+    h += '<div class="fph"><img src="' + phUrl(t) + '" alt=""><div class="fn">' + (neutralName(t.name) ? "Équipe " + t.id : "Équipe " + t.id + " · " + esc(t.name)) + "</div></div>";
+  } else if (p.tbShow && p.status === "finished") {
     h += '<div class="big">⚖️ Égalité !</div><div class="mid">Pour la ' + ord(p.tbShow.place) + ' place' + (p.tbShow.place === 1 ? " 🏆" : "") + '</div>' +
       '<div class="tl" style="display:flex;justify-content:center;flex-wrap:wrap">' + p.tbShow.teams.map((n) => '<div style="min-width:22vw"><b>' + esc(n) + "</b></div>").join("") + "</div>" +
       '<div class="mid muted" style="margin-top:3vh">🎵 Morceau de départage : la première équipe qui lève la main et donne <b>le titre ET l\'artiste</b> l\'emporte !</div>';
@@ -1399,6 +1404,7 @@ function renderTab() {
   const f = { jeu: tabJeu, equipes: tabEquipes, manches: tabManches, distrib: tabDistrib, scores: tabScores, reglages: tabReglages }[S.tab] || tabJeu;
   S.tick = null; v.oninput = null; v.onchange = null; v.onclick = null;
   f(v);
+  if (S.tab === "jeu" && S.pub && S.pub.teams.some((t) => t.ph)) { v.insertAdjacentHTML("beforeend", photoStrip()); bindPhotoStrip(v); }
 }
 const lockBanner = () => isLocked() ? '<div class="lock">🔒 Partie en cours : les équipes et les manches sont verrouillées. Pour les modifier, remettez la partie à zéro (Réglages).</div>' : "";
 function lockInputs(v) { if (isLocked()) $$("input,select,textarea,button", v).forEach((e) => { if (!e.closest(".keep")) e.disabled = true; }); }
@@ -1481,7 +1487,8 @@ function tabJeu(v) {
       (rv >= T && T ? '<div class="card center"><h3>📺 Le final sur l\'écran géant</h3><p class="small muted">Après la révélation : le podium avec les photos des équipes, puis la grande affiche des vainqueurs.</p>' +
         '<button class="btn big' + (g.finView === "podium" ? " ok" : "") + '" id="fvPod">🏅 Podium avec photos' + (g.finView === "podium" ? " ✓" : "") + "</button>" +
         '<button class="btn big rankbtn' + (g.finView === "poster" ? " ok" : "") + '" id="fvPost" style="margin-top:8px">🖼 Grande affiche des vainqueurs' + (g.finView === "poster" ? " ✓" : "") + "</button>" +
-        (g.finView ? '<button class="btn ghost" id="fvOff" style="margin-top:8px;width:100%">↩ Revenir au classement complet</button>' : "") + "</div>" : "") +
+        (g.finView ? '<button class="btn ghost" id="fvOff" style="margin-top:8px;width:100%">↩ Revenir au classement complet</button>' : "") +
+        '<button class="btn ok big" id="fvA4" style="margin-top:8px">🖨 Affiche A4 des vainqueurs (PDF)</button><p class="small muted">Elle reste disponible plus tard dans ⚙️ Réglages → 🏆 Palmarès.</p></div>' : "") +
       '<div class="card center"><h3>🏁 Partie terminée</h3>' + podiumHtml(d.ranking) +
       '<label class="row keep" style="justify-content:center"><input type="checkbox" id="shRk" style="width:auto"' + (g.showRanking ? " checked" : "") + "> Afficher le classement sur l'écran géant et sur les téléphones des équipes</label></div>" +
       rankTable(d.ranking, st) +
@@ -1492,6 +1499,7 @@ function tabJeu(v) {
     if ($("#fvPod")) $("#fvPod").onclick = () => gameAct("finView", { v: "podium" });
     if ($("#fvPost")) $("#fvPost").onclick = () => gameAct("finView", { v: "poster" });
     if ($("#fvOff")) $("#fvOff").onclick = () => gameAct("finView", { v: null });
+    if ($("#fvA4")) $("#fvA4").onclick = () => posterBox(g.runId || 1);
     if ($("#gRev")) $("#gRev").onclick = async () => {
       const grp = nx && ties.find((t) => t.ids.includes(nx.id));
       if (grp && grp.place === 1) { toast("⚖️ Égalité pour la 1re place : faites d'abord le départage (en haut) – il faut un seul gagnant !", 4500); pgTo(0); return; }
@@ -1908,11 +1916,112 @@ function teamPhotoBox(id) {
   const t = phTeam(S.pub, id);
   if (!t) return toast("Enregistrez d'abord les équipes (le serveur ne les connaît pas encore)");
   openModal("<h3>📸 Photo – Équipe " + t.id + "</h3><p class=\"small\">" + esc(t.name) + '</p><div class="center" style="margin:10px 0">' + (t.ph ? '<img src="' + phUrl(t) + '" style="width:220px;height:220px;border-radius:50%;object-fit:cover">' : '<p class="muted small">Pas encore de photo. L\'équipe peut la prendre elle-même en scannant son QR code, ou vous pouvez la prendre ici.</p>') +
-    '</div><div class="row end"><button class="btn ghost" id="phX">Fermer</button>' + (t.ph ? '<button class="btn ko" id="phDel">🗑 Supprimer</button>' : "") + '<button class="btn" id="phTake">📸 ' + (t.ph ? "Changer" : "Prendre la photo") + "</button></div>", (box) => {
+    '</div><div class="row end"><button class="btn ghost" id="phX">Fermer</button>' + (t.ph ? '<button class="btn ko" id="phDel">🗑 Supprimer</button>' : "") + '<button class="btn" id="phTake">📸 ' + (t.ph ? "Changer" : "Prendre la photo") + "</button></div>" +
+    (t.ph ? '<button class="btn alt" id="phScr" style="width:100%;margin-top:8px">' + (S.pub.showPhoto === id ? "✕ Enlever de l\'écran géant" : "📺 Afficher en plein écran sur l\'écran géant") + "</button>" : ""), (box) => {
+    if ($("#phScr", box)) $("#phScr", box).onclick = async () => { await gameAct("showPhoto", { id: S.pub.showPhoto === id ? null : id }); closeModal(); };
     $("#phX", box).onclick = closeModal;
     if ($("#phDel", box)) $("#phDel", box).onclick = async () => { if (await photoSend(null, id)) closeModal(); };
     $("#phTake", box).onclick = async () => { const d = await photoPick(); if (d && (await photoSend(d, id))) closeModal(); };
   });
+}
+// 🏆 Palmarès + affiche A4 des vainqueurs (on peut la refaire plus tard, même après une remise à zéro)
+const frDate = (t) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+async function posterBox(id) {
+  let r; try { r = await api("/hof/get", { method: "POST", body: { id } }); } catch (e) { return toast(e.message, 3500); }
+  const e = r.entry, P = LS.get("bt_poster") || {};
+  const defSub = "Soirée du " + frDate(e.at);
+  openModal('<h3>🖨 Affiche des vainqueurs</h3><p class="small muted">Une belle affiche A4 avec la photo de l\'équipe gagnante (et le podium) : à imprimer ou à envoyer au travail. Vous pouvez changer les textes.</p>' +
+    '<label class="small">Grand titre</label><input id="poT" maxlength="40" value="' + esc(P.title || "Les grands vainqueurs") + '">' +
+    '<label class="small">Sous-titre</label><input id="poS" maxlength="70" value="' + esc(P.subFor === e.id && P.sub ? P.sub : defSub) + '">' +
+    '<label class="small">Message en bas</label><input id="poF" maxlength="80" value="' + esc(P.foot || "Bravo à toutes les équipes et merci à tous !") + '">' +
+    '<p class="small">🥇 <b>' + esc(e.podium[0].name) + "</b> – " + plural(e.podium[0].total, "point") + (r.photos[0] ? " · 📸 avec photo" : " · pas de photo") + "</p>" +
+    '<button class="btn ok big" id="poImg">📱 Image à envoyer (WhatsApp, SMS…)</button>' +
+    '<button class="btn big" id="poGo" style="margin-top:8px">🖨 Affiche A4 à imprimer (PDF)</button><button class="btn ghost" id="poX" style="width:100%;margin-top:8px">Fermer</button>', (box) => {
+    $("#poX", box).onclick = closeModal;
+    $("#poGo", box).onclick = async () => {
+      const title = $("#poT", box).value.trim(), sub = $("#poS", box).value.trim(), foot = $("#poF", box).value.trim();
+      LS.set("bt_poster", { title, sub, subFor: e.id, foot });
+      await makePdf(["poster"], "affiche-vainqueurs", "", { e, photos: r.photos, title, sub, foot });
+    };
+    $("#poImg", box).onclick = async () => {
+      const title = $("#poT", box).value.trim(), sub = $("#poS", box).value.trim(), foot = $("#poF", box).value.trim();
+      LS.set("bt_poster", { title, sub, subFor: e.id, foot });
+      const b = $("#poImg", box); b.disabled = true; b.textContent = "Préparation…";
+      try { await shareImg(await posterImage(e, r.photos, title, sub, foot), "vainqueurs-blind-test.jpg", "🏆 " + (title || "Les grands vainqueurs") + " : " + e.podium[0].name + " !"); }
+      catch (er) { console.error(er); toast("Impossible de créer l'image"); }
+      b.disabled = false; b.textContent = "📱 Image à envoyer (WhatsApp, SMS…)";
+    };
+  });
+}
+// Même affiche en image (1080 × 1350, format idéal pour WhatsApp / SMS)
+async function posterImage(e, photos, title, sub, foot) {
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d"), cx = W / 2;
+  const load = (src) => new Promise((res) => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const ims = await Promise.all([0, 1, 2].map((i) => load(photos[i])));
+  const GOLD = "#d9a521", GOLD2 = "#fdd65a", NAVY = "#1a123d", PINK = "#db3880", F = (w, px) => w + " " + px + "px -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+  g.strokeStyle = GOLD; g.lineWidth = 10; g.strokeRect(22, 22, W - 44, H - 44); g.strokeStyle = GOLD2; g.lineWidth = 3; g.strokeRect(40, 40, W - 80, H - 80);
+  let sd = 7; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280); const CC = ["#ff5ca8", "#5b8cff", "#ffcf4a", "#2ecc8f", "#b06bff"];
+  for (let i = 0; i < 110; i++) { const left = i % 2 === 0, x = left ? 50 + rnd() * 150 : W - 200 + rnd() * 150, y = 50 + Math.pow(rnd(), 1.3) * (H - 100); if (y > 90 && y < 260 && (left ? x > 110 : x < W - 110)) continue; g.save(); g.translate(x, y); g.rotate(rnd() * 3); g.fillStyle = CC[i % 5]; g.fillRect(-7, -4, 14, 8); g.restore(); }
+  const fit = (t, w, px, max, color, y) => { g.font = F(w, px); while (g.measureText(t).width > max && px > 18) { px -= 2; g.font = F(w, px); } g.fillStyle = color; g.textAlign = "center"; g.fillText(t, cx, y); };
+  const circle = (x, y, r, im, ring, ringW, label) => {
+    g.beginPath(); g.arc(x, y, r + ringW, 0, 7); g.fillStyle = ring; g.fill();
+    g.save(); g.beginPath(); g.arc(x, y, r, 0, 7); g.clip();
+    if (im) { const s2 = Math.max(2 * r / im.width, 2 * r / im.height); g.drawImage(im, x - im.width * s2 / 2, y - im.height * s2 / 2, im.width * s2, im.height * s2); }
+    else { g.fillStyle = NAVY; g.fillRect(x - r, y - r, 2 * r, 2 * r); g.fillStyle = "#fff"; g.font = F(900, r); g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(label, x, y + r * 0.05); g.textBaseline = "alphabetic"; }
+    g.restore();
+  };
+  fit((e.title || "Blind test").toUpperCase(), 700, 30, W - 300, "#777790", 120);
+  fit(title || "Les grands vainqueurs", 900, 84, W - 260, PINK, 215);
+  fit(sub || "", 400, 36, W - 260, "#55556a", 270);
+  const w = e.podium[0], R0 = 225, py = 310 + R0;
+  circle(cx, py, R0, ims[0], GOLD2, 18, "1"); g.beginPath(); g.arc(cx, py, R0 + 18, 0, 7); g.strokeStyle = GOLD; g.lineWidth = 6; g.stroke();
+  g.beginPath(); g.arc(cx + R0 * 0.76, py - R0 * 0.76, 62, 0, 7); g.fillStyle = GOLD; g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 6; g.stroke();
+  g.fillStyle = "#fff"; g.font = F(900, 44); g.textAlign = "center"; g.fillText("1er", cx + R0 * 0.76, py - R0 * 0.76 + 15);
+  let y = py + R0 + 100; fit(w.name, 900, 78, W - 200, NAVY, y);
+  y += 56; fit("avec " + plural(w.total, "point"), 800, 38, W - 200, GOLD, y);
+  const oth = e.podium.slice(1, 3);
+  if (w.members && w.members.length && !oth.length) { y += 50; fit(w.members.join(" · "), 400, 26, W - 220, "#55556a", y); }
+  if (oth.length) {
+    const by = H - 300, slot = (W - 300) / oth.length;
+    oth.forEach((t, k) => {
+      const x0 = 150 + slot * k + slot / 2;
+      circle(x0, by, 62, ims[k + 1], t.rank === 2 ? "#b3b3c7" : "#cc8040", 7, String(t.rank));
+      g.font = F(800, 30); g.fillStyle = NAVY; g.textAlign = "center"; let nm = t.rank + "e – " + t.name; while (g.measureText(nm).width > slot - 20 && nm.length > 4) nm = nm.slice(0, -2) + "…"; g.fillText(nm, x0, by + 110);
+      g.font = F(400, 24); g.fillStyle = "#777790"; g.fillText(plural(t.total, "point"), x0, by + 142);
+    });
+  }
+  fit(foot || "", 800, 32, W - 220, PINK, H - 78);
+  return new Promise((res) => c.toBlob(res, "image/jpeg", 0.9));
+}
+async function shareImg(blob, fname, text) {
+  const file = new File([blob], fname, { type: "image/jpeg" }); S.lastImg = { blob, fname };
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000); toast("📱 Image prête : envoyez-la depuis vos photos / téléchargements", 3500);
+}
+function hofCard(v) {
+  const box = $("#hofL", v); if (!box) return;
+  api("/hof").then((r) => {
+    const L = r.list || [];
+    box.innerHTML = L.length ? L.map((e) => '<div class="pvrow"><div class="pt"><b>🥇 ' + esc(e.podium[0].name) + '</b> – ' + plural(e.podium[0].total, "pt") + '<br><span class="muted small">' + esc(e.title) + " · " + frDate(e.at) + " · " + plural(e.teams, "équipe") + '</span></div><button class="btn sm" data-hp="' + e.id + '">🖨 Affiche</button><button class="btn ghost sm" data-hd="' + e.id + '">🗑</button></div>').join("")
+      : '<p class="muted small">Les vainqueurs de chaque partie apparaîtront ici dès que le classement final aura été entièrement révélé.</p>';
+    $$("[data-hp]", box).forEach((b) => (b.onclick = () => posterBox(Number(b.dataset.hp))));
+    $$("[data-hd]", box).forEach((b) => (b.onclick = async () => { if (await confirmBox("Effacer cette soirée du palmarès ?", "Effacer", true)) { await api("/hof/delete", { method: "POST", body: { id: Number(b.dataset.hd) } }); hofCard(v); } }));
+  }).catch(() => { box.innerHTML = '<p class="muted small">Pas de connexion.</p>'; });
+}
+// 📺 Une photo d'équipe en plein écran
+function photoStrip() {
+  const p = S.pub; if (!p || !p.teams.some((t) => t.ph)) return "";
+  return '<div class="card"><h3>📺 Photo d\'équipe en plein écran</h3><p class="small muted">Touchez une équipe pour afficher sa photo en grand sur l\'écran géant, retouchez pour l\'enlever.</p><div class="phs">' +
+    p.teams.filter((t) => t.ph).map((t) => '<button data-shp="' + t.id + '" class="' + (p.showPhoto === t.id ? "on" : "") + '">' + avHtml(p, t.id) + "<span>" + esc(neutralName(t.name) ? "Équipe " + t.id : t.name) + "</span></button>").join("") + "</div>" +
+    (p.showPhoto ? '<button class="btn ghost" id="shpOff" style="width:100%;margin-top:8px">✕ Enlever la photo de l\'écran</button>' : "") + "</div>";
+}
+function bindPhotoStrip(v) {
+  $$("[data-shp]", v).forEach((b) => (b.onclick = () => { const id = Number(b.dataset.shp); gameAct("showPhoto", { id: S.pub.showPhoto === id ? null : id }); }));
+  if ($("#shpOff", v)) $("#shpOff", v).onclick = () => gameAct("showPhoto", { id: null });
 }
 function tabEquipes(v) {
   const di = drawInfo(), teams = S.draft.teams, ppl = S.people;
@@ -2471,7 +2580,7 @@ function tabDistrib(v) {
 /* ---- Onglet Réglages ---- */
 function tabReglages(v) {
   const st = S.draft;
-  v.innerHTML = '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
+  v.innerHTML = '<div class="card keep"><h3>🏆 Palmarès</h3><p class="muted small">Les vainqueurs de chaque partie, gardés même après une remise à zéro. « 🖨 Affiche » refait l\'affiche A4 quand vous voulez.</p><div id="hofL"><p class="muted small">Chargement…</p></div></div>' + '<div class="card keep" id="savesCard"><h3>💾 Mes parties enregistrées</h3><p class="muted small">Préparez une partie (équipes + manches), enregistrez-la : elle restera figée jusqu\'au jour J. Vous pouvez en garder plusieurs et charger celle du soir.</p>' +
     (st.loadedFrom ? '<p>Partie actuelle : <b>' + esc(st.loadedFrom.name) + '</b></p>' : '') + durHtml(S.draft || st) +
     '<div class="row"><input id="svName" class="grow" style="flex:1" maxlength="60" placeholder="Nom de la partie (ex. Soirée amicale 2026)" value="' + esc(st.loadedFrom ? st.loadedFrom.name : st.name) + '"></div>' +
     '<div class="row">' + (st.loadedFrom ? '<button class="btn ok" id="svUpd">💾 Mettre à jour « ' + esc(st.loadedFrom.name) + ' »</button>' : '') + '<button class="btn ' + (st.loadedFrom ? 'ghost' : 'ok') + '" id="svNew">➕ Enregistrer comme nouvelle partie</button></div>' +
@@ -2551,6 +2660,7 @@ function tabReglages(v) {
   $("#rReload").onclick = () => { S.draft = null; S.lastSig = ""; pollNow(); toast("Rechargé"); };
   $("#rOut").onclick = async () => { if (await confirmBox("Se déconnecter de ce téléphone ? (Gardez votre code animateur !)", "Se déconnecter")) logout(); };
   lockInputs(v);
+  hofCard(v);
 }
 
 async function loadSaves(v) {

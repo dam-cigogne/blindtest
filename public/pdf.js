@@ -23,7 +23,25 @@
   const col = (c) => c.map((v) => n2(v)).join(" ");
 
   class Doc {
-    constructor() { this.W = 595.28; this.H = 841.89; this.M = 36; this.pages = []; this.c = null; }
+    constructor() { this.W = 595.28; this.H = 841.89; this.M = 36; this.pages = []; this.c = null; this.imgs = []; }
+    // Cercle (chemin) : centre x,y (y depuis le haut), rayon r
+    circ(x, y, r) { const k = r * 0.5523, X = x, Y = this.H - y; return n2(X + r) + " " + n2(Y) + " m " + n2(X + r) + " " + n2(Y + k) + " " + n2(X + k) + " " + n2(Y + r) + " " + n2(X) + " " + n2(Y + r) + " c " + n2(X - k) + " " + n2(Y + r) + " " + n2(X - r) + " " + n2(Y + k) + " " + n2(X - r) + " " + n2(Y) + " c " + n2(X - r) + " " + n2(Y - k) + " " + n2(X - k) + " " + n2(Y - r) + " " + n2(X) + " " + n2(Y - r) + " c " + n2(X + k) + " " + n2(Y - r) + " " + n2(X + r) + " " + n2(Y - k) + " " + n2(X + r) + " " + n2(Y) + " c h "; }
+    disc(x, y, r, o) { o = o || {}; this.c.push("q " + (o.fill ? col(o.fill) + " rg " : "") + (o.stroke ? col(o.stroke) + " RG " + n2(o.lw || 1) + " w " : "") + this.circ(x, y, r) + (o.fill && o.stroke ? "B" : o.fill ? "f" : "S") + " Q"); }
+    // Photo JPEG (data:image/jpeg;base64,…) découpée en rond, centre x,y, rayon r
+    photo(x, y, r, dataUrl) {
+      const bin = atob(String(dataUrl).split(",")[1] || ""); let w = 0, h = 0;
+      for (let i = 2; i < bin.length - 9;) { // taille de l'image (marqueur SOF)
+        if (bin.charCodeAt(i) !== 0xff) { i++; continue; }
+        const m = bin.charCodeAt(i + 1), len = (bin.charCodeAt(i + 2) << 8) | bin.charCodeAt(i + 3);
+        if (m >= 0xc0 && m <= 0xc3) { h = (bin.charCodeAt(i + 5) << 8) | bin.charCodeAt(i + 6); w = (bin.charCodeAt(i + 7) << 8) | bin.charCodeAt(i + 8); break; }
+        i += 2 + len;
+      }
+      if (!w || !h) return false;
+      this.imgs.push({ bin, w, h }); const name = "Im" + this.imgs.length;
+      const sc = Math.max(2 * r / w, 2 * r / h), dw = w * sc, dh = h * sc;
+      this.c.push("q " + this.circ(x, y, r) + "W n " + n2(dw) + " 0 0 " + n2(dh) + " " + n2(x - dw / 2) + " " + n2(this.H - y - dh / 2) + " cm /" + name + " Do Q");
+      return true;
+    }
     page() { this.c = []; this.pages.push(this.c); this.y = this.M; return this; }
     tw(s, size, bold) { const t = enc(s), w = bold ? WB : WR; let n = 0; for (let i = 0; i < t.length; i++) { const k = t.charCodeAt(i) - 32; n += w[k] != null ? w[k] : 500; } return (n * size) / 1000; }
     text(x, y, s, size, o) {
@@ -73,7 +91,8 @@
       const objs = [], add = (s) => { objs.push(s); return objs.length; };
       add("<< /Type /Catalog /Pages 2 0 R >>"); add(""); add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"); add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
       const kids = [];
-      this.pages.forEach((c) => { const body = c.join("\n"); const ci = add("<< /Length " + body.length + " >>\nstream\n" + body + "\nendstream"); kids.push(add("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + n2(this.W) + " " + n2(this.H) + "] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents " + ci + " 0 R >>")); });
+      const xo = this.imgs.map((im, i) => "/Im" + (i + 1) + " " + add("<< /Type /XObject /Subtype /Image /Width " + im.w + " /Height " + im.h + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + im.bin.length + " >>\nstream\n" + im.bin + "\nendstream") + " 0 R").join(" ");
+      this.pages.forEach((c) => { const body = c.join("\n"); const ci = add("<< /Length " + body.length + " >>\nstream\n" + body + "\nendstream"); kids.push(add("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + n2(this.W) + " " + n2(this.H) + "] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>" + (xo ? " /XObject << " + xo + " >>" : "") + " >> /Contents " + ci + " 0 R >>")); });
       objs[1] = "<< /Type /Pages /Kids [" + kids.map((k) => k + " 0 R").join(" ") + "] /Count " + kids.length + " >>";
       let out = "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"; const off = [];
       objs.forEach((o, i) => { off.push(out.length); out += (i + 1) + " 0 obj\n" + o + "\nendobj\n"; });
@@ -221,7 +240,53 @@
     footer(d, ctx);
   }
 
-  const DOCS = { teams: teamSheets, list: teamList, dj: djSheet, ans: answerSheets, blank: blankSheet, key: keySheet, score: scoreSheet, rules: rulesSheet };
+  // 🏆 Affiche A4 des vainqueurs (à afficher au travail) – ctx : { e: entrée du palmarès, photos: [dataUrl|null ×3], title, sub, foot }
+  function poster(d, ctx) {
+    const e = ctx.e, W = d.W, H = d.H, cx = W / 2, GOLD = [0.85, 0.65, 0.13], GOLD2 = [0.99, 0.84, 0.35], NAVY = [0.1, 0.07, 0.24];
+    d.page();
+    // cadre doré + confettis
+    d.rect(14, 14, W - 28, H - 28, { stroke: GOLD, lw: 3 }); d.rect(22, 22, W - 44, H - 44, { stroke: GOLD2, lw: 1 });
+    let sd = 7; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+    const CC = [[1, 0.36, 0.66], [0.36, 0.55, 1], [1, 0.81, 0.29], [0.18, 0.8, 0.56], [0.69, 0.42, 1]];
+    for (let i = 0; i < 90; i++) { // confettis dans les coins, jamais sur les textes
+      const left = i % 2 === 0, x = left ? 30 + rnd() * 95 : W - 125 + rnd() * 95, top = i % 4 < 2, y = top ? 30 + Math.pow(rnd(), 1.4) * 260 : H - 230 - Math.pow(rnd(), 1.4) * 150;
+      if (top && y > 50 && y < 150 && (left ? x > 62 : x < W - 62)) continue; // laisse le titre libre
+      if (!top && (y > H - 235 || (left ? x > 100 : x < W - 100))) continue;
+      d.rect(x, y, 5 + rnd() * 6, 3 + rnd() * 3, { fill: CC[i % 5], r: 1 });
+    }
+    // titres
+    let y = 62;
+    d.fit(cx, y, (e.title || "Blind test").toUpperCase(), 12, W - 120, { bold: true, align: "center", color: [0.45, 0.45, 0.55] }); y += 46;
+    d.fit(cx, y, ctx.title || "Les grands vainqueurs", 40, W - 100, { bold: true, align: "center", color: [0.86, 0.22, 0.5], min: 24 }); y += 26;
+    d.fit(cx, y, ctx.sub || "", 14, W - 120, { align: "center", color: [0.35, 0.35, 0.42] }); y += 22;
+    // photo du vainqueur
+    const R0 = 138, py = y + R0 + 10, w = e.podium[0];
+    d.disc(cx, py, R0 + 12, { fill: GOLD2 }); d.disc(cx, py, R0 + 12, { stroke: GOLD, lw: 3 });
+    if (!(ctx.photos[0] && d.photo(cx, py, R0, ctx.photos[0]))) { d.disc(cx, py, R0, { fill: NAVY }); d.text(cx, py + 40, "1", 120, { bold: true, align: "center", color: GOLD2 }); }
+    // médaille « 1er »
+    d.disc(cx + R0 * 0.78, py - R0 * 0.78, 34, { fill: GOLD, stroke: [1, 1, 1], lw: 3 }); d.text(cx + R0 * 0.78, py - R0 * 0.78 + 9, "1er", 24, { bold: true, align: "center", color: [1, 1, 1] });
+    y = py + R0 + 58;
+    d.fit(cx, y, w.name, 42, W - 90, { bold: true, align: "center", color: NAVY, min: 22 }); y += 30;
+    d.text(cx, y, "avec " + pts(w.total), 17, { bold: true, align: "center", color: GOLD }); y += 24;
+    if (w.members && w.members.length) y = d.para(60, y, w.members.join("  ·  "), 11.5, W - 120, { align: "center", color: [0.3, 0.3, 0.38] }) + 4;
+    // 2e et 3e
+    const oth = e.podium.slice(1, 3);
+    if (oth.length) {
+      const by = Math.max(y + 10, H - 222); d.line(90, by, W - 90, by, { color: [0.85, 0.85, 0.88] });
+      d.text(cx, by + 22, "SUR LE PODIUM", 10, { bold: true, align: "center", color: [0.5, 0.5, 0.58] });
+      const r2 = 34, slot = (W - 120) / oth.length;
+      oth.forEach((t, k) => {
+        const x0 = 60 + slot * k + slot / 2, yy = by + 72, c = t.rank === 2 ? [0.7, 0.7, 0.78] : [0.8, 0.5, 0.25];
+        d.disc(x0, yy, r2 + 4, { fill: c });
+        if (!(ctx.photos[k + 1] && d.photo(x0, yy, r2, ctx.photos[k + 1]))) { d.disc(x0, yy, r2, { fill: NAVY }); d.text(x0, yy + 11, String(t.rank), 30, { bold: true, align: "center", color: [1, 1, 1] }); }
+        d.fit(x0, yy + r2 + 22, t.rank + "e – " + t.name, 13, slot - 16, { bold: true, align: "center", color: NAVY });
+        d.text(x0, yy + r2 + 38, pts(t.total), 10.5, { align: "center", color: [0.45, 0.45, 0.5] });
+      });
+    }
+    d.fit(cx, H - 38, ctx.foot || "Bravo à toutes les équipes et merci à tous !", 12, W - 100, { bold: true, align: "center", color: [0.86, 0.22, 0.5] });
+  }
+
+  const DOCS = { poster, teams: teamSheets, list: teamList, dj: djSheet, ans: answerSheets, blank: blankSheet, key: keySheet, score: scoreSheet, rules: rulesSheet };
   window.BTPDF = {
     // kinds : liste de documents dans l'ordre ; renvoie les octets du PDF
     make(kinds, ctx) { const d = new Doc(); kinds.forEach((k) => DOCS[k] && DOCS[k](d, ctx)); return { bytes: d.bytes(), pages: d.pages.length }; },
